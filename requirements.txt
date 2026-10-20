@@ -1,0 +1,9 @@
+cryptography==49.0.0
+dnspython==2.8.0
+Markdown==3.11
+matplotlib==3.11.2
+numpy==2.5.2
+pandas==3.0.6
+pyarrow==25.0.1
+PyYAML==6.0.3
+pytest==9.1.1

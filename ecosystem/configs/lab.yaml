@@ -1,0 +1,54 @@
+# Ecosystem lab: a private DNS hierarchy (root -> TLDs -> second-level zones)
+# served by Verisign's MTL-mode NSD and resolved + validated by Verisign's
+# MTL-mode Unbound. A stub client replays a seeded workload through Unbound.
+name: eco-default
+seed: 20261005
+
+hierarchy:
+  tlds: [test, lab]               # one NSD server per TLD
+  sld_count: 8                    # second-level zones, spread round-robin over the TLDs
+  sld_sizes: [25, 100, 25, 250]   # data names per second-level zone, cycled
+  sld_servers: 2                  # NSD servers hosting the second-level zones
+  # csk (one key) | ksk-zsk. draft06 Unbound cannot fetch a ladder for a DS
+  # signed by a parent ZSK, so ksk-zsk breaks MTL chains on that stack.
+  key_scheme: csk
+
+signing:
+  inception: "20260101000000"
+  expiration: "20360101000000"
+  nsec3_iterations: 0             # RFC 9276
+
+# Algorithm per tier, as ldns-keygen names them (ldns-keygen -a list), except
+# SLH-DSA-SHA2-128s, which the signer translates per stack (algorithm 246).
+scenarios:
+  ecdsa:   {root: ECDSAP256SHA256, tld: ECDSAP256SHA256, sld: ECDSAP256SHA256}
+  ed25519: {root: ED25519, tld: ED25519, sld: ED25519}
+  slh-dsa: {root: SLH-DSA-SHA2-128s, tld: SLH-DSA-SHA2-128s, sld: SLH-DSA-SHA2-128s}
+  mtl:     {root: SLH-DSA-SHA2-128s-MTL-SHA2-128, tld: SLH-DSA-SHA2-128s-MTL-SHA2-128, sld: SLH-DSA-SHA2-128s-MTL-SHA2-128}
+  mixed-mtl: {root: ECDSAP256SHA256, tld: ECDSAP256SHA256, sld: SLH-DSA-SHA2-128s-MTL-SHA2-128}
+
+resolver:
+  udp_limits: [1232, 4096]        # Unbound edns-buffer-size towards the authoritative servers
+  cache_mb: 64                    # message and RRset caches
+  ladder_cache_mb: 4              # Unbound's MTL ladder cache (Verisign default)
+  qname_minimisation: true
+
+workload:
+  n_queries: 1000
+  nx_fraction: 0.10               # every NXDOMAIN name is distinct
+  zone_zipf_s: 1.0                # popularity of zones
+  name_zipf_s: 1.1                # popularity of names inside a zone
+  stub_dnssec_ok: false           # a normal stub: asks for validation (AD), not for signatures
+  timeout_s: 5.0
+
+# Extra delay added on the resolver's interface towards each tier (one-way
+# delay = added round-trip time) and random loss on the resolver's queries.
+network:
+  run: [lan, wan]
+  profiles:
+    lan:   {client_ms: 0, root_ms: 0,  tld_ms: 0,  sld_ms: 0,  loss_pct: 0}
+    wan:   {client_ms: 2, root_ms: 20, tld_ms: 35, sld_ms: 50, loss_pct: 0}
+    lossy: {client_ms: 2, root_ms: 20, tld_ms: 35, sld_ms: 50, loss_pct: 1}
+
+trials: 3                         # each trial: cold pass (empty caches) then warm pass
+cpusets: {client: "3", unbound: "2", nsd: "4-5"}

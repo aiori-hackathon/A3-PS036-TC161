@@ -1,0 +1,43 @@
+# Small hierarchy for checking that every scenario resolves and validates.
+name: eco-smoke
+seed: 20261005
+
+hierarchy:
+  tlds: [test]
+  sld_count: 2
+  sld_sizes: [5]
+  sld_servers: 1
+  key_scheme: csk
+
+signing:
+  inception: "20260101000000"
+  expiration: "20360101000000"
+  nsec3_iterations: 0
+
+scenarios:
+  ecdsa:   {root: ECDSAP256SHA256, tld: ECDSAP256SHA256, sld: ECDSAP256SHA256}
+  slh-dsa: {root: SLH-DSA-SHA2-128s, tld: SLH-DSA-SHA2-128s, sld: SLH-DSA-SHA2-128s}
+  mtl:     {root: SLH-DSA-SHA2-128s-MTL-SHA2-128, tld: SLH-DSA-SHA2-128s-MTL-SHA2-128, sld: SLH-DSA-SHA2-128s-MTL-SHA2-128}
+
+resolver:
+  udp_limits: [1232]
+  cache_mb: 64
+  ladder_cache_mb: 4
+  qname_minimisation: true
+
+workload:
+  n_queries: 40
+  nx_fraction: 0.10
+  zone_zipf_s: 1.0
+  name_zipf_s: 1.1
+  stub_dnssec_ok: false
+  timeout_s: 5.0
+
+network:
+  run: [lan]
+  profiles:
+    lan: {client_ms: 0, root_ms: 0, tld_ms: 0, sld_ms: 0, loss_pct: 0}
+    wan: {client_ms: 2, root_ms: 20, tld_ms: 35, sld_ms: 50, loss_pct: 0}
+
+trials: 1
+cpusets: {client: "3", unbound: "2", nsd: "4-5"}

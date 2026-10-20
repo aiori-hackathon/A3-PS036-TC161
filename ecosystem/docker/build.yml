@@ -1,0 +1,25 @@
+# Builds the three lab images for one stack:
+#   docker compose -f ecosystem/docker/build.yml --env-file ecosystem/stacks/draft06.env build
+name: cipherops-eco-build
+
+x-build: &build
+  context: .
+  dockerfile: Dockerfile
+  args:
+    STACK: ${STACK}
+    LIBOQS_TAG: ${LIBOQS_TAG}
+    MTL_COMMIT: ${MTL_COMMIT}
+    LDNS_COMMIT: ${LDNS_COMMIT}
+    NSD_COMMIT: ${NSD_COMMIT}
+    UNBOUND_COMMIT: ${UNBOUND_COMMIT}
+
+services:
+  nsd:
+    image: cipherops-eco-nsd:${STACK}
+    build: { <<: *build, target: nsd }
+  unbound:
+    image: cipherops-eco-unbound:${STACK}
+    build: { <<: *build, target: unbound }
+  tools:
+    image: cipherops-eco-tools:${STACK}
+    build: { <<: *build, target: tools }

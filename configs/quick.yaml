@@ -1,0 +1,15 @@
+# Fast configuration for the live demonstration and CI-style smoke runs.
+run_name: quick-demo
+seed: 20261005
+trials: 3
+warmup_trials: 1
+modes: [slh-dsa-mtl, slh-dsa, ed25519, ecdsa-p256, rsa-2048]
+datasets:
+  - {name: small, n_names: 20}
+  - {name: medium, n_names: 60}
+  - {name: large, n_names: 200}
+full_verify_sample: 16
+direct_sign_limit: {small: null, medium: 60, large: 100}
+wire:
+  nx_sample: 50
+  workload: {n_queries: 300, nx_fraction: 0.10, zipf_s: 1.1}

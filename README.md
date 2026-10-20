@@ -5,7 +5,7 @@ AIORI Hackathon 3 · Problem statement PS-036 · Team A3-PS036-TC161
 
 [![Cipherops project video](https://img.youtube.com/vi/FaVfeO5WTV8/hqdefault.jpg)](https://youtu.be/FaVfeO5WTV8?si=PtrE4kbB7UlKj6lL)
 
-▶ [Watch the project introduction video on YouTube](https://youtu.be/FaVfeO5WTV8?si=PtrE4kbB7UlKj6lL)
+▶ [Watch the project video on YouTube](https://youtu.be/FaVfeO5WTV8?si=PtrE4kbB7UlKj6lL)
 
 ---
 
@@ -67,7 +67,7 @@ bash scripts/run_benchmark.sh preflight
 ```powershell
 # Windows
 powershell -ExecutionPolicy Bypass -File .\scripts\run_benchmark.ps1 -Config configs/quick.yaml   # demo, a few minutes
-powershell -ExecutionPolicy Bypass -File .\scripts\run_benchmark.ps1                              # full run, 
+powershell -ExecutionPolicy Bypass -File .\scripts\run_benchmark.ps1                              # full run, ~1.5 hours
 ```
 
 ```bash
@@ -79,7 +79,7 @@ bash scripts/run_benchmark.sh
 Progress is printed for each of the 7 stages. At the end it prints the run folder, for example
 `results/runs/20261010T130246Z-ps036-pinned`.
 
-### 3. Live validation 
+### 3. Live validation (optional)
 
 Replays DNS lookups against a real NSD server over simulated LAN, WAN (50 ms) and lossy (1% loss) networks, and
 captures every packet. Pass the run folder name from step 2.
@@ -186,7 +186,7 @@ docs/           methodology, architecture and guides
 
 ## Team
 
-Akash Joshi · Anitha Natarajan · Indu Radhakrishnan
+Akash Joshi · Anitha · Induradhakrishnan
 
 ## License
 

@@ -1,0 +1,37 @@
+name: cipherops
+
+services:
+  bench: &bench
+    image: cipherops-bench:pinned
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Every trial runs on one dedicated core so single-thread timings are comparable.
+    cpuset: "${CIPHEROPS_CPUSET:-2}"
+    mem_limit: 4g
+    network_mode: none
+    environment:
+      CIPHEROPS_CPUSET: "${CIPHEROPS_CPUSET:-2}"
+      CIPHEROPS_HOST_IMAGE_ID: "${CIPHEROPS_HOST_IMAGE_ID:-unknown}"
+      CIPHEROPS_GIT_SHA: "${CIPHEROPS_GIT_SHA:-unknown}"
+    volumes:
+      - ../results:/work/results:z
+      - ../configs:/work/configs:ro,z
+    command: ["python3 -m cipherops.runner run --config configs/scenarios.yaml"]
+
+  # Live mode: still no outside network, but tc-netem and the MTU of the
+  # container's own loopback need NET_ADMIN.
+  live:
+    <<: *bench
+    cap_add: [NET_ADMIN]
+    command: ["python3 -m cipherops.runner live --help"]
+
+  # Live server for the dashboard: NSD per mode, published on the host's loopback only.
+  serve:
+    <<: *bench
+    network_mode: bridge
+    cap_add: [NET_ADMIN]
+    ports:
+      - "127.0.0.1:5301-5310:5301-5310/udp"
+      - "127.0.0.1:5301-5310:5301-5310/tcp"
+    command: ["python3 -m cipherops.runner serve --help"]
