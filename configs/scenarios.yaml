@@ -1,0 +1,52 @@
+# Cipherops benchmark configuration (PS-036).
+# Every value here is copied into results/runs/<run_id>/config.yaml.
+
+run_name: ps036-pinned
+seed: 20261005
+
+# Repeated trials. Modes are interleaved in a seeded random order inside each
+# trial so slow drift (thermal, background load) does not favour one mode.
+trials: 5
+warmup_trials: 1
+
+# One supported PQC algorithm, with and without MTL, plus a classical reference.
+modes:
+  - slh-dsa-mtl
+  - slh-dsa
+  - ed25519
+  - ecdsa-p256
+  - rsa-2048
+
+# Three dataset sizes. Each data name holds one RRset (60% small A/AAAA,
+# 30% medium MX/AAAA sets, 10% large 1-2 KB TXT); the zone also has
+# SOA, NS, DNSKEY, NSEC3PARAM and one NSEC3 per name. RRsets = 2 * n_names + 5.
+datasets:
+  - name: small
+    n_names: 50
+  - name: medium
+    n_names: 500
+  - name: large
+    n_names: 5000
+
+# Number of messages whose full MTL signature (condensed + signed ladder) is
+# verified per trial, i.e. the cold-cache verification cost.
+full_verify_sample: 64
+
+# Optional cap on how many RRsets direct SLH-DSA signs per trial, per dataset.
+# null = sign every RRset (fully measured). When capped, an evenly spaced sample
+# across canonical order is signed and verified; whole-zone totals are reported
+# separately as extrapolations, never as measurements. One direct
+# SLH-DSA-SHA2-128s signature takes ~0.6 s on one core, so signing all 10,005
+# RRsets of the large zone would take ~100 min per trial. Set large: null for
+# an overnight, fully measured run.
+direct_sign_limit:
+  small: null
+  medium: null
+  large: 1000
+
+wire:
+  nx_sample: 200
+  workload:
+    n_queries: 2000
+    nx_fraction: 0.10
+    zipf_s: 1.1
