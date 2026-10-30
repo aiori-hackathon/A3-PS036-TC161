@@ -1347,7 +1347,11 @@ def _build_live_body() -> None:
         st.rerun()  # whole page: the sidebar logs the result
         return
     elapsed = time.time() - float(job.get("started") or time.time())
-    st.progress(0.0, text=f"Building images for {job.get('stack')} · {_clock(elapsed)} elapsed")
+    pct = float(job.get("progress") or 0.0)
+    st.progress(pct, text=f"Building images for {job.get('stack')} · {int(pct * 100)}% · "
+                          f"{job.get('detail') or 'starting'} · {_clock(elapsed)} elapsed")
+    if job.get("current"):
+        st.caption(f"Now: `{job['current']}`")
     st.caption("A first build compiles OpenSSL, liboqs, MTL, NSD and Unbound from source and can take tens of "
                "minutes. Later builds reuse Docker's cache and take seconds. You can leave this page.")
     st.code(build_job.log_text(5000) or "(starting…)", language="text")
@@ -2379,12 +2383,11 @@ def _offline_progress() -> None:
     s = offline_job.status()
     if s.get("state") not in offline_job.ACTIVE_STATES:
         st.rerun()  # whole page: the sidebar and Results pick up the finished run
-    total = max(1, int(s.get("total", 7)))
-    done = int(s.get("done", 0))
     elapsed = time.time() - float(s.get("started") or time.time())
+    pct = float(s.get("progress") or 0.0)
     with st.container(border=True):
         st.markdown(f"**Offline benchmark running** · {offline_job.PRESETS[s.get('preset', 'quick')]['title']}")
-        st.progress(min(done / total, 1.0), text=f"Step {min(done + 1, total)} of {total} · {s.get('step', 'starting')}")
+        st.progress(pct, text=f"{int(pct * 100)}% · {s.get('detail') or 'starting'} · {s.get('step', 'starting')}")
         st.caption(f"Elapsed {driver.format_duration(elapsed).lstrip('~')}. You can leave this page; the benchmark "
                    "keeps running and Results fills in when it finishes.")
         if st.button("Cancel benchmark", key="btn_cancel_offline"):
@@ -2462,6 +2465,41 @@ def benchmark_offline_results() -> None:
     st.caption(f"Each ratio is against {compare_hub.short(base)}; lower is better. "
                f"{compare_hub.stats_label(run)} Details: {facts['Zone sizes']}.")
     st.button("Open in Compare →", on_click=_open_offline_in_compare, args=(rid,), key="bench_offline_to_cmp")
+    _offline_downloads(rid, path)
+
+
+@st.cache_data(show_spinner=False)
+def _offline_bundle(path: str, mtime: float) -> bytes:
+    """The run's report, tables, figures and records as one ZIP (not the large Parquet and raw files)."""
+    import io
+    import zipfile
+
+    root = Path(path)
+    keep = [p for p in root.iterdir() if p.is_file() and p.suffix in (".html", ".md", ".csv", ".json", ".yaml")]
+    keep += [p for p in (root / "figures").glob("*") if p.is_file()] if (root / "figures").is_dir() else []
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in keep:
+            z.write(p, f"{root.name}/{p.relative_to(root).as_posix()}")
+    return buf.getvalue()
+
+
+def _offline_downloads(rid: str, path: Path) -> None:
+    html, md = path / "report.html", path / "report.md"
+    if not html.is_file() and not md.is_file():
+        st.caption("This run has no report files.")
+        return
+    d0, d1, d2 = st.columns(3)
+    if html.is_file():
+        d0.download_button("Download report (HTML)", data=html.read_bytes(), file_name=f"{rid}-report.html",
+                           mime="text/html", key="bench_off_dl_html", width="stretch")
+    if md.is_file():
+        d1.download_button("Download report (Markdown)", data=md.read_text(encoding="utf-8"),
+                           file_name=f"{rid}-report.md", mime="text/markdown", key="bench_off_dl_md", width="stretch")
+    d2.download_button("Download all results (ZIP)", data=_offline_bundle(str(path), path.stat().st_mtime),
+                       file_name=f"{rid}.zip", mime="application/zip", key="bench_off_dl_zip", width="stretch",
+                       help="The report, every table (CSV), the figures, and the configuration and environment records.")
+    st.caption(f"Reproducible report on disk: `{html if html.is_file() else md}` (also the CSV tables and `figures/`).")
 
 
 def benchmark_page(h: driver.LabHandle, stt: dict) -> None:

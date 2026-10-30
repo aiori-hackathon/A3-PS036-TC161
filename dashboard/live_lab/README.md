@@ -35,6 +35,9 @@ are refused, because anything else on the CPU would distort the timings.
 
 It is the same harness as `scripts/run_benchmark.sh`; the output is `results/runs/<id>/`
 ([outputs reference](../../docs/outputs-reference.md)).
+The progress bar covers the image build and then the harness, down to each finished trial. The build share is an estimate
+(finished steps over the steps the last build of this image needed), so it can pause on a long step; it reaches 100% only
+when the run is done. **Results** offers the report (HTML or Markdown) and a ZIP of the tables, figures and records.
 
 ### Simulated (Verisign stack)
 

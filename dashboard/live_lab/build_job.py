@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -24,6 +25,83 @@ from pathlib import Path
 from live_lab import driver
 
 ACTIVE_STATES = driver.ACTIVE_STATES
+
+
+DEFAULT_STEPS = 36  # steps of a full build of this repository's three lab images (measured)
+_STEP = re.compile(r"^#(\d+) (\[.*)$")
+_DONE = re.compile(r"^#(\d+) (?:DONE|CACHED)\b")
+
+
+class BuildProgress:
+    """Progress of a BuildKit build, read from its plain log.
+
+    BuildKit prints ``#12 [stage 3/9] RUN ...`` when a step starts and ``#12 DONE 4.1s`` (or ``CACHED``) when it
+    ends. Steps are only seen once they are scheduled, so finished over seen is always close to 1 and says nothing.
+    The bar therefore divides by an *expected* step count: what the last successful build of this image set needed
+    (``remember_steps``), or a default measured on this repository's Dockerfiles. If a build turns out longer, the
+    expectation grows with it. The fraction never goes backwards and stays below 1 until the build ends.
+    """
+
+    def __init__(self, expected: int = DEFAULT_STEPS) -> None:
+        self.expected = max(1, int(expected))
+        self.steps: dict[str, str] = {}
+        self.done: set[str] = set()
+        self.current = ""
+        self._best = 0.0
+
+    def feed(self, line: str) -> bool:
+        """Take one log line; True if the progress changed."""
+        m = _STEP.match(line)
+        if m:
+            if m.group(1) not in self.steps:
+                self.steps[m.group(1)] = m.group(2).strip()
+                self.current = m.group(2).strip()
+                return True
+            return False
+        m = _DONE.match(line)
+        if m and m.group(1) in self.steps and m.group(1) not in self.done:
+            self.done.add(m.group(1))
+            return True
+        return False
+
+    @property
+    def total(self) -> int:
+        return max(self.expected, len(self.steps))
+
+    @property
+    def fraction(self) -> float:
+        if not self.steps:
+            return 0.0
+        self._best = max(self._best, min(len(self.done) / self.total, 0.99))
+        return self._best
+
+    def detail(self) -> str:
+        return f"step {len(self.done)} of about {self.total}" if self.steps else "starting"
+
+
+def _expected_file() -> Path:
+    return driver.jobs_dir() / "expected_steps.json"
+
+
+def expected_steps(key: str, default: int = DEFAULT_STEPS) -> int:
+    """Steps the last successful build of ``key`` needed (a rough guide for the progress bar)."""
+    try:
+        return int(json.loads(_expected_file().read_text(encoding="utf-8")).get(key, default))
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def remember_steps(key: str, n: int) -> None:
+    try:
+        known = json.loads(_expected_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        known = {}
+    known[key] = int(n)
+    try:
+        _expected_file().parent.mkdir(parents=True, exist_ok=True)
+        _expected_file().write_text(json.dumps(known), encoding="utf-8")
+    except OSError:
+        pass  # only a hint for the bar
 
 
 def job_dir() -> Path:
@@ -118,6 +196,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     if os.name != "nt":
         signal.signal(signal.SIGTERM, stop)
     tail: list[str] = []
+    track, last_write = BuildProgress(expected_steps(f"lab-{stack}")), 0.0
     try:
         with open(d / "progress.log", "a", encoding="utf-8", errors="replace") as log:
             log.write("$ " + " ".join(cmd) + "\n")
@@ -128,6 +207,10 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
                 log.write(line)
                 log.flush()
                 tail = (tail + [line])[-40:]
+                if track.feed(line) and time.time() - last_write > 1.0:
+                    st.update(progress=track.fraction, detail=track.detail(), current=track.current[:90])
+                    _write_status(st)
+                    last_write = time.time()
             code = proc.wait()
     except SystemExit:
         raise
@@ -136,7 +219,9 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
         _write_status(st)
         return 1
     if code == 0:
-        st.update(state="done", finished=time.time(), returncode=0)
+        st.update(state="done", finished=time.time(), returncode=0, progress=1.0)
+        if track.steps:
+            remember_steps(f"lab-{stack}", len(track.steps))
     else:
         st.update(state="failed", finished=time.time(), returncode=code,
                   error=f"docker compose build exited with {code}\n{''.join(tail)[-1500:]}")

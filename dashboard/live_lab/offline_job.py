@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-from live_lab import driver
+from live_lab import build_job, driver
 
 ACTIVE_STATES = driver.ACTIVE_STATES
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +35,68 @@ PRESETS = {
              "note": "sizes 50, 500, 5,000 names · repeated trials (long)"},
 }
 STEP_RE = re.compile(r"STEP\s+(\d+)/(\d+)\s+(.*)")
+PLAN_RE = re.compile(r"measured trials:\s*(\d+)\s*x\s*(\d+)\s*datasets\s*x\s*(\d+)\s*modes")
+CONTROL_RE = re.compile(r"A/A control:")  # the control runs as one extra mode in every trial
+TRIAL_RE = re.compile(r"^\[[\d:]+\]\s+trial\s+\d+/\d+\s")
+# Rough share of the whole run, so the bar moves smoothly: the image build, then the seven harness steps.
+BUILD_WEIGHT = 0.15
+DEFAULT_BUILD_STEPS = 35  # steps of the pinned harness image (measured)
+STEP_WEIGHTS = {1: 0.01, 2: 0.02, 3: 0.02, 4: 0.60, 5: 0.12, 6: 0.03, 7: 0.05}
+
+
+class OfflineProgress:
+    """One progress bar over both phases: the image build, then the harness (its STEP n/7 lines and, inside the long
+    step 4, one line per finished trial)."""
+
+    def __init__(self, expected_build_steps: int = DEFAULT_BUILD_STEPS) -> None:
+        self.build = build_job.BuildProgress(expected_build_steps)
+        self.phase = "build"
+        self.step = 0
+        self.total_trials = 0
+        self._plan = (0, 0, 0)
+        self.trials = 0
+        self._best = 0.0
+
+    def start_harness(self) -> None:
+        self.phase = "harness"
+
+    def feed(self, line: str) -> bool:
+        if self.phase == "build":
+            return self.build.feed(line)
+        m = STEP_RE.search(line)
+        if m:
+            self.step = int(m.group(1))
+            return True
+        m = PLAN_RE.search(line)
+        if m:
+            self._plan = tuple(int(x) for x in m.groups())
+            self.total_trials = self._plan[0] * self._plan[1] * self._plan[2]
+            return True
+        if CONTROL_RE.search(line) and self._plan[0]:
+            self.total_trials = self._plan[0] * self._plan[1] * (self._plan[2] + 1)
+            return True
+        if TRIAL_RE.match(line):
+            self.trials += 1
+            return True
+        return False
+
+    @property
+    def fraction(self) -> float:
+        if self.phase == "build":
+            f = BUILD_WEIGHT * self.build.fraction
+        else:
+            f = BUILD_WEIGHT + sum(w for n, w in STEP_WEIGHTS.items() if n < self.step)
+            if self.step == 4 and self.total_trials:
+                f += STEP_WEIGHTS[4] * min(self.trials / self.total_trials, 1.0)
+        self._best = max(self._best, min(f, 0.99))
+        return self._best
+
+    def detail(self) -> str:
+        if self.phase == "build":
+            return "building the image, " + self.build.detail()
+        if self.step == 4 and self.total_trials:
+            return f"step 4 of 7, trial {min(self.trials, self.total_trials)} of {self.total_trials}"
+        return f"step {max(self.step, 1)} of 7"
 
 
 def job_dir() -> Path:
@@ -173,9 +235,10 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     if os.name != "nt":
         signal.signal(signal.SIGTERM, stop)
     tail: list[str] = []
+    prog, last_write = OfflineProgress(build_job.expected_steps(f"bench-{stack}", DEFAULT_BUILD_STEPS)), 0.0
 
     def stream(cmd: list[str], env: dict) -> int:
-        nonlocal proc, tail
+        nonlocal proc, tail, last_write
         log.write("$ " + " ".join(cmd) + "\n")
         log.flush()
         proc = popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
@@ -187,7 +250,10 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
             m = STEP_RE.search(line)
             if m:
                 st.update(step=m.group(3).strip(), done=int(m.group(1)) - 1, total=int(m.group(2)))
+            if prog.feed(line) and (m or time.time() - last_write > 1.0):
+                st.update(progress=prog.fraction, detail=prog.detail())
                 _write_status(st)
+                last_write = time.time()
         return proc.wait()
 
     code = 1
@@ -196,7 +262,8 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
             env = {**os.environ, "BUILDKIT_PROGRESS": "plain"}
             code = stream(compose_base(stack) + ["build"], env)
             if code == 0:
-                st.update(step="Starting the harness")
+                prog.start_harness()
+                st.update(step="Starting the harness", progress=prog.fraction, detail="starting the harness")
                 _write_status(st)
                 env = {**os.environ, **run_environment(stack)}
                 code = stream(compose_base(stack) + ["run", "--rm", "--name", CONTAINER, "bench",
@@ -208,8 +275,10 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
         _write_status(st)
         return 1
     new = sorted(run_ids() - before)
+    if code == 0 and prog.build.steps:
+        build_job.remember_steps(f"bench-{stack}", len(prog.build.steps))
     if code == 0:
-        st.update(state="done", finished=time.time(), returncode=0, run_id=new[-1] if new else None)
+        st.update(state="done", finished=time.time(), returncode=0, run_id=new[-1] if new else None, progress=1.0)
     else:
         st.update(state="failed", finished=time.time(), returncode=code,
                   error=f"The harness exited with {code}\n{''.join(tail)[-1500:]}")
