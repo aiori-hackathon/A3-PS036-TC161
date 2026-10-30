@@ -11,11 +11,14 @@
     // Docker runs inside the codespace, so the compose files' bind mounts (results/, configs/) resolve as written.
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  // The offline harness pins itself to CPU core 2, so the machine needs at least 3 cores; the image builds are large.
+  // Minimum for the offline harness, which pins itself to CPU core 2 (so at least 3 cores) and builds large images.
+  // This is the 4-core / 16 GB / 32 GB machine, the largest one available on the free tier. The simulated lab runs
+  // about 7 containers pinned to cores 2-5 and needs the 8-core / 32 GB / 64 GB machine, which is not free; select it
+  // when creating the codespace (Codespaces never offers a machine below these minimums).
   "hostRequirements": {
-    "cpus": 8,
-    "memory": "32gb",
-    "storage": "64gb"
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
   },
   "containerEnv": {
     "STREAMLIT_SERVER_HEADLESS": "true",

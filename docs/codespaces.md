@@ -14,12 +14,26 @@ can run CipherOps in the browser with nothing installed locally.
 - Port 8501 forwarded and labelled "CipherOps dashboard".
 - Streamlit settings that the Codespaces port proxy needs (CORS and XSRF protection off, headless), set as
   environment variables inside the codespace only.
-- A machine requirement of **4 cores, 16 GB RAM and 32 GB storage**. The offline harness pins itself to core 2 and the
+- A minimum machine of **4 cores, 16 GB RAM and 32 GB storage**. The offline harness pins itself to core 2 and the
   image builds are large, so a 2-core machine cannot run it.
+
+## Which machine for what
+
+Observed while verifying in Codespaces:
+
+| Machine (cores / RAM / storage) | Free tier | Offline harness | Simulated lab (Verisign stack) |
+| --- | --- | --- | --- |
+| 4 / 16 GB / 32 GB | yes | works | **does not work**: the lab runs about 7 containers pinned to cores 2-5 |
+| 8 / 32 GB / 64 GB | no (paid) | works | works |
+
+The dev container requests the 4 / 16 / 32 minimum so free users can open it and run the offline benchmark. For the
+simulated lab, pick the 8 / 32 / 64 machine when creating the codespace (or change the machine type of an existing one
+under **Codespaces → Change machine type**), or run it locally (see [Getting started](getting-started.md)).
 
 ## Steps
 
-1. Click the badge above (or **Code → Codespaces → Create codespace on the branch**) and choose a **4-core** machine.
+1. Click the badge above (or **Code → Codespaces → Create codespace on the branch**) and choose a **4-core** machine
+   for the offline benchmark, or an **8-core** machine for the simulated lab.
 2. Wait for the container to finish creating. The first start installs the Python packages.
 3. In the terminal, start the dashboard:
 
