@@ -102,8 +102,9 @@ What each test file covers: [architecture §6.16](architecture.md#616-tests).
 | Symptom | Cause and fix |
 | --- | --- |
 | `Permission denied` under `ecosystem/work` or `results` | Docker creates files as root on Linux. The dashboard's **Reset** removes them; by hand use `sudo rm -rf`. |
-| **Sign zones** or **Start** is disabled in Setup | The images for the chosen version are not built yet (Setup, step 1). |
+| **Sign zones** or **Start** is disabled in Lab | The lab images for the chosen stack are not on this node, or do not match its profile. Open Setup and build or pull them. |
 | Every query to `slh-dsa` returns SERVFAIL on `latest` | Known limitation of that stack; use `draft06` for the lab. |
 | `cpuset` error when the harness container starts | The host has fewer than 3 cores; pass another core number as the script's second argument. |
 | Buttons are greyed out or say "busy" | A benchmark, image build or signing job is running and owns the lab or the CPU; wait or cancel it. |
-| An image build seems idle | It runs in the background. Open Setup to see the live log, or cancel the build. |
+| An image build or pull seems idle | It runs in the background. Open Setup to see the live log, or cancel it. |
+| A pulled image shows **does not match** | It was built from other pins than this checkout's stack profile, so it is never used. Pull a matching tag or build locally. |

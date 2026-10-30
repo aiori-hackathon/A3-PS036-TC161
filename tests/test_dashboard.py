@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "dashboard" / "live_lab" / "app.py"
 
 
-@pytest.mark.parametrize("tile", [None, "setup", "live", "benchmark", "compare", "learn", "reset"])
+@pytest.mark.parametrize("tile", [None, "setup", "lab", "live", "benchmark", "compare", "learn", "reset"])
 def test_tile_renders_without_exceptions(tile):
     testing = pytest.importorskip("streamlit.testing.v1")
     at = testing.AppTest.from_file(str(APP), default_timeout=180)

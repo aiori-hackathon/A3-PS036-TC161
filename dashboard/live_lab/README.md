@@ -16,9 +16,10 @@ comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (th
 
 | Tile | What it is for | Needs |
 | --- | --- | --- |
-| **Setup** | 1. build or pull the images; 2. choose zone size and algorithms, then **Sign zones**; 3. **Start** the lab | Docker |
+| **Setup** | put the pinned images on this node: **build locally** or **pull from a registry**, then verify them against the stack profile | Docker |
+| **Lab** | choose zone size and algorithms, **Sign zones**, **Start** the lab (for hands-on queries in Live) | the lab images from Setup |
 | **Live** | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
-| **Benchmark** | **Offline (harness)** or **Simulated (Verisign stack)**, see below | Offline: Docker. Simulated: the built images |
+| **Benchmark** | **Offline (harness)** or **Simulated (Verisign stack)**, see below | Offline: the verified harness image. Simulated: the verified lab images |
 | **Compare** | *Algorithms side by side*, *Run against run*, and *Zone updates* | a finished benchmark |
 | **Learn** | why DNSSEC needs MTL; what an operator does | nothing |
 | **Reset** | clear only the scopes you pick (session, captures, runs, signed zones, cache) | nothing |
@@ -67,15 +68,34 @@ runs in the background, and writes `ecosystem/results/suites/<id>/`.
 Every figure in Compare is badged **Measured**, **Estimated** or **Analytical**. The analytical ones (signature storage
 from the draft's size formulas) are kept apart and never mixed with measured cache.
 
+### Setup: the images
+
+Setup only makes sure the pinned images are on the benchmark node; it signs and measures nothing. Pick the **stack
+version**, which images (**Offline benchmark**, **Simulated lab** or **Both**), and where they come from:
+
+- **Build locally** compiles OpenSSL, liboqs and MTL once (tens of minutes) and the lab servers on top, all from
+  `docker/Dockerfile`.
+- **Pull from registry** downloads images published by `.github/workflows/publish-images.yml` (default
+  `ghcr.io/anithapriyanatarajan/benchmark`, or the `CIPHEROPS_REGISTRY` environment variable) and tags them with the
+  local names. They can be published from a machine with `docker login ghcr.io` (tag as
+  `<registry>/cipherops-bench:<stack>` and `docker push`), or by the workflow from the account that should host them;
+  either way the account's owner makes each package public once.
+
+Both run as a background job with a live log. Afterwards each image is checked against the stack profile
+(`ecosystem/stacks/<stack>.env`) through the `io.cipherops.*` labels it carries; the **Images** tab shows ready,
+missing or does-not-match for each, and Benchmark and Lab only use images that pass. The same is available as
+`python scripts/images.py status|build|pull`. The offline harness needs the `latest` stack (its liboqs has the FIPS
+205 names); the lab works with either.
+
 ### Numbers you can change
 
 | Where | Numbers | Needs signing again |
 | --- | --- | --- |
-| Setup → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed (Live only) | yes |
+| Lab → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed (Live only) | yes |
 | Benchmark (Simulated) → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
 | Benchmark (Simulated) → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
 
-Setup shows a **Planned lab** card (zones, names, containers, rough signing time) and the exact YAML. A custom shape
+Lab shows a **Planned lab** card (zones, names, containers, rough signing time) and the exact YAML. A custom shape
 gets its own lab folder named after a hash of its numbers (`eco-ui-custom-<hash>`), so results from different shapes
 never mix. Only one lab runs at a time: Start stops any other.
 
@@ -95,7 +115,7 @@ Offline and simulated data are never drawn together.
 
 ## Signing replay and live progress
 
-After **Sign zones**, Setup opens an animated replay of how the hierarchy was signed (also under Setup → **Signing
+After **Sign zones**, Lab opens an animated replay of how the hierarchy was signed (also under Lab → **Signing
 replay**). It plays bottom-up: leaf zones, TLDs, then the root, with each DS record travelling to its parent. For `mtl`
 the RRsets become leaves of a Merkle tree, the ladder is signed once and each RRset keeps a short path; for the other
 algorithms every RRset is signed on its own, with a bar per signature on one scale. Counts, times and bytes are

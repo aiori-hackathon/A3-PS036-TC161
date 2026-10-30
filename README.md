@@ -81,7 +81,8 @@ instructions, Windows commands, tests and troubleshooting: [Getting started](doc
 
 | Tile | Use |
 | --- | --- |
-| **Setup** | build the images, sign the zones, start the lab |
+| **Setup** | put the pinned images on this node: build them or pull them from a registry, then verify |
+| **Lab** | sign the zones and start the simulated lab |
 | **Live** | send queries, flush the cache, inspect the captured packets |
 | **Benchmark** | *Offline (harness)* or *Simulated (Verisign stack)*, run from the browser |
 | **Compare** | algorithms side by side, run against run, and the cost of zone updates |

@@ -42,9 +42,10 @@ under **Codespaces → Change machine type**), or run it locally (see [Getting s
    ```
 
 4. Open the forwarded port from the **Ports** tab (or the pop-up) to see the dashboard.
-5. **Benchmark → Offline → Quick check** needs nothing else: it builds the pinned image on first use (this can take a
-   long time) and then runs. For the lab (**Live**, **Benchmark → Simulated**), build the images in **Setup, step 1**
-   first.
+5. Open **Setup**, pick the stack and **Build images** (or **Pull images** from a registry), and wait for the
+   **Images** tab to show them ready. The offline benchmark needs the `latest` stack's harness image, which a 4-core
+   machine can build; **Benchmark → Offline → Quick check** then runs inside it. The lab (**Lab**, **Live**,
+   **Benchmark → Simulated**) uses the lab images from the same Setup step.
 
 From the terminal you can also use the command-line flow in [Getting started](getting-started.md#offline-benchmark-command-line)
 and run the tests with `python -m pytest -m "not harness"`.

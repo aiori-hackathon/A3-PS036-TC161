@@ -261,7 +261,7 @@ def test_cancelled_job_is_not_overwritten_by_the_worker(job):
 
 def test_status_flags_a_worker_that_died(job, monkeypatch):
     (job.dir / "status.json").write_text(json.dumps({"state": "running", "pid": 424242}), encoding="utf-8")
-    monkeypatch.setattr(pj._suite, "_pid_alive", lambda pid: False)
+    monkeypatch.setattr(pj.driver, "pid_alive", lambda pid: False)
     st = pj.status(job.h)
     assert st["state"] == "stopped" and "ended before finishing" in st["error"]
     assert not pj.is_running(job.h)
