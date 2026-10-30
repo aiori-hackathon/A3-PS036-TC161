@@ -17,7 +17,7 @@ x-build: &build
     NSD_COMMIT: ${NSD_COMMIT:?missing NSD_COMMIT in the stack profile}
     UNBOUND_COMMIT: ${UNBOUND_COMMIT:?missing UNBOUND_COMMIT in the stack profile}
     VCS_REF: ${VCS_REF:-unknown}
-    VCS_URL: ${VCS_URL:-https://github.com/aiori-hackathon/A3-PS036-TC161}
+    VCS_URL: ${VCS_URL:-}   # set only when publishing from CI: it links the package to that repository
 
 services:
   bench:

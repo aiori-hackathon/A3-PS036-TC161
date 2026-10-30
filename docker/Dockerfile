@@ -108,7 +108,7 @@ COPY tests /work/tests
 RUN pip3 install --no-cache-dir --no-deps -e /work
 
 ARG VCS_REF=unknown
-ARG VCS_URL=https://github.com/aiori-hackathon/A3-PS036-TC161
+ARG VCS_URL=
 LABEL io.cipherops.role="bench" io.cipherops.stack="${STACK}" io.cipherops.openssl-tag="${OPENSSL_TAG}" \
       io.cipherops.liboqs-tag="${LIBOQS_TAG}" io.cipherops.mtl-commit="${MTL_COMMIT}" \
       org.opencontainers.image.source="${VCS_URL}" org.opencontainers.image.revision="${VCS_REF}"
@@ -166,7 +166,7 @@ RUN ldconfig
 # Target nsd
 #######################################
 FROM lab-runtime AS nsd
-ARG STACK NSD_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=https://github.com/aiori-hackathon/A3-PS036-TC161
+ARG STACK NSD_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=
 COPY --from=nsd-build /out/usr/local /usr/local
 RUN groupadd -r nsd && useradd -r -g nsd -d /var/nsd -s /sbin/nologin nsd \
     && mkdir -p /var/nsd /zones && chown nsd:nsd /var/nsd
@@ -180,7 +180,7 @@ ENTRYPOINT ["/bin/bash", "-c"]
 # Target unbound
 #######################################
 FROM lab-runtime AS unbound
-ARG STACK UNBOUND_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=https://github.com/aiori-hackathon/A3-PS036-TC161
+ARG STACK UNBOUND_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=
 COPY --from=unbound-build /out/usr/local /usr/local
 RUN ldconfig && groupadd -r unbound && useradd -r -g unbound -d /etc/unbound -s /sbin/nologin unbound
 ENV ECO_STACK=${STACK} ECO_UNBOUND_COMMIT=${UNBOUND_COMMIT} ECO_MTL_COMMIT=${MTL_COMMIT} ECO_LIBOQS_TAG=${LIBOQS_TAG}
@@ -193,7 +193,7 @@ ENTRYPOINT ["/bin/bash", "-c"]
 # Target tools: unbound + ldns signer + Python client
 #######################################
 FROM unbound AS tools
-ARG STACK LDNS_COMMIT NSD_COMMIT UNBOUND_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=https://github.com/aiori-hackathon/A3-PS036-TC161
+ARG STACK LDNS_COMMIT NSD_COMMIT UNBOUND_COMMIT MTL_COMMIT LIBOQS_TAG VCS_REF=unknown VCS_URL=
 COPY --from=ldns-build /out/usr/local /usr/local
 COPY --from=nsd-build /out/usr/local/bin/nsd-checkzone /usr/local/bin/nsd-checkzone
 RUN ldconfig && dnf -y install python3-pip bind-utils && dnf clean all
