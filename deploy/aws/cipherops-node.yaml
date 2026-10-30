@@ -17,12 +17,13 @@ Metadata:
 Parameters:
   InstanceType:
     Type: String
-    Default: c7i.2xlarge
+    Default: m7i.2xlarge
     AllowedPattern: ^[a-z][a-z0-9-]*\.[a-z0-9-]+$
     Description: >-
       x86_64 instance type (the images are amd64, so not Graviton). The offline harness needs at least 3 vCPUs; the
-      simulated lab pins containers to cores 2-5 and wants 8 vCPU and 32 GiB RAM (m7i.2xlarge). c7i.2xlarge has 8 vCPU
-      and 16 GiB. For the cleanest offline timings use a bare-metal type (for example c7i.metal-24xl).
+      simulated lab pins containers to cores 2-5 and wants 8 vCPU and 32 GiB RAM, which m7i.2xlarge gives. A cheaper
+      option is c7i.2xlarge (8 vCPU, 16 GiB). For the cleanest offline timings use a bare-metal type (for example
+      m7i.metal-24xl).
   VolumeSizeGiB:
     Type: Number
     Default: 100
@@ -39,8 +40,10 @@ Parameters:
     Description: Repository to deploy.
   RepoBranch:
     Type: String
-    Default: ui-two-tracks
-    Description: Branch, tag or commit-ish to check out.
+    Default: aws-cloudformation
+    Description: >-
+      Branch, tag or commit-ish to check out. It must contain deploy/aws/bootstrap.sh, so use this branch (or a branch
+      made from it) until it is merged.
   Registry:
     Type: String
     Default: ghcr.io/anithapriyanatarajan/benchmark

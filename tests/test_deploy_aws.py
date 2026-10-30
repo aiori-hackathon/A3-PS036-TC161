@@ -37,7 +37,7 @@ def test_the_bootstrap_script_is_valid_bash():
 def test_one_instance_runs_both_tracks_and_signals_the_stack(template):
     instances = [r for r in template["Resources"].values() if r["Type"] == "AWS::EC2::Instance"]
     assert len(instances) == 1
-    assert template["Parameters"]["InstanceType"]["Default"] == "c7i.2xlarge"
+    assert template["Parameters"]["InstanceType"]["Default"] == "m7i.2xlarge"   # 8 vCPU / 32 GiB, what the lab was sized for
     assert instances[0]["CreationPolicy"]["ResourceSignal"]["Count"] == 1
 
 
@@ -56,6 +56,17 @@ def test_the_node_hardening_defaults(template):
     assert node["BlockDeviceMappings"][0]["Ebs"]["Encrypted"] is True
     arns = template["Resources"]["NodeRole"]["Properties"]["ManagedPolicyArns"]
     assert arns == ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
+
+
+def test_the_default_branch_contains_the_bootstrap_script(template):
+    """The user data runs deploy/aws/bootstrap.sh from the cloned branch, so the default branch must have it."""
+    import subprocess as sp
+    branch = template["Parameters"]["RepoBranch"]["Default"]
+    shown = sp.run(["git", "cat-file", "-e", f"origin/{branch}:deploy/aws/bootstrap.sh"], cwd=ROOT, capture_output=True)
+    if shown.returncode != 0 and sp.run(["git", "rev-parse", "--verify", f"origin/{branch}"], cwd=ROOT,
+                                        capture_output=True).returncode != 0:
+        pytest.skip(f"origin/{branch} is not fetched here")
+    assert shown.returncode == 0, f"{branch} has no deploy/aws/bootstrap.sh"
 
 
 def test_the_dashboard_only_listens_on_localhost():
