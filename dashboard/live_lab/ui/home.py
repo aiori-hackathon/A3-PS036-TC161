@@ -50,7 +50,17 @@ def _tile_chip(mode: str, stt: dict) -> str:
 
 
 def _steps_line(track: str) -> str:
-    return " → ".join(label for _key, label in TRACKS[track]["steps"])
+    """Numbered path as small badges, so the step order matches the buttons instead of circled digits."""
+    bits = []
+    for i, (_key, label) in enumerate(TRACKS[track]["steps"], 1):
+        name = label.split(" ", 1)[-1]
+        bits.append(f'<span class="co-step"><span class="co-n">{i}</span>{name}</span>')
+    joined = '<span class="co-arr">→</span>'.join(bits)
+    return f'<div class="co-steps">{joined}</div>'
+
+
+def _node_item(label: str, value: str, ok: bool) -> str:
+    return f'<span class="co-node-item">{label} {_chip(value, "ok" if ok else "warn")}</span>'
 
 
 def _node_strip(h: driver.LabHandle, stt: dict) -> None:
@@ -58,11 +68,16 @@ def _node_strip(h: driver.LabHandle, stt: dict) -> None:
     r = readiness(stt)
     ok = r["offline_images"] and r["images"]
     with st.container(border=True):
-        text, manage = st.columns([8, 2], vertical_alignment="center")
+        text, manage = st.columns([5.4, 1.15], vertical_alignment="center")
         text.markdown(
-            f"{'✅' if ok else '⚠️'} **This node** · "
-            f"{'🟢' if r['offline_images'] else '⚪'} offline image `{images.ref('bench', images.OFFLINE_STACK)}` · "
-            f"{'🟢' if r['images'] else '⚪'} lab images `{h.stack}`")
+            '<div class="co-node">'
+            f'<span class="co-node-group"><span class="co-node-title">This node</span>'
+            f'{_chip("ready" if ok else "needs images", "ok" if ok else "warn")}</span>'
+            f'{_node_item("Offline image", images.ref("bench", images.OFFLINE_STACK), r["offline_images"])}'
+            f'{_node_item("Lab images", h.stack, r["images"])}'
+            "</div>",
+            unsafe_allow_html=True,
+        )
         manage.button("Manage images", on_click=_go, args=("setup",), key="home_node_images", width="stretch")
 
 
@@ -72,7 +87,7 @@ def _track_card(mode: str, stt: dict) -> None:
         with st.container(height=TRACK_TEXT_HEIGHT, border=False):
             st.markdown(f"### {tile['icon']} {tile['title']}  {_tile_chip(mode, stt)}", unsafe_allow_html=True)
             st.caption(tile["pitch"])
-            st.markdown(f"**{_steps_line(mode)}**")
+            st.markdown(_steps_line(mode), unsafe_allow_html=True)
         st.button(f"{tile['cta']} →", key=f"open_{mode}", on_click=_go, args=(mode,), type="primary",
                   width="stretch")
 
@@ -83,7 +98,8 @@ def _tile_card(mode: str, stt: dict) -> None:
         with st.container(height=TILE_TEXT_HEIGHT, border=False):
             st.markdown(f"#### {tile['icon']} {tile['title']}  {_tile_chip(mode, stt)}", unsafe_allow_html=True)
             st.caption(tile["pitch"])
-        st.button(f"{tile['cta']} →", key=f"open_{mode}", on_click=_go, args=(mode,), width="stretch")
+        st.button(f"{tile['cta']} →", key=f"open_{mode}", on_click=_go, args=(mode,), type="primary",
+                  width="stretch")
 
 
 def home_page(h: driver.LabHandle, stt: dict) -> None:

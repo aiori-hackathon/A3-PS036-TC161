@@ -66,16 +66,17 @@ def test_image_readiness_is_a_prerequisite_not_a_step():
         assert not any("mage" in label for label in labels)
         text = " ".join(m.value for m in at.markdown)
         assert "Node ready" in text or "Needed on this node" in text  # the prerequisite panel is on the page
-    assert at.radio(key="step_simulated").options[0].startswith("① Prepare")
+    assert at.radio(key="step_simulated").options[0].startswith("Prepare")
+    assert "①" not in " ".join(at.radio(key="step_simulated").options)
 
 
-def test_help_text_is_off_by_default_and_toggles():
+def test_help_text_is_on_by_default_and_toggles():
     at = _run("simulated")
-    assert not at.session_state["show_help"]
-    quiet = len(at.sidebar.caption)
-    at.sidebar.toggle(key="show_help").set_value(True).run()
+    assert at.session_state["show_help"]
+    shown = len(at.sidebar.caption)
+    at.sidebar.toggle(key="show_help").set_value(False).run()
     assert not at.exception
-    assert len(at.sidebar.caption) > quiet
+    assert len(at.sidebar.caption) < shown
 
 
 def test_resolve_tile_maps_old_names_and_ignores_unknown_steps():

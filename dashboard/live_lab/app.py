@@ -74,6 +74,32 @@ _CSS = """
 .co-hero h1{margin-bottom:.1rem}
 .co-sub{opacity:.75;margin-top:0}
 .co-strip{margin:.2rem 0 .8rem 0;opacity:.95}
+.co-node{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem 1.15rem}
+[data-testid="stMarkdownContainer"]:has(.co-node){margin-bottom:0}
+.co-node-group,.co-node-item{display:inline-flex;align-items:center;gap:.45rem;white-space:nowrap}
+.co-node-title{font-weight:650;font-size:1.05rem}
+.co-node-item{opacity:.92}
+.co-steps{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem .55rem;margin:.2rem 0 0}
+.co-step{display:inline-flex;align-items:center;gap:.4rem;font-weight:600}
+.co-n{display:inline-flex;align-items:center;justify-content:center;width:1.35rem;height:1.35rem;
+  border-radius:999px;background:#ff4b4b;color:#fff;font-size:.75rem;font-weight:700;line-height:1;flex:none}
+.co-arr{opacity:.4;font-weight:500}
+/* Track steps: one coral number, not a radio dot plus a circled digit. */
+.st-key-step_offline [data-testid="stRadioGroup"],
+.st-key-step_simulated [data-testid="stRadioGroup"]{counter-reset:cotrack;gap:1.15rem}
+.st-key-step_offline [data-testid="stRadioOption"] > div > div:first-child,
+.st-key-step_simulated [data-testid="stRadioOption"] > div > div:first-child{display:none !important}
+.st-key-step_offline [data-testid="stRadioGroup"] [data-testid="stMarkdownContainer"] p,
+.st-key-step_simulated [data-testid="stRadioGroup"] [data-testid="stMarkdownContainer"] p{
+  display:flex;align-items:center;gap:.45rem;margin:0}
+.st-key-step_offline [data-testid="stRadioGroup"] [data-testid="stMarkdownContainer"] p::before,
+.st-key-step_simulated [data-testid="stRadioGroup"] [data-testid="stMarkdownContainer"] p::before{
+  counter-increment:cotrack;content:counter(cotrack);display:inline-flex;align-items:center;
+  justify-content:center;width:1.35rem;height:1.35rem;border-radius:999px;background:#2a2f3a;
+  color:#d5dbe6;font-size:.75rem;font-weight:700;line-height:1;flex:none}
+.st-key-step_offline [data-selected="true"] [data-testid="stMarkdownContainer"] p::before,
+.st-key-step_simulated [data-selected="true"] [data-testid="stMarkdownContainer"] p::before{
+  background:#ff4b4b;color:#fff}
 </style>
 """
 

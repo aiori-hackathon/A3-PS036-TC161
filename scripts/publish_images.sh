@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 stack="${1:?usage: scripts/publish_images.sh <stack> [offline|simulated|all]}"
 mode="${2:-all}"
-registry="${CIPHEROPS_REGISTRY:-ghcr.io/anithapriyanatarajan/benchmark}"
+registry="${CIPHEROPS_REGISTRY:-ghcr.io/hackchamp25}"
 registry="${registry,,}"   # registry names must be lower case
 
 python3 scripts/images.py status --stack "$stack" --mode "$mode" \

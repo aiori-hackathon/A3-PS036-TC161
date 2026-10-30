@@ -22,11 +22,11 @@ NAV_MODES = ("home", "offline", "simulated", "compare", "learn", "setup", "reset
 # The node's images are a prerequisite shown on top of each track, not a step; "setup" is the Node images page for both.
 TRACKS = {
     "offline": {
-        "steps": (("run", "① Run"), ("results", "② Results")),
+        "steps": (("run", "Run"), ("results", "Results")),
         "default": "run",
     },
     "simulated": {
-        "steps": (("prepare", "① Prepare"), ("query", "② Query"), ("benchmark", "③ Benchmark")),
+        "steps": (("prepare", "Prepare"), ("query", "Query"), ("benchmark", "Benchmark")),
         "default": "prepare",
     },
 }
@@ -107,7 +107,7 @@ def _chip(text: str, kind: str = "idle") -> str:
 
 
 def _hint(text: str) -> None:
-    """Sidebar explanation, shown only when 'Help text' is switched on (the dashboard is terse by default)."""
+    """Sidebar explanation. Shown while Help text is on, which is the default."""
     if st.session_state.get("show_help"):
         st.sidebar.caption(text)
 
@@ -483,7 +483,7 @@ def _gate(stt: dict, what: str) -> bool:
     if not r["images"]:
         st.caption("Get the lab images in the panel at the top of the page.")
     else:
-        st.button("Go to ① Prepare", on_click=_go, args=("simulated", "prepare"), key=f"gate_{what}", type="primary")
+        st.button("Go to Prepare", on_click=_go, args=("simulated", "prepare"), key=f"gate_{what}", type="primary")
     return False
 
 
@@ -494,7 +494,8 @@ def _sidebar_brand(mode: str) -> None:
     st.sidebar.caption("MTL DNSSEC Lab")
     if mode != "home":
         st.sidebar.button("← Home", on_click=_go, args=("home",), key="sb_home", width="stretch")
-    st.sidebar.toggle("Help text", key="show_help", help="Show the explanations next to each control.")
+    st.sidebar.toggle("Help text", value=True, key="show_help",
+                      help="Show the explanations next to each control.")
     st.sidebar.markdown("---")
 
 

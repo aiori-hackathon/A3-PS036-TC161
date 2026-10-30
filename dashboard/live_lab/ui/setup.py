@@ -25,6 +25,8 @@ from live_lab.ui.common import (
 
 SOURCES = ("Build locally", "Pull from registry")
 STATE_ICON = {"ok": "🟢", "missing": "⚪", "mismatch": "🟡", "unverified": "🟡"}
+# Body above the buttons. Tall enough for the simulated card (three images) so both cards stay the same height.
+CARD_BODY_HEIGHT = 320
 STATE_TEXT = {"ok": "ready", "missing": "missing", "mismatch": "does not match the stack profile",
               "unverified": "cannot be verified"}
 
@@ -161,15 +163,16 @@ def _card(h: driver.LabHandle, *, title: str, purpose: str, stack: str, stack_no
     pull = source == SOURCES[1]
     ok = images.ready(rows)
     with st.container(border=True):
-        st.markdown(f"#### {title}  {_chip_for(rows)}", unsafe_allow_html=True)
-        st.caption(purpose)
-        st.markdown(f"**Version:** `{stack}` · {stack_note}")
-        for s in rows:
-            note = "" if s.state == "ok" else f" · {STATE_TEXT[s.state]}"
-            st.markdown(f"{STATE_ICON[s.state]} {s.title} `{s.ref}`{note}")
-        problems = sorted({p for s in rows if s.state != "ok" for p in s.problems if p != "not on this host"})
-        if problems:
-            st.caption("; ".join(problems))
+        with st.container(height=CARD_BODY_HEIGHT, border=False):
+            st.markdown(f"#### {title}  {_chip_for(rows)}", unsafe_allow_html=True)
+            st.caption(purpose)
+            st.markdown(f"**Version:** `{stack}` · {stack_note}")
+            for s in rows:
+                note = "" if s.state == "ok" else f" · {STATE_TEXT[s.state]}"
+                st.markdown(f"{STATE_ICON[s.state]} {s.title} `{s.ref}`{note}")
+            problems = sorted({p for s in rows if s.state != "ok" for p in s.problems if p != "not on this host"})
+            if problems:
+                st.caption("; ".join(problems))
         verb = "Pull" if pull else "Build"
         label = f"{verb} again" if ok else f"{verb} {'image' if len(rows) == 1 else 'images'}"
         if st.button(label, key=f"setup_get_{mode}", type="secondary" if ok else "primary", width="stretch",

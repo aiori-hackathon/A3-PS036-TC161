@@ -32,7 +32,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 ECO = REPO / "ecosystem"
 BUILD_FILE = REPO / "docker" / "build.yml"
-DEFAULT_REGISTRY = os.environ.get("CIPHEROPS_REGISTRY", "ghcr.io/anithapriyanatarajan/benchmark")
+DEFAULT_REGISTRY = os.environ.get("CIPHEROPS_REGISTRY", "ghcr.io/hackchamp25")
 # The offline harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh), so its
 # image exists for this stack only; the lab images exist for every stack.
 OFFLINE_STACK = "latest"

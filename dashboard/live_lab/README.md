@@ -94,7 +94,7 @@ When something is missing the panel shows what and offers, inline, how to get it
 - **Build locally** compiles OpenSSL, liboqs and MTL once (tens of minutes) and the lab servers on top, all from
   `docker/Dockerfile`.
 - **Pull from registry** downloads images someone published (default
-  `ghcr.io/anithapriyanatarajan/benchmark`, or the `CIPHEROPS_REGISTRY` environment variable) and tags them with the
+  `ghcr.io/hackchamp25`, or the `CIPHEROPS_REGISTRY` environment variable) and tags them with the
   local names. Publish from a machine that has the images and is logged in (`docker login ghcr.io`) with
   `scripts/publish_images.sh <stack>`; it pushes only images that match the stack profile. A new GitHub package
   starts private, so its owner makes it public once.
