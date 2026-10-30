@@ -1,12 +1,13 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # Full PS-036 runs on an EC2 (Linux) host.
 #
 # Offline  = pinned cipherops-bench:latest, one CPU core, no network (~5 h)
 # Simulated = draft06 NSD/Unbound lab; separate suites for lan / wan / lossy
 #
-# Usage (from the repo root, in tmux/screen so SSH drops do not kill the job):
+# Usage (from the repo root; use nohup/tmux so SSH drops do not kill the job):
 #   chmod +x scripts/ec2_full_runs.sh
-#   ./scripts/ec2_full_runs.sh all          # offline then simulated (lan→wan→lossy)
+#   ./scripts/ec2_full_runs.sh              # same as "all": offline, then sim lan→wan→lossy
+#   ./scripts/ec2_full_runs.sh all
 #   ./scripts/ec2_full_runs.sh offline
 #   ./scripts/ec2_full_runs.sh simulated    # lan, then wan+lossy reusing lan zones
 #   ./scripts/ec2_full_runs.sh simulated-lan
@@ -173,28 +174,39 @@ run_simulated_all() {
   log "All simulated suites finished (lan / wan / lossy)."
 }
 
+run_all() {
+  log "=== FULL PIPELINE: offline → simulated lan → wan → lossy ==="
+  run_offline
+  run_simulated_all
+  log "=== ALL DONE ==="
+  log "Offline:   results/runs/*-${OFFLINE_NAME}/"
+  log "Sim lan:   $(cat "${LOG_DIR}/sim-lan-suite-id.txt" 2>/dev/null || echo '?')"
+  log "Sim wan:   $(basename "$(latest_suite_by_label "${SIM_BASE}-wan")" 2>/dev/null || echo '?')"
+  log "Sim lossy: $(basename "$(latest_suite_by_label "${SIM_BASE}-lossy")" 2>/dev/null || echo '?')"
+  log "Logs:      ${LOG_DIR}/"
+}
+
 # ── entry ─────────────────────────────────────────────────────────────────
-cmd="${1:-}"
+cmd="${1:-all}"
 case "$cmd" in
   offline)           run_offline ;;
   simulated)         run_simulated_all ;;
   simulated-lan)     run_sim_lan ;;
   simulated-wan)     run_sim_net wan "${2:-}" ;;
   simulated-lossy)   run_sim_net lossy "${2:-}" ;;
-  all)
-    run_offline
-    run_simulated_all
+  all)               run_all ;;
+  -h|--help|help)
+    cat <<EOF
+Usage: $0 [all|offline|simulated|simulated-lan|simulated-wan|simulated-lossy] [lan-suite-id]
+
+Default is "all": offline full run, then simulated lan → wan → lossy (no prompts).
+
+EC2 one-shot (survives SSH disconnect):
+  nohup ./scripts/ec2_full_runs.sh all > results/ec2-logs/pipeline.out 2>&1 &
+EOF
     ;;
   *)
-    cat <<EOF
-Usage: $0 {all|offline|simulated|simulated-lan|simulated-wan|simulated-lossy} [lan-suite-id]
-
-Recommended on EC2 (in tmux):
-  ./scripts/ec2_full_runs.sh offline
-  ./scripts/ec2_full_runs.sh simulated
-
-Do not run offline and simulated at the same time (CPU contention).
-EOF
+    echo "unknown command: $cmd (try --help)" >&2
     exit 1
     ;;
 esac
