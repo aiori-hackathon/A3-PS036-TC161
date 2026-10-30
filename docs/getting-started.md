@@ -25,8 +25,8 @@ pip install -r requirements-dashboard.txt
 streamlit run dashboard/live_lab/app.py
 ```
 
-The dashboard is the easiest way to use everything below: **Benchmark → Offline** runs the harness, **Benchmark →
-Simulated** runs the Docker lab, **Compare** draws the results. What each tile does:
+The dashboard is the easiest way to use everything below: the **Offline benchmark** track runs the harness, the
+**Simulated lab** track runs the Docker lab, **Compare** draws the results. What each track and step does:
 [dashboard guide](../dashboard/live_lab/README.md).
 
 ## Offline benchmark (command line)

@@ -69,11 +69,14 @@ def _start(h: driver.LabHandle, action: str, stack: str, mode: str, registry: st
     st.rerun()
 
 
-def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
+def sidebar_setup(h: driver.LabHandle, stt: dict, track: str | None = None) -> None:
+    """Sidebar of the Images page (``track`` None) or of a track's image step (``offline`` / ``simulated``)."""
     _sidebar_brand("setup")
-    st.sidebar.markdown("### Setup")
-    _hint("Two image sets, each with its own button on the page: one for the offline benchmark, one for the "
-          "simulated lab.")
+    st.sidebar.markdown("### Images")
+    _hint({"offline": "Get the one image the offline benchmark runs in.",
+           "simulated": "Get the three images the simulated lab runs in.",
+           None: "Two image sets, each with its own button on the page: one for the offline benchmark, one for "
+                 "the simulated lab."}[track])
     _finish_image_job(h)
     if suite_mod.running_suite():
         st.sidebar.warning("A benchmark is running. Building or pulling would disturb its timings, so they are "
@@ -87,11 +90,13 @@ def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
            help="Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged with the stack "
                 "name. Published with scripts/publish_images.sh.")
 
+    if track == "offline":
+        return  # the offline image is always the `latest` stack: nothing more to choose
     st.sidebar.markdown("---")
     stack = sb(st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Simulated lab version",
                options=driver.list_stacks(), format_func=driver.stack_label,
-               help="Which pinned Verisign DNS stack the lab runs. It only affects the simulated lab (Lab, Live "
-                    "and Benchmark → Simulated); the offline benchmark always uses `latest`. Images are named per "
+               help="Which pinned Verisign DNS stack the lab runs. It only affects the simulated lab; the offline "
+                    "benchmark always uses `latest`. Images are named per "
                     "stack, so both versions can be on the node at once.")
     pins = driver.stack_pins(stack)
     if pins:
@@ -108,7 +113,7 @@ def _chip_for(rows: list[images.ImageStatus]) -> str:
 
 
 def _card(h: driver.LabHandle, *, title: str, purpose: str, stack: str, stack_note: str, mode: str,
-          rows: list[images.ImageStatus], tile: str, cta: str, busy: bool) -> None:
+          rows: list[images.ImageStatus], tile: str, step: str, cta: str, busy: bool) -> None:
     source = cfg("image_mode", SOURCES[0])
     registry = cfg("registry", images.DEFAULT_REGISTRY)
     pull = source == SOURCES[1]
@@ -129,7 +134,8 @@ def _card(h: driver.LabHandle, *, title: str, purpose: str, stack: str, stack_no
                      disabled=bool(busy or (pull and not (registry or "").strip()))):
             _start(h, "pull" if pull else "build", stack, mode, registry if pull else None)
         if ok:
-            st.button(cta, on_click=_go, args=(tile,), key=f"setup_next_{mode}", type="primary", width="stretch")
+            st.button(cta, on_click=_go, args=(tile, step), key=f"setup_next_{mode}", type="primary",
+                      width="stretch")
 
 
 @st.fragment(run_every=2.0)
@@ -191,6 +197,39 @@ def _details(offline_rows: list[images.ImageStatus], lab_rows: list[images.Image
                    "the registry's owner makes each package public once.")
 
 
+def image_step(h: driver.LabHandle, track: str | None = None) -> None:
+    """The image cards: both on the Images page (``track`` None), or just the track's own card.
+
+    While a build or pull runs, its progress and log replace the cards.
+    """
+    if image_job.is_running():
+        _job_body()
+        return
+    offline_rows = images.status(images.OFFLINE_STACK, "offline")
+    lab_rows = images.status(h.stack, "simulated")
+    busy = bool(suite_mod.running_suite())
+    offline = dict(title="Offline benchmark", mode="offline", stack=images.OFFLINE_STACK, rows=offline_rows,
+                   stack_note="fixed: the harness needs liboqs's FIPS 205 names",
+                   purpose="Times each signing and verification call on one pinned core with no network.",
+                   tile="offline", step="run", cta="Continue: run it →", busy=busy)
+    lab = dict(title="Simulated lab", mode="simulated", stack=h.stack, rows=lab_rows,
+               stack_note="change it in the sidebar",
+               purpose="Root, TLD and leaf servers behind a validating resolver, for querying by hand and for the "
+                       "simulated benchmark.",
+               tile="simulated", step="prepare", cta="Continue: prepare the lab →", busy=busy)
+    if track == "offline":
+        _card(h, **offline)
+    elif track == "simulated":
+        _card(h, **lab)
+    else:
+        left, right = st.columns(2)
+        with left:
+            _card(h, **offline)
+        with right:
+            _card(h, **lab)
+        _details(offline_rows, lab_rows)
+
+
 def setup_page(h: driver.LabHandle, stt: dict) -> None:
     _page_header("setup", h, stt)
     if image_job.is_running():
@@ -198,21 +237,6 @@ def setup_page(h: driver.LabHandle, stt: dict) -> None:
         return
     images_tab, log_tab = st.tabs(["Images", "Activity log"])
     with images_tab:
-        offline_rows = images.status(images.OFFLINE_STACK, "offline")
-        lab_rows = images.status(h.stack, "simulated")
-        busy = bool(suite_mod.running_suite())
-        left, right = st.columns(2)
-        with left:
-            _card(h, title="Offline benchmark", mode="offline", stack=images.OFFLINE_STACK, rows=offline_rows,
-                  stack_note="fixed: the harness needs liboqs's FIPS 205 names",
-                  purpose="Times each signing and verification call on one pinned core with no network.",
-                  tile="benchmark", cta="Continue to Benchmark →", busy=busy)
-        with right:
-            _card(h, title="Simulated lab", mode="simulated", stack=h.stack, rows=lab_rows,
-                  stack_note="change it in the sidebar",
-                  purpose="Root, TLD and leaf servers behind a validating resolver, for Lab, Live and the "
-                          "simulated benchmark.",
-                  tile="lab", cta="Continue to Lab →", busy=busy)
-        _details(offline_rows, lab_rows)
+        image_step(h)
     with log_tab:
         activity_tab(h)

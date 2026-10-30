@@ -237,7 +237,7 @@ def _cmp_live_detail(df: pd.DataFrame, sd, ds, use_suite: bool, man_rows: list, 
             st.markdown(":green-badge[Measured] from the last signing run")
         sg = df.dropna(subset=["sign_s"]) if "sign_s" in df else df
         if sg.empty:
-            st.info("No signing data: sign the zones in Setup.")
+            st.info("No signing data: sign the zones in step 2 (Prepare lab) of the simulated lab.")
         else:
             c1, c2 = st.columns(2)
             long = sg.melt(id_vars="scenario", value_vars=["sign_s", "verify_s"], var_name="what", value_name="seconds")
@@ -570,8 +570,8 @@ def _cmp_evolution(h: driver.LabHandle) -> None:
     cat = compare_hub.evolution_catalogue(ROOT / "results")
     if not cat:
         st.info("No offline run includes the zone-updates experiment yet. Every offline run whose config has an "
-                "`evolution:` block includes it (the default configs do). Start one from the Benchmark tile.")
-        st.button("Go to Benchmark", on_click=_go, args=("benchmark",), key="cmp_ev_to_bench")
+                "`evolution:` block includes it (the default configs do). Start one from the Offline benchmark.")
+        st.button("Go to the Offline benchmark", on_click=_go, args=("offline", "run"), key="cmp_ev_to_bench")
         return
     by = {e["id"]: e for e in cat}
     st.sidebar.markdown("### Zone updates")
@@ -760,13 +760,15 @@ def compare_page(h: driver.LabHandle, stt: dict) -> None:
     if not cat:
         others = [CMP_SOURCES[s] for s in available if s != source]
         if source == "offline":
-            st.info("No offline run yet. Start one from the Benchmark tile (Offline mode).")
-            st.button("Go to Benchmark", on_click=_go, args=("benchmark",), key="cmp_to_bench_off")
+            st.info("No offline run yet. Start one in the Offline benchmark.")
+            st.button("Go to the Offline benchmark", on_click=_go, args=("offline", "run"), key="cmp_to_bench_off")
         elif source == "live":
-            st.info("No finished simulated benchmark yet. Run one in the Benchmark tile (Simulated mode).")
-            st.button("Go to Benchmark", on_click=_go, args=("benchmark",), key="cmp_to_bench")
+            st.info("No finished simulated benchmark yet. Run one in step 4 of the Simulated lab.")
+            st.button("Go to the Simulated benchmark", on_click=_go, args=("simulated", "benchmark"),
+                      key="cmp_to_bench")
         else:
-            st.info("No saved lab run with results yet. The Live tile and the Benchmark tile create them.")
+            st.info("No saved lab run with results yet. Querying the lab (step 3) and the benchmark (step 4) "
+                    "create them.")
         if others:
             st.caption("Data is available from: " + ", ".join(others) + ".")
         return

@@ -16,32 +16,39 @@ SUITES_DIR = ECO_DIR / "results" / "suites"
 LEVEL_ICON = {"info": "ℹ️", "ok": "✅", "warn": "⚠️", "err": "❌", "step": "▶️"}
 ACTIVITY_CAP = 500
 
-NAV_MODES = ("home", "setup", "lab", "live", "benchmark", "compare", "learn", "reset")
+NAV_MODES = ("home", "offline", "simulated", "compare", "learn", "setup", "reset")
+
+# What a person wants to do comes first: the two ways of benchmarking are tracks, each a short numbered path.
+# Images (setup) is the maintenance page for both image sets; each track also shows its own image card as step 1.
+TRACKS = {
+    "offline": {
+        "steps": (("image", "① Image"), ("run", "② Run"), ("results", "③ Results")),
+        "default": "image",
+    },
+    "simulated": {
+        "steps": (("images", "① Images"), ("prepare", "② Prepare lab"), ("query", "③ Query lab"),
+                  ("benchmark", "④ Benchmark")),
+        "default": "images",
+    },
+}
+# Old tile names (bookmarks, links) land on the matching step of a track.
+LEGACY_TILES = {"lab": ("simulated", "prepare"), "live": ("simulated", "query"),
+                "benchmark": ("simulated", "benchmark")}
 
 TILES = {
-    "setup": {
-        "icon": "🛠️",
-        "title": "Setup",
-        "pitch": "Put the pinned images on this node: build them here or pull them from a registry, then verify.",
-        "cta": "Open Setup",
+    "offline": {
+        "icon": "⏱️",
+        "title": "Offline benchmark",
+        "pitch": "How fast is each algorithm? Every signing and verification call timed on one pinned core, "
+                 "no network.",
+        "cta": "Open Offline benchmark",
     },
-    "lab": {
+    "simulated": {
         "icon": "🧪",
-        "title": "Lab",
-        "pitch": "Sign the zones and start the simulated lab, to query it by hand in Live.",
-        "cta": "Open Lab",
-    },
-    "live": {
-        "icon": "📡",
-        "title": "Live",
-        "pitch": "Send queries to the running lab and inspect the packets.",
-        "cta": "Open Live",
-    },
-    "benchmark": {
-        "icon": "📊",
-        "title": "Benchmark",
-        "pitch": "Measure signing, verification, response size and cache, offline or simulated.",
-        "cta": "Open Benchmark",
+        "title": "Simulated lab",
+        "pitch": "How does a real resolver behave? Root, TLD and leaf servers with real packets and cache: "
+                 "query it by hand or benchmark it.",
+        "cta": "Open Simulated lab",
     },
     "compare": {
         "icon": "⚖️",
@@ -54,6 +61,12 @@ TILES = {
         "title": "Learn",
         "pitch": "Why DNSSEC needs MTL, and what an operator does differently: two short animations.",
         "cta": "Open Learn",
+    },
+    "setup": {
+        "icon": "📦",
+        "title": "Images",
+        "pitch": "Both image sets in one place: build them here or pull them from a registry, and verify them.",
+        "cta": "Open Images",
     },
     "reset": {
         "icon": "🧹",
@@ -231,7 +244,7 @@ def readiness(stt: dict) -> dict:
 
 
 def _scenario_list(h: driver.LabHandle) -> list[str]:
-    """Scenarios chosen in Setup (and present on disk after Prepare), not only the active one."""
+    """Scenarios chosen in the Prepare lab step (and present on disk after signing), not only the active one."""
     chosen = [str(s) for s in (cfg("scenarios") or [])]
     on_disk: list[str] = []
     zones = h.work / "zones"
@@ -246,14 +259,59 @@ def _scenario_list(h: driver.LabHandle) -> list[str]:
     return chosen
 
 
-def _go(mode: str) -> None:
-    st.session_state.nav = mode if mode in NAV_MODES else "home"
+def resolve_tile(tile: str, step: str | None = None) -> tuple[str, str | None]:
+    """Map a tile name (possibly an old one such as ``live``) and an optional step to ``(mode, step)``."""
+    if tile in LEGACY_TILES:
+        track, legacy_step = LEGACY_TILES[tile]
+        return track, step if _is_step(track, step) else legacy_step
+    if tile not in NAV_MODES:
+        return "home", None
+    if tile in TRACKS:
+        return tile, step if _is_step(tile, step) else TRACKS[tile]["default"]
+    return tile, None
+
+
+def _is_step(track: str, step: str | None) -> bool:
+    return any(step == key for key, _label in TRACKS[track]["steps"])
+
+
+def step_key(track: str) -> str:
+    return f"step_{track}"
+
+
+def current_step(track: str) -> str:
+    """The step of ``track`` being shown. Sidebars read it before the page draws the step bar."""
+    value = st.session_state.get(step_key(track))
+    if not _is_step(track, value):
+        value = TRACKS[track]["default"]
+        st.session_state[step_key(track)] = value
+    return value
+
+
+def step_bar(track: str, done: dict[str, bool]) -> str:
+    """Draw the numbered steps of a track (a tick marks a finished step) and return the chosen one."""
+    labels = {key: (f"{label} ✓" if done.get(key) else label) for key, label in TRACKS[track]["steps"]}
+    current_step(track)  # make sure the stored value is valid before the widget uses it
+    return st.radio("Step", list(labels), key=step_key(track), horizontal=True, format_func=labels.get,
+                    label_visibility="collapsed")
+
+
+def _go(mode: str, step: str | None = None) -> None:
+    mode, step = resolve_tile(mode, step)
+    st.session_state.nav = mode
+    if step:
+        st.session_state[step_key(mode)] = step
     try:
         if mode == "home":
-            if "tile" in st.query_params:
-                del st.query_params["tile"]
+            for name in ("tile", "step"):
+                if name in st.query_params:
+                    del st.query_params[name]
         else:
             st.query_params["tile"] = mode
+            if step:
+                st.query_params["step"] = step
+            elif "step" in st.query_params:
+                del st.query_params["step"]
     except Exception:  # noqa: BLE001
         pass
 
@@ -261,12 +319,15 @@ def _go(mode: str) -> None:
 def _init_nav() -> None:
     if "nav" in st.session_state:
         return
-    tile = "home"
+    tile, step = "home", None
     try:
-        tile = st.query_params.get("tile", "home")
+        tile, step = st.query_params.get("tile", "home"), st.query_params.get("step")
     except Exception:  # noqa: BLE001
         pass
-    st.session_state.nav = tile if tile in NAV_MODES else "home"
+    mode, step = resolve_tile(tile, step)
+    st.session_state.nav = mode
+    if step:
+        st.session_state[step_key(mode)] = step
 
 
 PROFILE_FIELDS = (
@@ -331,12 +392,12 @@ def _apply_ui_config(h: driver.LabHandle) -> str | None:
     """Write configs/_dashboard.yaml from the stored settings and point the handle at it."""
     sc = list(cfg("scenarios") or ["ecdsa", "slh-dsa", "mtl"])
     if not sc:
-        return "Select at least one algorithm in Setup."
+        return "Select at least one algorithm in the Prepare lab step."
     zone = cfg("zone_size", "small")
     shape, errors, _warnings = _shape()
     st.session_state.shape_errors = errors
     if errors or shape is None:
-        return "Fix the custom zone numbers in Setup: " + " ".join(errors)
+        return "Fix the custom zone numbers in the Prepare lab step: " + " ".join(errors)
     if cfg("_zone_prev") != zone:
         # New zone size → queries-per-trial follows that size's default until the user edits it.
         _store()["n_queries"] = int(shape["n_queries_default"])
@@ -386,7 +447,7 @@ def _embed_html(html: str, height: int | str = "content") -> None:
 def _lab_strip(h: driver.LabHandle, stt: dict, *, mode: str = "setup") -> None:
     r = readiness(stt)
     sc = _scenario_list(h)
-    if mode == "live" and r["active"]:
+    if mode == "simulated" and current_step("simulated") == "query" and r["active"]:
         scen_chip = _chip(f"Active · {r['active']}", "info")
     elif sc:
         label = "Algorithm" if len(sc) == 1 else "Algorithms"
@@ -408,7 +469,7 @@ def _page_header(mode: str, h: driver.LabHandle, stt: dict) -> None:
     tile = TILES[mode]
     st.markdown(f"## {tile['icon']} {tile['title']}")
     st.caption(tile["pitch"])
-    if mode in ("lab", "live", "reset"):
+    if mode in ("simulated", "reset"):
         _lab_strip(h, stt, mode=mode)
 
 
@@ -420,8 +481,8 @@ def _gate(stt: dict, what: str) -> bool:
     missing = [name for name, ok in (("images", r["images"]), ("signed zones", r["prepared"]),
                                      ("running containers", r["running"])) if not ok]
     st.warning(f"{what} needs a ready lab. Still missing: {', '.join(missing)}.")
-    target, label = ("setup", "Go to Setup") if not r["images"] else ("lab", "Go to Lab")
-    st.button(label, on_click=_go, args=(target,), key=f"gate_{what}", type="primary")
+    step, label = ("images", "Go to step 1: Images") if not r["images"] else ("prepare", "Go to step 2: Prepare lab")
+    st.button(label, on_click=_go, args=("simulated", step), key=f"gate_{what}", type="primary")
     return False
 
 

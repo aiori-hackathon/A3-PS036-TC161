@@ -33,9 +33,10 @@ def _sidebar_bench_offline(h: driver.LabHandle, stt: dict) -> None:
     problem = offline_image_problem()
     if problem:
         st.sidebar.warning(problem)
-        st.sidebar.button("Go to Setup", on_click=_go, args=("setup",), key="offline_to_setup", width="stretch")
+        st.sidebar.button("Go to step 1: Image", on_click=_go, args=("offline", "image"), key="offline_to_setup",
+                          width="stretch")
     else:
-        _hint(f"Runs inside the verified `cipherops-bench:{offline_job.OFFLINE_STACK}` image from Setup.")
+        _hint(f"Runs inside the verified `cipherops-bench:{offline_job.OFFLINE_STACK}` image from step 1.")
     busy = bool(suite_mod.running_suite() or image_job.is_running() or driver.active_prepare_tags())
     if busy:
         st.sidebar.warning("A simulated benchmark, image build or pull, or signing job is running. Wait for it to finish.")
@@ -127,9 +128,9 @@ def benchmark_offline_run() -> None:
     problem = offline_image_problem()
     if problem:
         st.warning(problem)
-        st.button("Go to Setup", on_click=_go, args=("setup",), key="offline_page_to_setup")
+        st.button("Go to step 1: Image", on_click=_go, args=("offline", "image"), key="offline_page_to_setup")
     st.caption("Choose the run size in the sidebar, then press **Run offline benchmark**. It runs on a dedicated "
-               "core with no network, inside the image Setup put on this node.")
+               "core with no network, inside the image from step 1.")
     _offline_plan(cfg("offline_preset", "quick"))
 
 

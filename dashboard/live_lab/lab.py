@@ -129,7 +129,8 @@ def compose_cmd(h: LabHandle, *args: str) -> list[str]:
 def status(h: LabHandle) -> dict:
     out = {"prepared": h.prepared(), "compose": str(h.compose), "active": h.active_scenario(),
            "containers": {}, "images": {}, "image_rows": []}
-    rows = images.status(h.stack, "all")
+    # The offline image is always the `latest` stack's; the lab images follow the selected version.
+    rows = images.status(images.OFFLINE_STACK, "offline") + images.status(h.stack, "simulated")
     out["image_rows"] = [asdict(r) for r in rows]
     out["images"] = {r.ref: r.state == "ok" for r in rows if r.role in images.MODES["simulated"]}
     if not h.compose.exists():

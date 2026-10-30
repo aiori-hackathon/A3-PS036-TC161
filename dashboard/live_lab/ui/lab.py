@@ -1,7 +1,7 @@
-"""Lab tile: sign the zones and start or stop the simulated lab, to query it by hand in Live.
+"""Step 2 of the simulated lab: sign the zones and start or stop the lab, to query it by hand in step 3.
 
-The images come from Setup (built here or pulled); this tile only uses them. The simulated *benchmark* needs none of
-this: it signs, starts and stops its own lab for every dataset size."""
+The images come from step 1 (built here or pulled); this step only uses them. The simulated *benchmark* (step 4) needs
+none of this: it signs, starts and stops its own lab for every dataset size."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ import streamlit as st
 from live_lab import compare, driver, image_job, prepare_job, prepare_story
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
-from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
     ECO_DIR, _apply_ui_config, _embed_html, _go, _hint, _log_chunks, _page_header, _scenario_list,
     _shape, _sidebar_brand, _step_label, _warn_unvalidated, activity, cfg, prepare_metrics_visible,
@@ -58,7 +57,7 @@ def _finish_prepare_job(h: driver.LabHandle) -> None:
     _log_chunks(log, phase="prepare", source="prepare", title="prepare")
     n_scen = len(summary.get("scenarios") or stt.get("scenarios") or [])
     activity("ok", f"Zones signed ({secs:.0f}s)",
-             f"Signed zones for {n_scen} algorithm(s): {scen_txt}. Watch the signing replay in Setup, "
+             f"Signed zones for {n_scen} algorithm(s): {scen_txt}. Watch the signing replay on this page, "
              "or open Results for sign times.", phase="prepare", source="prepare", h=h)
     activity("info", "Signing paths",
              f"work: `{summary['work_dir']}`\nzones: `{summary['zones_dir']}`\n"
@@ -82,10 +81,11 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
     stack = h.stack
     building = image_job.is_running()
     if r["images"]:
-        _hint(f"Images for **{stack}** are on this node and match the stack profile. Change the version in Setup.")
+        _hint(f"Images for **{stack}** are on this node and match the stack profile. Change the version in step 1.")
     else:
-        st.sidebar.warning("The lab images are not ready. Build or pull them in Setup first.")
-        st.sidebar.button("Go to Setup", on_click=_go, args=("setup",), key="lab_to_setup", width="stretch")
+        st.sidebar.warning("The lab images are not ready. Build or pull them in step 1 first.")
+        st.sidebar.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="lab_to_setup",
+                          width="stretch")
 
     # —— Step 1: prepare (zone design, then sign) ——
     prep_state = "done" if prepared_session else ("partial" if r["prepared"] else "none")
@@ -135,7 +135,7 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
     signing = prepare_job.is_running(h)
     no_images = not r["images"]
     if no_images:
-        _hint("Build or pull the images in Setup first.")
+        _hint("Build or pull the images in step 1 first.")
     if signing:
         _hint("Signing is running. Watch it live on this page.")
     if st.sidebar.button(gl.label("sign_zones"), key="btn_prep", help=gl.tip("sign_zones"), width="stretch",
@@ -416,12 +416,12 @@ def setup_overview(h: driver.LabHandle, stt: dict) -> None:
         with st.container(border=True):
             st.success("The lab is signed, running and ready.")
             a, b, _ = st.columns([1, 1, 2])
-            a.button("Continue to Live →", on_click=_go, args=("live",), key="lab_to_live",
+            a.button("Continue: query the lab →", on_click=_go, args=("simulated", "query"), key="lab_to_live",
                      type="primary", width="stretch")
-            b.button("Continue to Benchmark →", on_click=_go, args=("benchmark",),
+            b.button("Or run the benchmark →", on_click=_go, args=("simulated", "benchmark"),
                      key="lab_to_bench", width="stretch")
     else:
-        nxt = ("Build or pull the images in Setup" if not r["images"]
+        nxt = ("Build or pull the images in step 1" if not r["images"]
                else "Sign the zones (Step 1)" if not r["prepared"]
                else "Press Start to launch the containers (Step 2)")
         st.info(f"**Next:** {nxt} — use the sidebar.")
@@ -472,22 +472,20 @@ def setup_results(h: driver.LabHandle) -> None:
                     width="stretch")
 
 
-def lab_page(h: driver.LabHandle, stt: dict) -> None:
-    _page_header("lab", h, stt)
+def lab_body(h: driver.LabHandle, stt: dict) -> None:
+    """Step 2 of the simulated lab: sign the zones and start the lab (the controls are in the sidebar)."""
     if image_job.is_running():
-        st.info("Images are being built or pulled in Setup. The lab buttons stay off until they are ready.")
-        st.button("Open Setup", on_click=_go, args=("setup",), key="lab_open_setup")
+        st.info("Images are being built or pulled in step 1. The lab buttons stay off until they are ready.")
+        st.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="lab_open_setup")
     if prepare_job.is_running(h):
         # Signing is in progress: show it live. The other tabs describe the previous Prepare, so they
         # wait until it ends (the page reruns by itself and opens the replay).
         prepare_live_panel(h)
         return
-    overview, replay, results, activity = st.tabs(["Overview", "Signing replay", "Results", "Activity log"])
+    overview, replay, results = st.tabs(["Overview", "Signing replay", "Results"])
     with overview:
         setup_overview(h, stt)
     with replay:
         setup_replay(h, key="tab")
     with results:
         setup_results(h)
-    with activity:
-        activity_tab(h)

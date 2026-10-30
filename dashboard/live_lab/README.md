@@ -12,17 +12,27 @@ Needs Docker (except for **Learn** and for viewing saved results). In Codespaces
 For a first visit use the **Small** zone size, and use the **`draft06`** image version for any MTL-versus-plain
 comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (the dashboard warns about it).
 
-## Tiles
+## Tracks and pages
 
-| Tile | What it is for | Needs |
+The home page offers the two ways of benchmarking as tracks; each is one page with numbered steps, and the sidebar
+shows the settings of the step you are on. A tick marks a finished step.
+
+| Track / step | What it is for | Needs |
 | --- | --- | --- |
-| **Setup** | put the pinned images on this node: **build locally** or **pull from a registry**, then verify them against the stack profile | Docker |
-| **Lab** | choose zone size and algorithms, **Sign zones**, **Start** the lab (for hands-on queries in Live) | the lab images from Setup |
-| **Live** | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
-| **Benchmark** | **Offline (harness)** or **Simulated (Verisign stack)**, see below | Offline: the verified harness image. Simulated: the verified lab images |
+| **Offline benchmark** ① Image | get `cipherops-bench:latest`: build it here or pull it, then verify it | Docker |
+| ② Run | the harness on one pinned core, no network; pick *Quick check* or *Full run* | the verified image |
+| ③ Results | tables, charts and downloads of a saved run | a finished run |
+| **Simulated lab** ① Images | get the three lab images for a stack version (`draft06` or `latest`) | Docker |
+| ② Prepare lab | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
+| ③ Query lab | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
+| ④ Benchmark | signs, starts, measures and stops its own lab for each zone size (steps ② and ③ are not needed) | the lab images |
 | **Compare** | *Algorithms side by side*, *Run against run*, and *Zone updates* | a finished benchmark |
 | **Learn** | why DNSSEC needs MTL; what an operator does | nothing |
+| **Images** | both image sets in one place, with image details, stack pins and terminal commands | Docker |
 | **Reset** | clear only the scopes you pick (session, captures, runs, signed zones, cache) | nothing |
+
+Old links still work: `?tile=lab`, `?tile=live` and `?tile=benchmark` open the matching simulated-lab step, and
+`?tile=offline&step=run` opens a step directly.
 
 ## Benchmark
 
@@ -68,15 +78,16 @@ runs in the background, and writes `ecosystem/results/suites/<id>/`.
 Every figure in Compare is badged **Measured**, **Estimated** or **Analytical**. The analytical ones (signature storage
 from the draft's size formulas) are kept apart and never mixed with measured cache.
 
-### Setup: the images
+### The image steps
 
-Setup only makes sure the pinned images are on the benchmark node; it signs and measures nothing. There are two
-independent image sets, each on its own card with its version, status and button:
+The first step of each track (and the **Images** page) only makes sure the pinned images are on the benchmark node; it
+signs and measures nothing. There are two independent image sets, each on its own card with its version, status and
+button:
 
 - **Offline benchmark**: `cipherops-bench:latest`. The version is fixed, because the harness needs the stack whose
   liboqs has the FIPS 205 names.
 - **Simulated lab**: `cipherops-eco-{nsd,unbound,tools}:<version>`, for the version chosen in the sidebar
-  (`draft06` or `latest`). Only Lab, Live and Benchmark → Simulated use it.
+  (`draft06` or `latest`). Only the simulated lab uses it.
 
 In the sidebar choose how to get them, for both cards:
 
@@ -98,9 +109,9 @@ missing or does-not-match for each, and Benchmark and Lab only use images that p
 
 | Where | Numbers | Needs signing again |
 | --- | --- | --- |
-| Lab → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed (Live only) | yes |
-| Benchmark (Simulated) → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
-| Benchmark (Simulated) → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
+| Simulated lab ② Prepare lab → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed (step ③ only) | yes |
+| Simulated lab ④ Benchmark → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
+| Simulated lab ④ Benchmark → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
 
 Lab shows a **Planned lab** card (zones, names, containers, rough signing time) and the exact YAML. A custom shape
 gets its own lab folder named after a hash of its numbers (`eco-ui-custom-<hash>`), so results from different shapes
@@ -122,7 +133,7 @@ Offline and simulated data are never drawn together.
 
 ## Signing replay and live progress
 
-After **Sign zones**, Lab opens an animated replay of how the hierarchy was signed (also under Lab → **Signing
+After **Sign zones**, step ② Prepare lab opens an animated replay of how the hierarchy was signed (also under its **Signing
 replay**). It plays bottom-up: leaf zones, TLDs, then the root, with each DS record travelling to its parent. For `mtl`
 the RRsets become leaves of a Merkle tree, the ladder is signed once and each RRset keeps a short path; for the other
 algorithms every RRset is signed on its own, with a bar per signature on one scale. Counts, times and bytes are

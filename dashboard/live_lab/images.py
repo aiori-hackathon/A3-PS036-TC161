@@ -195,13 +195,13 @@ def ready(statuses: list[ImageStatus]) -> bool:
 def explain(statuses: list[ImageStatus], mode: str) -> str:
     """One line for the Benchmark tile when its images are not usable; empty when they are."""
     if not statuses:
-        return f"{MODE_TITLE[mode]} runs on the {OFFLINE_STACK} stack only. Open Setup and pick it."
+        return f"{MODE_TITLE[mode]} runs on the {OFFLINE_STACK} stack only."
     bad = [s for s in statuses if s.state != "ok"]
     if not bad:
         return ""
     names = ", ".join(s.ref for s in bad)
     return (f"{MODE_TITLE[mode]} needs {names}: " + "; ".join(sorted({p for s in bad for p in s.problems})) +
-            ". Open Setup to build or pull them.")
+            ". Build or pull them first (the image step, or the Images page).")
 
 
 def _roles_or_raise(stack: str, mode: str) -> tuple[str, ...]:

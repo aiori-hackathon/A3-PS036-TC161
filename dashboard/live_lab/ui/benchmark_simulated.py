@@ -37,10 +37,10 @@ def _sidebar_bench_simulated(h: driver.LabHandle, stt: dict) -> None:
         st.sidebar.markdown(f"🟢  {len(done)} saved benchmark(s)" if done else "⚪  No benchmark yet")
     _hint(
         "Runs on its own: for each zone size it signs the zones, repeats signing and verification, "
-        "starts the lab, measures, and stops it. It only needs the verified lab images from Setup."
+        "starts the lab, measures, and stops it. It only needs the verified lab images (step 1)."
     )
     bench_stack = cfg("stack", driver.DEFAULT_STACK)
-    _hint(f"Uses **Image version `{bench_stack}`** from Setup — build that stack before you run.")
+    _hint(f"Uses the lab version **`{bench_stack}`** from step 1; its images must be ready.")
 
     st.sidebar.markdown("**Run name**")
     label = sb(
@@ -107,9 +107,9 @@ def _sidebar_bench_simulated(h: driver.LabHandle, stt: dict) -> None:
     ready = (bool(sizes and sc and nets) and r["images"] and not live and not image_job.is_running()
              and not offline_job.is_running())
     if not r["images"]:
-        st.sidebar.warning("The lab images are not ready. Build or pull them in Setup first.")
+        st.sidebar.warning("The lab images are not ready. Build or pull them in step 1 first.")
     if r["running"] and not live:
-        st.sidebar.caption("The lab running in Setup will be stopped while the benchmark uses the containers.")
+        st.sidebar.caption("A lab running from step 2 will be stopped while the benchmark uses the containers.")
     if st.sidebar.button("Run benchmark", key="btn_bench", type="primary", width="stretch", disabled=not ready):
         params = {
             "label": clean, "stack": cfg("stack", "draft06"), "sizes": sorted(int(n) for n in sizes),
@@ -232,7 +232,7 @@ def benchmark_run(h: driver.LabHandle, stt: dict) -> None:
     if not r["images"]:
         st.warning("The lab images for this stack are not on this node (or do not match its profile). Put them there "
                    "once in **Setup**, by building or pulling; the benchmark does the rest itself.")
-        st.button("Go to Setup", on_click=_go, args=("setup",), key="bench_to_setup")
+        st.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="bench_to_setup")
     st.caption("Set the options in the sidebar, then press **Run benchmark**. It signs, starts and stops the "
                "lab on its own, one zone size after another.")
     _bench_plan()

@@ -87,7 +87,7 @@ def test_status_checks_every_image_of_the_mode(tmp_path, monkeypatch):
     assert [r.state for r in rows] == ["ok", "missing", "ok"]
     assert not images.ready(rows)
     assert "cipherops-eco-unbound:latest" in images.explain(rows, "simulated")
-    assert "Open Setup" in images.explain(rows, "simulated")
+    assert "Build or pull them" in images.explain(rows, "simulated")
     assert images.explain([r for r in rows if r.state == "ok"], "simulated") == ""
 
 

@@ -45,8 +45,8 @@ prepare_job = importlib.reload(prepare_job)  # after suite_mod: it uses the suit
 st.set_page_config(page_title="Cipherops · MTL DNSSEC Lab", layout="wide", page_icon="🛰️")
 
 from live_lab.ui import (  # noqa: E402
-    activity, benchmark, benchmark_offline, benchmark_simulated, common, compare_page, home, lab as lab_tile,
-    learn, live, reset, setup,
+    activity, benchmark_offline, benchmark_simulated, common, compare_page, home, lab as lab_tile,
+    learn, live, reset, setup, track_offline, track_simulated,
 )
 
 common = importlib.reload(common)
@@ -54,10 +54,11 @@ activity = importlib.reload(activity)
 benchmark_simulated = importlib.reload(benchmark_simulated)
 compare_page = importlib.reload(compare_page)
 benchmark_offline = importlib.reload(benchmark_offline)
-benchmark = importlib.reload(benchmark)
 lab_tile = importlib.reload(lab_tile)
 setup = importlib.reload(setup)
 live = importlib.reload(live)
+track_offline = importlib.reload(track_offline)
+track_simulated = importlib.reload(track_simulated)
 reset = importlib.reload(reset)
 learn = importlib.reload(learn)
 home = importlib.reload(home)
@@ -179,15 +180,14 @@ def _chrome_bar() -> None:
 # ─────────────────────────── ENTRY POINT ───────────────────────────
 
 SIDEBARS = {
-    "home": home.sidebar_home, "setup": setup.sidebar_setup, "lab": lab_tile.sidebar_lab,
-    "live": live.sidebar_live,
-    "benchmark": benchmark.sidebar_benchmark, "compare": compare_page.sidebar_compare,
-    "learn": learn.sidebar_learn, "reset": reset.sidebar_reset,
+    "home": home.sidebar_home, "offline": track_offline.sidebar_offline,
+    "simulated": track_simulated.sidebar_simulated, "setup": setup.sidebar_setup,
+    "compare": compare_page.sidebar_compare, "learn": learn.sidebar_learn, "reset": reset.sidebar_reset,
 }
 PAGES = {
-    "setup": setup.setup_page, "lab": lab_tile.lab_page, "live": live.live_page,
-    "benchmark": benchmark.benchmark_page,
-    "compare": compare_page.compare_page, "learn": learn.learn_page, "reset": reset.reset_page,
+    "offline": track_offline.page_offline, "simulated": track_simulated.page_simulated,
+    "setup": setup.setup_page, "compare": compare_page.compare_page, "learn": learn.learn_page,
+    "reset": reset.reset_page,
 }
 
 
@@ -211,7 +211,8 @@ def main() -> None:
     err = common._apply_ui_config(h) or err
     if h.tag != tag_before:
         st.rerun()  # zone size changed → a different lab; re-read its status
-    if err and mode == "setup" and not st.session_state.get("shape_errors"):
+    if (err and mode == "simulated" and common.current_step("simulated") == "prepare"
+            and not st.session_state.get("shape_errors")):
         st.sidebar.error(err)
 
     if mode == "home":

@@ -155,7 +155,7 @@ def test_unknown_preset_is_refused(sandbox):
 def test_start_refuses_to_run_without_a_verified_image(sandbox, monkeypatch):
     missing = [images.ImageStatus(role="bench", ref="cipherops-bench:latest", problems=["not on this host"])]
     monkeypatch.setattr(images, "status", lambda stack, mode="all": missing)
-    with pytest.raises(images.ImagesNotReady, match="Open Setup"):
+    with pytest.raises(images.ImagesNotReady, match="Build or pull them"):
         oj.start("quick")
     assert not (oj.job_dir() / "params.json").exists()
 

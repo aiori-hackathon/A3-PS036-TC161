@@ -79,15 +79,15 @@ instructions, Windows commands, tests and troubleshooting: [Getting started](doc
 
 ## The dashboard
 
-| Tile | Use |
-| --- | --- |
-| **Setup** | put the pinned images on this node: build them or pull them from a registry, then verify |
-| **Lab** | sign the zones and start the simulated lab |
-| **Live** | send queries, flush the cache, inspect the captured packets |
-| **Benchmark** | *Offline (harness)* or *Simulated (Verisign stack)*, run from the browser |
-| **Compare** | algorithms side by side, run against run, and the cost of zone updates |
-| **Learn** | why DNSSEC needs MTL, and an operator walkthrough |
-| **Reset** | clear only what you choose |
+The dashboard opens on the two ways of benchmarking. Each is a short numbered path:
+
+| Track | Question it answers | Steps |
+| --- | --- | --- |
+| **Offline benchmark** | How fast is each algorithm? One pinned core, no network. | ① Image → ② Run → ③ Results |
+| **Simulated lab** | How does a real resolver behave? Real servers, packets and cache. | ① Images → ② Prepare lab → ③ Query lab → ④ Benchmark |
+
+Below them: **Compare** (algorithms side by side, run against run, zone-update cost), **Learn** (why DNSSEC needs MTL),
+**Images** (both image sets in one place) and **Reset** (clear only what you choose).
 
 Details: [dashboard guide](dashboard/live_lab/README.md).
 

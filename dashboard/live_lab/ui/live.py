@@ -66,9 +66,9 @@ def sidebar_live(h: driver.LabHandle, stt: dict) -> None:
                     activity("err", "Activate failed", str(e)[:2000], phase="activate", source="compose", h=h)
             st.rerun()
         elif not r["running"] and scenario != active:
-            _hint("Start the lab in Setup to apply this choice.")
+            _hint("Start the lab in step 2 to apply this choice.")
     else:
-        _hint("Sign the zones in Setup first.")
+        _hint("Sign the zones in step 2 first.")
 
     done_q = bool(st.session_state.get("query_log") or st.session_state.get("last_query"))
     st.sidebar.markdown(_step_label(2, "Query", "done" if done_q else "none"))
@@ -79,7 +79,7 @@ def sidebar_live(h: driver.LabHandle, stt: dict) -> None:
     if r["running"]:
         _hint("Empties the resolver cache. The next query is a cold-cache query. Takes a few seconds.")
     else:
-        _hint("Start the lab in Setup before flushing.")
+        _hint("Start the lab in step 2 before flushing.")
     if st.sidebar.button("Flush cache", key="btn_flush_cache", width="stretch", disabled=not r["running"],
                          help=gl.tip("cold_cache")):
         activity("step", "Flush cache", "", phase="cache", source="unbound", h=h)
@@ -644,8 +644,8 @@ def live_results(h: driver.LabHandle) -> None:
         pcap_sequence_view(h, options)
 
 
-def live_page(h: driver.LabHandle, stt: dict) -> None:
-    _page_header("live", h, stt)
+def live_body(h: driver.LabHandle, stt: dict) -> None:
+    """Step 3 of the simulated lab: query the running lab and inspect the packets."""
     query, dig_tab, cache, results = st.tabs(["Query", "dig terminal", "Cold vs warm cache", "Results"])
     with query:
         query_panel(h, stt)
@@ -655,4 +655,3 @@ def live_page(h: driver.LabHandle, stt: dict) -> None:
         cache_panel(h, stt)
     with results:
         live_results(h)
-    _activity_expander(h)
