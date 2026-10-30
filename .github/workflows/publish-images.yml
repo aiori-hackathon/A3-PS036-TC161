@@ -1,0 +1,85 @@
+# Builds the four images of a stack from docker/Dockerfile and pushes them to GitHub's container registry, so the
+# dashboard's Setup can pull them ("Pull from registry") instead of compiling OpenSSL, liboqs and MTL on the benchmark
+# node.
+#
+# Where they go: ghcr.io/<owner of the repository running this workflow>/benchmark/<image>:<stack>, using the
+# workflow's own GITHUB_TOKEN, so no personal access token or secret is needed. Run it from the account that should
+# host the images (the repository itself, or a fork). Names pushed (what Setup expects): cipherops-bench,
+# cipherops-eco-nsd, cipherops-eco-unbound, cipherops-eco-tools, tagged <stack> and <stack>-<short sha>.
+#
+# Visibility: a new package starts PRIVATE and GitHub has no API to change that. Once per image, the account that owns
+# it opens Packages -> <image> -> Package settings -> Change visibility -> Public. It stays public for later pushes.
+# The last step of this workflow reports whether anonymous pulls already work.
+name: publish-images
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: Registry namespace (empty = ghcr.io/<repository owner>/benchmark)
+        default: ""
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [draft06, latest]
+    env:
+      STACK: ${{ matrix.stack }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the registry namespace
+        env:
+          INPUT_REGISTRY: ${{ inputs.registry }}
+        run: |
+          registry="${INPUT_REGISTRY:-ghcr.io/${GITHUB_REPOSITORY_OWNER}/benchmark}"
+          echo "REGISTRY=${registry,,}" >> "$GITHUB_ENV"   # registry names must be lower case
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the images
+        env:
+          VCS_REF: ${{ github.sha }}
+          VCS_URL: ${{ github.server_url }}/${{ github.repository }}   # links each package to this repository
+        run: |
+          docker compose -f docker/build.yml --env-file ecosystem/stacks/${STACK}.env build
+
+      - name: Tag and push
+        run: |
+          short="${GITHUB_SHA::7}"
+          for repo in cipherops-bench cipherops-eco-nsd cipherops-eco-unbound cipherops-eco-tools; do
+            for tag in "$STACK" "$STACK-$short"; do
+              docker tag "$repo:$STACK" "$REGISTRY/$repo:$tag"
+              docker push "$REGISTRY/$repo:$tag"
+            done
+          done
+
+      - name: Report whether the images can be pulled without logging in
+        run: |
+          host="${REGISTRY%%/*}"; path="${REGISTRY#*/}"
+          for repo in cipherops-bench cipherops-eco-nsd cipherops-eco-unbound cipherops-eco-tools; do
+            token="$(curl -fsS "https://$host/token?scope=repository:$path/$repo:pull" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+            code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" \
+                    -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+                    "https://$host/v2/$path/$repo/manifests/$STACK")"
+            if [ "$code" = "200" ]; then
+              echo "public:  $REGISTRY/$repo:$STACK"
+            else
+              echo "::warning::$REGISTRY/$repo is private (anonymous pull returned $code). The owner must make it public: https://github.com/users/${GITHUB_REPOSITORY_OWNER}/packages/container/package/benchmark%2F$repo/settings"
+            fi
+          done

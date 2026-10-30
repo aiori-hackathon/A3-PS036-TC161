@@ -5,3 +5,8 @@ results
 .pytest_cache
 .venv
 *.egg-info
+dashboard
+docs
+ecosystem
+hackathon
+.github

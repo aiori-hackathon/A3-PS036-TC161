@@ -21,7 +21,13 @@ function Invoke-Native([string]$line) {
     if ($LASTEXITCODE -ne 0) { Write-Error "command failed ($LASTEXITCODE): $line"; exit $LASTEXITCODE }
 }
 
-Invoke-Native "docker compose --env-file $EnvFile -f docker/compose.yml build"
+# Build the pinned image here, or set CIPHEROPS_SKIP_BUILD=1 to run the one already on this host.
+if ($env:CIPHEROPS_SKIP_BUILD -eq "1") {
+    docker image inspect "cipherops-bench:$Stack" *> $null
+    if ($LASTEXITCODE -ne 0) { Write-Error "cipherops-bench:$Stack is not on this host; build or pull it first."; exit 1 }
+} else {
+    Invoke-Native "docker compose --env-file $EnvFile -f docker/build.yml build bench"
+}
 
 $sha = (git rev-parse HEAD 2>$null)
 if (git status --porcelain 2>$null) { $sha = "$sha-dirty" }

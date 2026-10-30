@@ -225,9 +225,10 @@ bash scripts/run_benchmark.sh configs/quick.yaml        # Windows: .\scripts\run
 
 ### Step 1. `scripts/run_benchmark.sh` (Windows: `run_benchmark.ps1`)
 
-1. `docker compose --env-file ecosystem/stacks/<stack>.env -f docker/compose.yml build` builds the pinned image
+1. `docker compose --env-file ecosystem/stacks/<stack>.env -f docker/build.yml build bench` builds the pinned image
    for the stack profile (default `latest`; set `CIPHEROPS_STACK`)
-   (only slow the first time; later builds use the cache).
+   (only slow the first time; later builds use the cache). Set `CIPHEROPS_SKIP_BUILD=1` to run the image already on
+   the host instead (built earlier, or pulled in the dashboard's Setup); the script stops if it is missing.
 2. Records the git commit (`CIPHEROPS_GIT_SHA`), the image ID
    (`CIPHEROPS_HOST_IMAGE_ID`) and the CPU core (`CIPHEROPS_CPUSET`) so they
    end up in `environment.json`.
@@ -637,9 +638,10 @@ offline harness as a background job.
 
 | Module | Role |
 |---|---|
-| `live_lab/app.py` | the pages and sidebars |
+| `live_lab/app.py` | entry point: page chrome, the sidebar and page tables, `main()` |
+| `live_lab/ui/` | one module per tile (`setup`, `live`, `benchmark` with `benchmark_offline` and `benchmark_simulated`, `compare_page`, `learn`, `reset`, `home`), plus `common` (shared state and page helpers) and `activity` (the activity log) |
 | `live_lab/glossary.py` | the one list of labels and their explanations (the ⓘ icons) |
-| `live_lab/driver.py` | Docker and lab operations, and the rule that nothing disturbs a running benchmark |
+| `live_lab/driver.py` | job and suite status, the rule that nothing disturbs a running benchmark, stack pins and image pulls; it re-exports `lab.py` (lab handle and Docker Compose operations), `shapes.py` (zone sizes and estimates) and `artifacts.py` (manifests, saved runs, session, reset) |
 | `live_lab/suite.py`, `suite_report.py` | the simulated benchmark and its report |
 | `live_lab/offline_job.py` | runs `docker compose build` and the harness (`cipherops.runner run`) as a background job; state in `ecosystem/jobs/_offline/` |
 | `live_lab/build_job.py`, `prepare_job.py` | the image build and the signing as background jobs with live logs |
@@ -682,12 +684,17 @@ docker run --rm --network none cipherops-bench:latest \
 
 ### 6.17 Docker files
 
-- `docker/Dockerfile`: stage 1 builds OpenSSL, liboqs and Verisign MTL, at
-  the versions in the stack profile (`ecosystem/stacks/<profile>.env`), from source (MTL compiled with `-O2`
-  because upstream forces `-O0`; source unmodified). Stage 2 is the runtime:
-  libraries, NSD, tcpdump, pinned Python packages, builds `mtlbench`, installs
-  the package.
-- `docker/compose.yml`: service `bench`; `cpuset` pins one core;
+- `docker/Dockerfile`: one build graph for every image of a stack. The `toolchain` stage builds OpenSSL, liboqs and
+  Verisign MTL at the versions in the stack profile (`ecosystem/stacks/<profile>.env`), from source (MTL compiled with
+  `-O2` because upstream forces `-O0`; source unmodified). Four targets share it: `bench` (the offline harness image:
+  libraries, NSD, tcpdump, pinned Python packages, `mtlbench`, the package) and the simulated lab's `nsd`, `unbound`
+  and `tools` (ldns signer, resolver and client). Each image records the pins it was built from as `io.cipherops.*`
+  labels, which Setup checks against the stack profile.
+- `docker/build.yml`: builds those targets (`docker compose -f docker/build.yml --env-file <profile>.env build [bench |
+  nsd unbound tools]`) under the names `cipherops-bench:<stack>` and `cipherops-eco-{nsd,unbound,tools}:<stack>`.
+  `.github/workflows/publish-images.yml` builds the same files and pushes them to a registry for the dashboard's
+  "Pull from registry".
+- `docker/compose.yml`: service `bench` (runs the prebuilt image); `cpuset` pins one core;
   `mem_limit: 4g`; `network_mode: none` (no Internet, no noise); mounts
   `results/` and `configs/` from the host. Service `live` is the same plus
   `NET_ADMIN` (tc-netem on the container's own loopback).

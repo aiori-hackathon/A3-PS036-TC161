@@ -14,7 +14,14 @@ env_file="ecosystem/stacks/${stack}.env"
 [ -f "${env_file}" ] || { echo "unknown stack '${stack}': no ${env_file}" >&2; exit 1; }
 compose=(docker compose --env-file "${env_file}" -f docker/compose.yml)
 
-"${compose[@]}" build
+# The image is the pinned artefact: build it here, or set CIPHEROPS_SKIP_BUILD=1 to run the one already on this host
+# (built earlier, or pulled from a registry in the dashboard's Setup).
+if [ "${CIPHEROPS_SKIP_BUILD:-0}" = "1" ]; then
+  docker image inspect "cipherops-bench:${stack}" >/dev/null 2>&1 \
+    || { echo "cipherops-bench:${stack} is not on this host; build or pull it first (unset CIPHEROPS_SKIP_BUILD to build)." >&2; exit 1; }
+else
+  docker compose --env-file "${env_file}" -f docker/build.yml build bench
+fi
 
 sha="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 [ -n "$(git status --porcelain 2>/dev/null)" ] && sha="${sha}-dirty"
