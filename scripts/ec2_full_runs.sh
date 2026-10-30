@@ -48,17 +48,23 @@ run_offline() {
   need_cmd docker
   need_cmd git
 
-  local cfg="${ROOT}/configs/_ec2_${OFFLINE_NAME}.yaml"
-  # Same matrix as scenarios.yaml, distinct run_name for this EC2 freeze.
+  # Relative to the repo: the bench container mounts ../configs → /work/configs.
+  # An absolute host path is invisible inside the container (that is what broke the first EC2 run).
+  local cfg_rel="configs/${OFFLINE_NAME}.yaml"
+  local cfg_abs="${ROOT}/${cfg_rel}"
   sed "s/^run_name:.*/run_name: ${OFFLINE_NAME}/" \
-    "${ROOT}/configs/scenarios.yaml" >"$cfg"
+    "${ROOT}/configs/scenarios.yaml" >"$cfg_abs"
+  [ -f "$cfg_abs" ] || { echo "failed to write ${cfg_rel}" >&2; exit 1; }
+  log "Wrote ${cfg_rel} (run_name=${OFFLINE_NAME})"
 
   log "OFFLINE preflight (stack=latest)…"
   CIPHEROPS_STACK=latest bash scripts/run_benchmark.sh preflight "$CPUSET" \
     2>&1 | tee "${LOG_DIR}/offline-preflight.log"
 
+  # Image was just built (or already present); do not rebuild before the long run.
   log "OFFLINE full run → results/runs/*-${OFFLINE_NAME}/  (expect ~5 h)"
-  CIPHEROPS_STACK=latest bash scripts/run_benchmark.sh "$cfg" "$CPUSET" \
+  CIPHEROPS_SKIP_BUILD=1 CIPHEROPS_STACK=latest \
+    bash scripts/run_benchmark.sh "$cfg_rel" "$CPUSET" \
     2>&1 | tee "${LOG_DIR}/offline-full.log"
 
   local latest
