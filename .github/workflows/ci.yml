@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dashboard.txt
+      - run: pip install -r requirements-dashboard.txt
+      # The harness tests need the compiled reference library and run inside the image instead.
+      - run: python -m pytest -m "not harness" -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Parses the build file and every stack profile against it (a missing pin fails here).
+      - name: Validate the compose files
+        run: |
+          for env in ecosystem/stacks/*.env; do
+            docker compose -f docker/build.yml --env-file "$env" config --quiet
+            docker compose -f docker/compose.yml --env-file "$env" config --quiet
+          done
+      # Checks the Dockerfile of every target without building it (the full build takes tens of minutes).
+      - name: Lint the Dockerfile targets
+        run: |
+          set -a; . ecosystem/stacks/latest.env; set +a
+          for target in bench nsd unbound tools; do
+            docker buildx build --check -f docker/Dockerfile --target "$target" \
+              --build-arg STACK --build-arg OPENSSL_TAG --build-arg LIBOQS_TAG --build-arg MTL_COMMIT \
+              --build-arg LDNS_COMMIT --build-arg NSD_COMMIT --build-arg UNBOUND_COMMIT .
+          done

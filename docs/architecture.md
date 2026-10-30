@@ -692,8 +692,8 @@ docker run --rm --network none cipherops-bench:latest \
   labels, which Setup checks against the stack profile.
 - `docker/build.yml`: builds those targets (`docker compose -f docker/build.yml --env-file <profile>.env build [bench |
   nsd unbound tools]`) under the names `cipherops-bench:<stack>` and `cipherops-eco-{nsd,unbound,tools}:<stack>`.
-  `.github/workflows/publish-images.yml` builds the same files and pushes them to a registry for the dashboard's
-  "Pull from registry".
+  `scripts/publish_images.sh` pushes the built images to a registry for the dashboard's "Pull from registry", and
+  `.github/workflows/ci.yml` runs the tests and lints these Docker files on every push.
 - `docker/compose.yml`: service `bench` (runs the prebuilt image); `cpuset` pins one core;
   `mem_limit: 4g`; `network_mode: none` (no Internet, no noise); mounts
   `results/` and `configs/` from the host. Service `live` is the same plus

@@ -105,7 +105,7 @@ def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
         registry = sb(st.sidebar.text_input, "registry", images.DEFAULT_REGISTRY, "Registry",
                       placeholder="ghcr.io/org/benchmark",
                       help="Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged "
-                           "with the stack name. Published by .github/workflows/publish-images.yml.")
+                           "with the stack name. Published with scripts/publish_images.sh.")
         label, action, reg = ("Pulling…" if running else "Pull images"), "pull", registry
     else:
         label, action, reg = ("Building…" if running else "Build images"), "build", None
@@ -188,8 +188,8 @@ def _overview(h: driver.LabHandle, stt: dict) -> None:
             f"python scripts/images.py build  --stack {h.stack} --mode all\n"
             f"python scripts/images.py pull   --stack {h.stack} --mode all --registry {images.DEFAULT_REGISTRY}",
             language="bash")
-        st.caption("Publishing is the **publish-images** GitHub workflow (docker/build.yml, then push); "
-                   "it uses the workflow's own token, and the owner makes each package public once.")
+        st.caption("Publish with `scripts/publish_images.sh <stack>` from a machine that is logged in to the registry; "
+                   "the registry's owner makes each package public once.")
 
 
 def setup_page(h: driver.LabHandle, stt: dict) -> None:

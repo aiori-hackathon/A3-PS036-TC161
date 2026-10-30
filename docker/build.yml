@@ -2,7 +2,7 @@
 #   docker compose -f docker/build.yml --env-file ecosystem/stacks/latest.env build            # all four
 #   docker compose -f docker/build.yml --env-file ecosystem/stacks/latest.env build bench      # offline harness only
 # Image names match what the dashboard, docker/compose.yml and the lab expect. To publish the same images to a
-# registry, see .github/workflows/publish-images.yml.
+# registry, see scripts/publish_images.sh.
 name: cipherops-build
 
 x-build: &build
@@ -17,7 +17,7 @@ x-build: &build
     NSD_COMMIT: ${NSD_COMMIT:?missing NSD_COMMIT in the stack profile}
     UNBOUND_COMMIT: ${UNBOUND_COMMIT:?missing UNBOUND_COMMIT in the stack profile}
     VCS_REF: ${VCS_REF:-unknown}
-    VCS_URL: ${VCS_URL:-}   # set only when publishing from CI: it links the package to that repository
+    VCS_URL: ${VCS_URL:-}   # optional: org.opencontainers.image.source, which links a GHCR package to a repository
 
 services:
   bench:
