@@ -1,8 +1,8 @@
 name: ci
 
+# Manual only (Actions tab -> ci -> Run workflow): the checks take a few minutes and should not run on every push.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
