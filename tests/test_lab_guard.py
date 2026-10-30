@@ -33,6 +33,15 @@ class _Done:
     returncode, stdout, stderr = 0, "", ""
 
 
+def test_pid_check_is_local_and_fast():
+    assert driver.pid_alive(os.getpid())
+    assert not driver.pid_alive(2**22 - 1)  # not a real process
+    started = time.perf_counter()
+    for _ in range(30):
+        driver.pid_alive(os.getpid())
+    assert time.perf_counter() - started < 0.5
+
+
 def _suite_status(root, sid, **st):
     d = root / "results" / "suites" / sid
     d.mkdir(parents=True)

@@ -63,14 +63,26 @@ class LabBusy(RuntimeError):
 
 
 def pid_alive(pid: int | None) -> bool:
+    """True if ``pid`` is still a process.
+
+    The benchmark page calls this on every Results click and on the progress poll. Spawning
+    ``tasklist`` for each call stalls that click while a benchmark is busy, so Windows uses
+    OpenProcess instead.
+    """
     if not pid:
         return False
+    pid = int(pid)
     if os.name == "nt":
-        cp = subprocess.run(["tasklist", "/FI", f"PID eq {int(pid)}", "/NH"], capture_output=True, text=True,
-                            creationflags=NO_WINDOW)
-        return str(int(pid)) in cp.stdout
+        # PROCESS_QUERY_LIMITED_INFORMATION. Access denied (5) still means the process exists.
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if handle:
+            kernel.CloseHandle(handle)
+            return True
+        return kernel.GetLastError() == 5
     try:
-        os.kill(int(pid), 0)
+        os.kill(pid, 0)
     except ProcessLookupError:
         return False
     except OSError:

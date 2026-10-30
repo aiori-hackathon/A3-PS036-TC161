@@ -12,8 +12,10 @@ benchmark already wrote; nothing talks to Docker.
 
 from __future__ import annotations
 
+import io
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -266,6 +268,35 @@ def stats_label(run: results.Run) -> str:
 
 def load_offline(path: Path) -> results.Run:
     return results.load(Path(path))
+
+
+# Result files a finished harness run leaves next to the report. The per-operation log, raw traces and
+# signing inputs stay in the run folder: they are large and are not what the Results page shows.
+OFFLINE_BUNDLE_FILES = (
+    "report.html", "report.md", "summary.json", "config.yaml", "environment.json",
+    "trials.csv", "control.csv", "responses.csv", "workload.csv", "cache.csv", "sizes.csv",
+    "datasets.csv", "evolution.csv", "evolution_direct.csv", "crosscheck.csv",
+    "live.csv", "live_summary.csv",
+)
+
+
+def offline_bundle(root: Path) -> bytes:
+    """Zip of the report, its figures, and the result tables for one offline run."""
+    root = Path(root)
+    buf = io.BytesIO()
+    wrote = False
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for name in OFFLINE_BUNDLE_FILES:
+            path = root / name
+            if path.is_file():
+                zf.write(path, arcname=name)
+                wrote = True
+        figures = root / "figures"
+        if figures.is_dir():
+            for fig in sorted(p for p in figures.iterdir() if p.is_file()):
+                zf.write(fig, arcname=f"figures/{fig.name}")
+                wrote = True
+    return buf.getvalue() if wrote else b""
 
 
 # ─────────────────────────── comparison arithmetic ───────────────────────────

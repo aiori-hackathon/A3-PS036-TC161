@@ -35,6 +35,15 @@ PRESETS = {
              "note": "sizes 50, 500, 5,000 names · repeated trials (long)"},
 }
 STEP_RE = re.compile(r"STEP\s+(\d+)/(\d+)\s+(.*)")
+BUILD_SEEN_RE = re.compile(r"#(\d+)\s+\[")
+BUILD_DONE_RE = re.compile(r"#(\d+)\s+DONE\b")
+# Written inside the container (results is a bind mount) so the page can see the stage
+# without waiting for Docker to flush the container's stdout.
+CONTAINER_PROGRESS = "/work/results/.cipherops-progress.json"
+PROGRESS_NAME = ".cipherops-progress.json"
+# Image build is the first slice of the bar; harness stages fill the rest, so the bar
+# never jumps backwards when the build ends and timing starts.
+BUILD_SHARE = 0.35
 
 
 def job_dir() -> Path:
@@ -57,10 +66,117 @@ def is_running() -> bool:
 
 
 def log_text(tail: int = 6000) -> str:
+    """Last ``tail`` characters of the harness log, without reading the whole file.
+
+    The log stays open and grows for the whole run. Reading it all on each page click made
+    the Results tab wait on that file.
+    """
+    path = job_dir() / "progress.log"
     try:
-        return (job_dir() / "progress.log").read_text(encoding="utf-8", errors="replace")[-tail:]
+        with path.open("rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            fh.seek(max(0, fh.tell() - tail * 4))
+            data = fh.read().decode("utf-8", "replace")
     except OSError:
         return ""
+    return data[-tail:]
+
+
+def progress_path() -> Path:
+    return RESULTS / PROGRESS_NAME
+
+
+def clear_progress() -> None:
+    try:
+        progress_path().unlink()
+    except OSError:
+        pass
+
+
+def read_harness_progress(started: float) -> dict | None:
+    """The stage file the harness writes, if it belongs to this run."""
+    try:
+        data = json.loads(progress_path().read_text(encoding="utf-8"))
+        updated = float(data.get("updated") or 0)
+        step, total = int(data["step"]), int(data["total"])
+    except (OSError, json.JSONDecodeError, TypeError, ValueError, KeyError):
+        return None
+    if total < 1 or step < 1 or updated + 30 < float(started or 0):
+        return None
+    return {"step": step, "total": total, "title": str(data.get("title") or ""), "updated": updated}
+
+
+def _harness_fraction(current: int, total: int) -> float:
+    span = 1.0 - BUILD_SHARE
+    return min(1.0, BUILD_SHARE + span * (current / max(1, total)))
+
+
+def display_progress(status: dict) -> tuple[float, str]:
+    """Bar fraction and label for a running offline job.
+
+    ``status["done"]`` is how many harness stages have *finished*, so it is 0 for the whole
+    of stage 1 and the bar used to stay empty. The bar shows the stage that is underway.
+    A stage file on the results mount wins over the worker's stdout parse: Docker can hold that
+    stdout until the container exits, which left the bar empty for the whole run.
+    """
+    snap = read_harness_progress(float(status.get("started") or 0))
+    current = None
+    total = 7
+    title = status.get("step") or "running"
+    if snap is not None:
+        total = max(1, snap["total"])
+        current = min(max(snap["step"], 1), total)
+        title = snap["title"] or title
+    elif status.get("phase") == "harness" or (
+            "done" in status and status.get("total") and status.get("phase") != "build"):
+        total = max(1, int(status.get("total") or 1))
+        current = min(max(0, int(status.get("done") or 0)) + 1, total)
+
+    if current is None:
+        # Docker names layers as it discovers them, so "5 of 8" then "10 of 12" is not a real
+        # plan. Keep the label steady and only move the bar.
+        frac = min(1.0, max(0.0, float(status.get("build_fraction") or 0)))
+        label = status.get("step") or "Building the pinned image"
+        if frac > 0 or int(status.get("build_total") or 0) > 0:
+            return frac * BUILD_SHARE, label
+        return 0.0, label
+    return _harness_fraction(current, total), f"Step {current} of {total} · {title}"
+
+
+def _output_lines(stdout):
+    """Yield text lines as soon as a newline arrives.
+
+    A text-mode pipe buffers about 8 KiB before the first line is visible, and Docker may not
+    fill that until the command exits. Reading the raw pipe returns whatever has already been
+    written. Test doubles that are plain iterators are yielded as they are.
+    """
+    read = getattr(stdout, "read", None)
+    if not callable(read):
+        yield from stdout
+        return
+    pending = b""
+    while True:
+        chunk = read(4096)
+        if not chunk:
+            break
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8", "replace")
+        pending += chunk
+        while True:
+            cut = len(pending)
+            for sep in (b"\n", b"\r"):
+                at = pending.find(sep)
+                if at >= 0:
+                    cut = min(cut, at)
+            if cut == len(pending):
+                break
+            line = pending[:cut].decode("utf-8", "replace").strip("\r")
+            pending = pending[cut + 1:]
+            if line:
+                yield line + "\n"
+    rest = pending.decode("utf-8", "replace").strip("\r")
+    if rest:
+        yield rest + "\n"
 
 
 def mark_handled() -> None:
@@ -91,9 +207,11 @@ def start(preset: str, *, trials: int | None = None, stack: str = OFFLINE_STACK)
     d = job_dir()
     d.mkdir(parents=True, exist_ok=True)
     (d / "progress.log").write_text("", encoding="utf-8")
+    clear_progress()
     params = {"preset": preset, "stack": stack, "trials": trials, "started": time.time()}
     (d / "params.json").write_text(json.dumps(params), encoding="utf-8")
-    _write_status({"state": "starting", "preset": preset, "stack": stack, "started": params["started"]})
+    _write_status({"state": "starting", "preset": preset, "stack": stack, "started": params["started"],
+                   "phase": "build", "step": "Building the pinned image"})
     subprocess.Popen([sys.executable, "-m", "live_lab.offline_job", str(d / "params.json")],
                      cwd=Path(__file__).resolve().parents[1], stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
@@ -159,10 +277,13 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     stack, preset = params["stack"], params["preset"]
     d = job_dir()
     before = run_ids()
+    clear_progress()
     st = {"state": "running", "pid": os.getpid(), "preset": preset, "stack": stack, "started": params["started"],
-          "step": "Building the pinned image"}
+          "phase": "build", "step": "Building the pinned image"}
     _write_status(st)
     proc = None
+    build_seen: set[int] = set()
+    build_done: set[int] = set()
 
     def stop(*_):
         if proc is not None and proc.poll() is None:
@@ -174,20 +295,45 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
         signal.signal(signal.SIGTERM, stop)
     tail: list[str] = []
 
+    def note(line: str) -> None:
+        m = STEP_RE.search(line)
+        if m:
+            st.update(phase="harness", step=m.group(3).strip(),
+                      done=int(m.group(1)) - 1, total=int(m.group(2)))
+            _write_status(st)
+            return
+        if st.get("phase") == "harness":
+            return
+        changed = False
+        seen_m = BUILD_SEEN_RE.search(line)
+        if seen_m and int(seen_m.group(1)) not in build_seen:
+            build_seen.add(int(seen_m.group(1)))
+            changed = True
+        done_m = BUILD_DONE_RE.search(line)
+        if done_m and int(done_m.group(1)) not in build_done:
+            build_done.add(int(done_m.group(1)))
+            changed = True
+        if not changed:
+            return
+        seen, built = len(build_seen), len(build_done)
+        ratio = min(0.08, 1 / seen) if built == 0 else built / max(seen, built)
+        st.update(phase="build", step="Building the pinned image",
+                  build_done=built, build_total=max(seen, built),
+                  build_fraction=max(float(st.get("build_fraction") or 0), min(0.98, ratio)))
+        _write_status(st)
+
     def stream(cmd: list[str], env: dict) -> int:
         nonlocal proc, tail
         log.write("$ " + " ".join(cmd) + "\n")
         log.flush()
-        proc = popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
+        # bufsize=0: a text pipe hides the first lines until ~8 KiB arrives, so the bar never moved.
+        proc = popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0,
                      env=env, creationflags=driver.NO_WINDOW)
-        for line in proc.stdout:
+        for line in _output_lines(proc.stdout):
             log.write(line)
             log.flush()
             tail = (tail + [line])[-40:]
-            m = STEP_RE.search(line)
-            if m:
-                st.update(step=m.group(3).strip(), done=int(m.group(1)) - 1, total=int(m.group(2)))
-                _write_status(st)
+            note(line)
         return proc.wait()
 
     code = 1
@@ -196,11 +342,16 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
             env = {**os.environ, "BUILDKIT_PROGRESS": "plain"}
             code = stream(compose_base(stack) + ["build"], env)
             if code == 0:
-                st.update(step="Starting the harness")
+                # Stage 1 has started even before its banner is visible: show that slice, not an empty bar.
+                st.update(phase="harness", step="Starting the harness", done=0, total=7)
                 _write_status(st)
                 env = {**os.environ, **run_environment(stack)}
-                code = stream(compose_base(stack) + ["run", "--rm", "--name", CONTAINER, "bench",
-                                                     harness_command(preset, params.get("trials"))], env)
+                code = stream(compose_base(stack) + [
+                    "run", "--rm", "-T", "--name", CONTAINER,
+                    "-e", "PYTHONUNBUFFERED=1",
+                    "-e", f"CIPHEROPS_PROGRESS_FILE={CONTAINER_PROGRESS}",
+                    "bench", harness_command(preset, params.get("trials")),
+                ], env)
     except SystemExit:
         raise
     except Exception as e:  # noqa: BLE001

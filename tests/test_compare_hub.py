@@ -185,6 +185,22 @@ def test_live_suite_reduces_to_the_same_frame_and_table_as_an_offline_run(tmp_pa
     assert "Cache size" in t.columns
 
 
+def test_offline_bundle_packs_the_report_and_tables(tmp_path):
+    import io
+    import zipfile
+    run = tmp_path / "demo"
+    run.mkdir()
+    (run / "report.html").write_text("<html>report</html>", encoding="utf-8")
+    (run / "report.md").write_text("# report", encoding="utf-8")
+    (run / "trials.csv").write_text("mode\nslh-dsa\n", encoding="utf-8")
+    (run / "ops.parquet").write_bytes(b"too-large-to-offer")
+    (run / "figures").mkdir()
+    (run / "figures" / "signing.png").write_bytes(b"\x89PNG")
+    with zipfile.ZipFile(io.BytesIO(hub.offline_bundle(run))) as zf:
+        assert set(zf.namelist()) == {"report.html", "report.md", "trials.csv", "figures/signing.png"}
+        assert zf.read("report.html") == b"<html>report</html>"
+
+
 def test_two_live_suites_on_different_stacks_are_flagged(tmp_path, monkeypatch):
     a = hub.live_suite_entry({"id": "a", "path": _synthetic_suite(tmp_path, monkeypatch, "draft06"), "title": "a"})
     b = hub.live_suite_entry({"id": "b", "path": _synthetic_suite(tmp_path, monkeypatch, "latest"), "title": "b"})
