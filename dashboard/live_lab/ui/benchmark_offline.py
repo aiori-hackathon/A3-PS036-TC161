@@ -11,7 +11,7 @@ import streamlit as st
 from live_lab import compare_hub, driver, image_job, images, offline_job
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
-from live_lab.ui.common import ROOT, _go, _hint, _store, activity, cfg, sb
+from live_lab.ui.common import ROOT, _go, _store, activity, cfg, sb
 from live_lab.ui.compare_page import _cmp_offline_run
 
 
@@ -31,12 +31,6 @@ def _sidebar_bench_offline(h: driver.LabHandle, stt: dict) -> None:
                 help="Quick check: small zones and few runs, to see the pipeline work. Full run: the three zone "
                      "sizes with enough runs for tight confidence intervals; it takes much longer.")
     problem = offline_image_problem()
-    if problem:
-        st.sidebar.warning(problem)
-        st.sidebar.button("Go to step 1: Image", on_click=_go, args=("offline", "image"), key="offline_to_setup",
-                          width="stretch")
-    else:
-        _hint(f"Runs inside the verified `cipherops-bench:{offline_job.OFFLINE_STACK}` image from step 1.")
     busy = bool(suite_mod.running_suite() or image_job.is_running() or driver.active_prepare_tags())
     if busy:
         st.sidebar.warning("A simulated benchmark, image build or pull, or signing job is running. Wait for it to finish.")
@@ -125,12 +119,7 @@ def benchmark_offline_run() -> None:
         if offline_job.log_text():
             with st.expander("Progress log"):
                 st.code(offline_job.log_text(4000), language="text")
-    problem = offline_image_problem()
-    if problem:
-        st.warning(problem)
-        st.button("Go to step 1: Image", on_click=_go, args=("offline", "image"), key="offline_page_to_setup")
-    st.caption("Choose the run size in the sidebar, then press **Run offline benchmark**. It runs on a dedicated "
-               "core with no network, inside the image from step 1.")
+    st.caption("Pick a run size in the sidebar, then **Run offline benchmark**.")
     _offline_plan(cfg("offline_preset", "quick"))
 
 

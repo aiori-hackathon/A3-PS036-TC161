@@ -1,5 +1,5 @@
 """Headless smoke test of the Streamlit lab dashboard: every page and every step of both tracks renders without an
-exception, and the navigation helpers map old tile names to the right step."""
+exception, the node prerequisite is shown, and the navigation helpers map old tile names to the right step."""
 
 import sys
 from pathlib import Path
@@ -31,8 +31,8 @@ def test_page_renders_without_exceptions(tile):
 
 
 @pytest.mark.parametrize("tile,step", [
-    ("offline", "image"), ("offline", "run"), ("offline", "results"),
-    ("simulated", "images"), ("simulated", "prepare"), ("simulated", "query"), ("simulated", "benchmark"),
+    ("offline", "run"), ("offline", "results"),
+    ("simulated", "prepare"), ("simulated", "query"), ("simulated", "benchmark"),
 ])
 def test_every_step_of_a_track_renders_without_exceptions(tile, step):
     at = _run(tile, step)
@@ -56,13 +56,26 @@ def test_compare_views_render_without_exceptions(tile, cfg):
     assert not at.exception, [e.message for e in at.exception]
 
 
-def test_each_track_shows_its_numbered_steps():
+def test_image_readiness_is_a_prerequisite_not_a_step():
     from live_lab.ui import common
-    assert [k for k, _ in common.TRACKS["offline"]["steps"]] == ["image", "run", "results"]
-    assert [k for k, _ in common.TRACKS["simulated"]["steps"]] == ["images", "prepare", "query", "benchmark"]
+    assert [k for k, _ in common.TRACKS["offline"]["steps"]] == ["run", "results"]
+    assert [k for k, _ in common.TRACKS["simulated"]["steps"]] == ["prepare", "query", "benchmark"]
+    for track in ("offline", "simulated"):
+        at = _run(track)
+        labels = at.radio(key=f"step_{track}").options
+        assert not any("mage" in label for label in labels)
+        text = " ".join(m.value for m in at.markdown)
+        assert "Node ready" in text or "Needed on this node" in text  # the prerequisite panel is on the page
+    assert at.radio(key="step_simulated").options[0].startswith("① Prepare")
+
+
+def test_help_text_is_off_by_default_and_toggles():
     at = _run("simulated")
-    labels = at.radio[0].options
-    assert labels[0].startswith("① Images") and labels[-1].startswith("④ Benchmark")
+    assert not at.session_state["show_help"]
+    quiet = len(at.sidebar.caption)
+    at.sidebar.toggle(key="show_help").set_value(True).run()
+    assert not at.exception
+    assert len(at.sidebar.caption) > quiet
 
 
 def test_resolve_tile_maps_old_names_and_ignores_unknown_steps():
@@ -70,8 +83,9 @@ def test_resolve_tile_maps_old_names_and_ignores_unknown_steps():
     assert common.resolve_tile("lab") == ("simulated", "prepare")
     assert common.resolve_tile("live") == ("simulated", "query")
     assert common.resolve_tile("benchmark") == ("simulated", "benchmark")
-    assert common.resolve_tile("offline") == ("offline", "image")
+    assert common.resolve_tile("offline") == ("offline", "run")
     assert common.resolve_tile("offline", "results") == ("offline", "results")
-    assert common.resolve_tile("offline", "nonsense") == ("offline", "image")
+    assert common.resolve_tile("offline", "image") == ("offline", "run")      # the old image step is gone
+    assert common.resolve_tile("simulated", "images") == ("simulated", "prepare")
     assert common.resolve_tile("setup") == ("setup", None)
     assert common.resolve_tile("does-not-exist") == ("home", None)

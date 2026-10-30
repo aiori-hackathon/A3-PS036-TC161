@@ -37,10 +37,10 @@ def _sidebar_bench_simulated(h: driver.LabHandle, stt: dict) -> None:
         st.sidebar.markdown(f"🟢  {len(done)} saved benchmark(s)" if done else "⚪  No benchmark yet")
     _hint(
         "Runs on its own: for each zone size it signs the zones, repeats signing and verification, "
-        "starts the lab, measures, and stops it. It only needs the verified lab images (step 1)."
+        "starts the lab, measures, and stops it. It only needs the lab images."
     )
     bench_stack = cfg("stack", driver.DEFAULT_STACK)
-    _hint(f"Uses the lab version **`{bench_stack}`** from step 1; its images must be ready.")
+    _hint(f"Uses the lab version `{bench_stack}`.")
 
     st.sidebar.markdown("**Run name**")
     label = sb(
@@ -106,10 +106,8 @@ def _sidebar_bench_simulated(h: driver.LabHandle, stt: dict) -> None:
     _warn_unvalidated(cfg("stack", "draft06"), sc)
     ready = (bool(sizes and sc and nets) and r["images"] and not live and not image_job.is_running()
              and not offline_job.is_running())
-    if not r["images"]:
-        st.sidebar.warning("The lab images are not ready. Build or pull them in step 1 first.")
     if r["running"] and not live:
-        st.sidebar.caption("A lab running from step 2 will be stopped while the benchmark uses the containers.")
+        st.sidebar.caption("A lab started in Prepare is stopped while the benchmark runs.")
     if st.sidebar.button("Run benchmark", key="btn_bench", type="primary", width="stretch", disabled=not ready):
         params = {
             "label": clean, "stack": cfg("stack", "draft06"), "sizes": sorted(int(n) for n in sizes),
@@ -220,7 +218,6 @@ def _suite_progress(suite_id: str) -> None:
 
 
 def benchmark_run(h: driver.LabHandle, stt: dict) -> None:
-    r = readiness(stt)
     live = suite_mod.running_suite()
     if live:
         _suite_progress(live["id"])
@@ -229,12 +226,8 @@ def benchmark_run(h: driver.LabHandle, stt: dict) -> None:
     if last and last["state"] in ("failed", "stopped", "cancelled"):
         s = suite_mod.status(last["id"])
         st.warning(f"The last benchmark ({last['title']}) {s.get('state')}: {s.get('error') or s.get('step', '')}")
-    if not r["images"]:
-        st.warning("The lab images for this stack are not on this node (or do not match its profile). Put them there "
-                   "once in **Setup**, by building or pulling; the benchmark does the rest itself.")
-        st.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="bench_to_setup")
-    st.caption("Set the options in the sidebar, then press **Run benchmark**. It signs, starts and stops the "
-               "lab on its own, one zone size after another.")
+    st.caption("Set the options in the sidebar, then **Run benchmark**: it signs, starts, measures and stops the lab "
+               "for each zone size.")
     _bench_plan()
 
 

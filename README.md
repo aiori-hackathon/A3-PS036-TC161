@@ -79,15 +79,16 @@ instructions, Windows commands, tests and troubleshooting: [Getting started](doc
 
 ## The dashboard
 
-The dashboard opens on the two ways of benchmarking. Each is a short numbered path:
+The dashboard opens on this node's prerequisites and the two ways of benchmarking:
 
-| Track | Question it answers | Steps |
+| Track | Measures | Steps |
 | --- | --- | --- |
-| **Offline benchmark** | How fast is each algorithm? One pinned core, no network. | ① Image → ② Run → ③ Results |
-| **Simulated lab** | How does a real resolver behave? Real servers, packets and cache. | ① Images → ② Prepare lab → ③ Query lab → ④ Benchmark |
+| **Offline benchmark** | signing, verification and message sizes on one pinned core, no network | ① Run → ② Results |
+| **Simulated lab** | a containerised root → TLD → leaf hierarchy with a validating resolver: packets, truncation, cache | ① Prepare → ② Query → ③ Benchmark |
 
-Below them: **Compare** (algorithms side by side, run against run, zone-update cost), **Learn** (why DNSSEC needs MTL),
-**Images** (both image sets in one place) and **Reset** (clear only what you choose).
+Each track starts with a **prerequisite panel**: its container images are on this node and match the stack profile.
+Ready shows one line; if something is missing, build it or pull it from a registry right there. **Compare**, **Learn**
+and **Reset** are below, and **Manage images** opens the page for both image sets.
 
 Details: [dashboard guide](dashboard/live_lab/README.md).
 

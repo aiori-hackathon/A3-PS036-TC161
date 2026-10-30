@@ -14,21 +14,22 @@ comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (th
 
 ## Tracks and pages
 
-The home page offers the two ways of benchmarking as tracks; each is one page with numbered steps, and the sidebar
-shows the settings of the step you are on. A tick marks a finished step.
+The home page shows this node's prerequisites and offers the two ways of benchmarking as tracks. A track is one page:
+a **prerequisite panel** on top, then numbered steps; the sidebar shows the settings of the step you are on, and a tick
+marks a finished step. Explanations are hidden unless **Help text** (sidebar) is on.
 
 | Track / step | What it is for | Needs |
 | --- | --- | --- |
-| **Offline benchmark** ① Image | get `cipherops-bench:latest`: build it here or pull it, then verify it | Docker |
-| ② Run | the harness on one pinned core, no network; pick *Quick check* or *Full run* | the verified image |
-| ③ Results | tables, charts and downloads of a saved run | a finished run |
-| **Simulated lab** ① Images | get the three lab images for a stack version (`draft06` or `latest`) | Docker |
-| ② Prepare lab | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
-| ③ Query lab | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
-| ④ Benchmark | signs, starts, measures and stops its own lab for each zone size (steps ② and ③ are not needed) | the lab images |
+| **Prerequisite** (offline) | `cipherops-bench:latest` is on this node and matches its stack profile; build or pull it | Docker |
+| **Offline benchmark** ① Run | the harness on one pinned core, no network; pick *Quick check* or *Full run* | the image |
+| ② Results | tables, charts and downloads of a saved run | a finished run |
+| **Prerequisite** (simulated) | the three lab images for the chosen version (`draft06` or `latest`) are on this node | Docker |
+| **Simulated lab** ① Prepare | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
+| ② Query | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
+| ③ Benchmark | signs, starts, measures and stops its own lab for each zone size (steps ① and ② are not needed) | the lab images |
 | **Compare** | *Algorithms side by side*, *Run against run*, and *Zone updates* | a finished benchmark |
 | **Learn** | why DNSSEC needs MTL; what an operator does | nothing |
-| **Images** | both image sets in one place, with image details, stack pins and terminal commands | Docker |
+| **Node images** (*Manage images* on Home) | both image sets in one place, with details, stack pins and terminal commands | Docker |
 | **Reset** | clear only the scopes you pick (session, captures, runs, signed zones, cache) | nothing |
 
 Old links still work: `?tile=lab`, `?tile=live` and `?tile=benchmark` open the matching simulated-lab step, and
@@ -78,18 +79,17 @@ runs in the background, and writes `ecosystem/results/suites/<id>/`.
 Every figure in Compare is badged **Measured**, **Estimated** or **Analytical**. The analytical ones (signature storage
 from the draft's size formulas) are kept apart and never mixed with measured cache.
 
-### The image steps
+### The prerequisite: images on this node
 
-The first step of each track (and the **Images** page) only makes sure the pinned images are on the benchmark node; it
-signs and measures nothing. There are two independent image sets, each on its own card with its version, status and
-button:
+Each track's panel (and the **Node images** page) only makes sure the pinned images are on the benchmark node; it signs
+and measures nothing. There are two independent image sets:
 
 - **Offline benchmark**: `cipherops-bench:latest`. The version is fixed, because the harness needs the stack whose
   liboqs has the FIPS 205 names.
-- **Simulated lab**: `cipherops-eco-{nsd,unbound,tools}:<version>`, for the version chosen in the sidebar
+- **Simulated lab**: `cipherops-eco-{nsd,unbound,tools}:<version>`, for the lab version picked in the panel
   (`draft06` or `latest`). Only the simulated lab uses it.
 
-In the sidebar choose how to get them, for both cards:
+When something is missing the panel shows what and offers, inline, how to get it:
 
 - **Build locally** compiles OpenSSL, liboqs and MTL once (tens of minutes) and the lab servers on top, all from
   `docker/Dockerfile`.

@@ -20,7 +20,7 @@ from live_lab import driver, image_job, images
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
-    _chip, _go, _hint, _log_chunks, _page_header, _sidebar_brand, activity, cfg, sb,
+    _chip, _go, _log_chunks, _page_header, _sidebar_brand, activity, cfg, sb,
 )
 
 SOURCES = ("Build locally", "Pull from registry")
@@ -69,39 +69,81 @@ def _start(h: driver.LabHandle, action: str, stack: str, mode: str, registry: st
     st.rerun()
 
 
-def sidebar_setup(h: driver.LabHandle, stt: dict, track: str | None = None) -> None:
-    """Sidebar of the Images page (``track`` None) or of a track's image step (``offline`` / ``simulated``)."""
+def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
+    """Sidebar of the Node images page."""
     _sidebar_brand("setup")
-    st.sidebar.markdown("### Images")
-    _hint({"offline": "Get the one image the offline benchmark runs in.",
-           "simulated": "Get the three images the simulated lab runs in.",
-           None: "Two image sets, each with its own button on the page: one for the offline benchmark, one for "
-                 "the simulated lab."}[track])
+    st.sidebar.markdown("### Node images")
     _finish_image_job(h)
     if suite_mod.running_suite():
-        st.sidebar.warning("A benchmark is running. Building or pulling would disturb its timings, so they are "
-                           "paused until it finishes or is cancelled.")
-
-    source = sb(st.sidebar.radio, "image_mode", SOURCES[0], "Get images by", options=list(SOURCES),
-                help="Build compiles everything on this node (tens of minutes the first time). Pull downloads "
-                     "images someone already built from the same stack profile; they are verified after the pull.")
-    if source == SOURCES[1]:
+        st.sidebar.warning("A benchmark is running: build and pull are paused.")
+    sb(st.sidebar.radio, "image_mode", SOURCES[0], "Get images by", options=list(SOURCES), help=_SOURCE_HELP)
+    if cfg("image_mode", SOURCES[0]) == SOURCES[1]:
         sb(st.sidebar.text_input, "registry", images.DEFAULT_REGISTRY, "Registry", placeholder="ghcr.io/org/benchmark",
-           help="Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged with the stack "
-                "name. Published with scripts/publish_images.sh.")
+           help=_REGISTRY_HELP)
+    sb(st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Lab version", options=driver.list_stacks(),
+       help=_VERSION_HELP)
 
-    if track == "offline":
-        return  # the offline image is always the `latest` stack: nothing more to choose
-    st.sidebar.markdown("---")
-    stack = sb(st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Simulated lab version",
-               options=driver.list_stacks(), format_func=driver.stack_label,
-               help="Which pinned Verisign DNS stack the lab runs. It only affects the simulated lab; the offline "
-                    "benchmark always uses `latest`. Images are named per "
-                    "stack, so both versions can be on the node at once.")
-    pins = driver.stack_pins(stack)
-    if pins:
-        _hint(f"Pins for **{stack}**: MTL `{(pins.get('MTL_COMMIT') or '')[:12]}…` · "
-              f"liboqs {pins.get('LIBOQS_TAG') or '?'} · {pins.get('OPENSSL_TAG') or '?'}.")
+
+_SOURCE_HELP = ("Build compiles everything on this node (tens of minutes the first time). Pull downloads images "
+                "someone already built from the same stack profile; they are verified after the pull.")
+_REGISTRY_HELP = ("Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged with the stack "
+                  "name. Published with scripts/publish_images.sh.")
+_VERSION_HELP = ("Which pinned stack the simulated lab runs. draft06: condensed MTL by default. latest: always-full "
+                 "MTL. The offline benchmark always uses latest.")
+
+
+def _get_controls(h: driver.LabHandle, *, mode: str, stack: str, ok: bool, key: str) -> None:
+    """Choose build or pull and start it. The choice is remembered across pages."""
+    source = sb(st.radio, "image_mode", SOURCES[0], "Get by", options=list(SOURCES), horizontal=True,
+                help=_SOURCE_HELP)
+    pull = source == SOURCES[1]
+    registry = sb(st.text_input, "registry", images.DEFAULT_REGISTRY, "Registry", help=_REGISTRY_HELP) if pull else None
+    verb = "Pull" if pull else "Build"
+    label = f"{verb} again" if ok else f"{verb} {'image' if mode == 'offline' else 'images'}"
+    if st.button(label, key=f"get_{key}", type="secondary" if ok else "primary",
+                 disabled=bool(suite_mod.running_suite() or (pull and not (registry or "").strip()))):
+        _start(h, "pull" if pull else "build", stack, mode, registry)
+
+
+def prerequisite(h: driver.LabHandle, track: str) -> bool:
+    """The node prerequisite shown above a track: its images are on this node and match the stack profile.
+
+    Ready: one line and a Manage popover. Missing: what is missing and the build or pull action, inline.
+    While a build or pull runs, its progress replaces the panel. Returns whether the track can run.
+    """
+    mode = "offline" if track == "offline" else "simulated"
+    if image_job.is_running():
+        with st.container(border=True):
+            _job_body()
+        return False
+    with st.container(border=True):
+        if track == "simulated":
+            version_col, state_col, manage_col = st.columns([3, 7, 2], vertical_alignment="center")
+            with version_col:
+                version = sb(st.selectbox, "stack", driver.DEFAULT_STACK, "Lab version", options=driver.list_stacks(),
+                             label_visibility="collapsed", help=_VERSION_HELP)
+            if version != h.stack:
+                st.rerun()  # the lab handle follows the chosen version
+        else:
+            state_col, manage_col = st.columns([9, 2], vertical_alignment="center")
+        stack = images.OFFLINE_STACK if track == "offline" else h.stack
+        rows = images.status(stack, mode)
+        ok = images.ready(rows)
+        with state_col:
+            if ok:
+                st.markdown("✅ **Node ready** · " + " · ".join(f"`{s.ref}`" for s in rows))
+            else:
+                st.markdown("⛔ **Needed on this node** · " +
+                            " · ".join(f"{STATE_ICON[s.state]} `{s.ref}`" for s in rows))
+        if ok:
+            with manage_col.popover("Manage", width="stretch"):
+                _get_controls(h, mode=mode, stack=stack, ok=True, key=track)
+        else:
+            problems = sorted({p for s in rows if s.state != "ok" for p in s.problems if p != "not on this host"})
+            if problems:
+                st.caption("; ".join(problems))
+            _get_controls(h, mode=mode, stack=stack, ok=False, key=track)
+    return ok
 
 
 def _chip_for(rows: list[images.ImageStatus]) -> str:
@@ -154,8 +196,8 @@ def _job_body() -> None:
     st.progress(frac, text=f"{verb} {images.MODE_TITLE[job.get('mode', 'all')].lower()} images for "
                            f"{job.get('stack')} · {job.get('step') or ''} · {_clock(elapsed)} elapsed")
     if not pull:
-        st.caption("A first build compiles OpenSSL, liboqs, MTL, NSD and Unbound from source and can take tens of "
-                   "minutes. Later builds reuse Docker's cache and take seconds. You can leave this page.")
+        st.caption("A first build compiles from source (tens of minutes); later builds use the cache. "
+                   "You can leave this page.")
     st.code(image_job.log_text(5000) or "(starting…)", language="text")
     if st.button("Cancel", key="btn_images_cancel"):
         image_job.cancel()
@@ -174,16 +216,14 @@ def _details(offline_rows: list[images.ImageStatus], lab_rows: list[images.Image
     } for s in offline_rows + lab_rows])
     with st.expander("Image details"):
         st.dataframe(table, width="stretch", hide_index=True)
-        st.caption("An image is *ready* only when the pins it was built from (its `io.cipherops.*` labels) equal "
-                   "its stack profile `ecosystem/stacks/<stack>.env`. A pulled image that differs is reported "
-                   "here, never used.")
-    with st.expander("Stack profiles (the pins every image must match)"):
+        st.caption("Ready = the pins in the image's `io.cipherops.*` labels equal its stack profile.")
+    with st.expander("Stack profiles"):
         stacks = driver.list_stacks()
         pins = {s: images.read_pins(s) for s in stacks}
         keys = sorted({k for p in pins.values() for k in p})
         st.dataframe(pd.DataFrame({s: [pins[s].get(k, "") for k in keys] for s in stacks}, index=keys),
                      width="stretch")
-    with st.expander("The same from a terminal"):
+    with st.expander("Terminal"):
         st.code(
             f"python scripts/images.py status --stack {images.OFFLINE_STACK} --mode offline\n"
             f"python scripts/images.py build  --stack {images.OFFLINE_STACK} --mode offline\n"
@@ -191,14 +231,13 @@ def _details(offline_rows: list[images.ImageStatus], lab_rows: list[images.Image
             f"--registry {images.DEFAULT_REGISTRY}\n\n"
             "python scripts/images.py status --stack draft06 --mode simulated\n"
             "python scripts/images.py build  --stack draft06 --mode simulated\n"
-            f"python scripts/images.py pull   --stack draft06 --mode simulated --registry {images.DEFAULT_REGISTRY}",
+            f"python scripts/images.py pull   --stack draft06 --mode simulated --registry {images.DEFAULT_REGISTRY}\n\n"
+            "scripts/publish_images.sh <stack>   # push to the registry (docker login first)",
             language="bash")
-        st.caption("Publish with `scripts/publish_images.sh <stack>` from a machine that is logged in to the registry; "
-                   "the registry's owner makes each package public once.")
 
 
-def image_step(h: driver.LabHandle, track: str | None = None) -> None:
-    """The image cards: both on the Images page (``track`` None), or just the track's own card.
+def image_step(h: driver.LabHandle) -> None:
+    """The Node images page: both image sets, each with its status and button, then the details.
 
     While a build or pull runs, its progress and log replace the cards.
     """
@@ -209,25 +248,19 @@ def image_step(h: driver.LabHandle, track: str | None = None) -> None:
     lab_rows = images.status(h.stack, "simulated")
     busy = bool(suite_mod.running_suite())
     offline = dict(title="Offline benchmark", mode="offline", stack=images.OFFLINE_STACK, rows=offline_rows,
-                   stack_note="fixed: the harness needs liboqs's FIPS 205 names",
-                   purpose="Times each signing and verification call on one pinned core with no network.",
-                   tile="offline", step="run", cta="Continue: run it →", busy=busy)
+                   stack_note="fixed: needs liboqs's FIPS 205 names",
+                   purpose="One pinned core, no network.",
+                   tile="offline", step="run", cta="Run →", busy=busy)
     lab = dict(title="Simulated lab", mode="simulated", stack=h.stack, rows=lab_rows,
                stack_note="change it in the sidebar",
-               purpose="Root, TLD and leaf servers behind a validating resolver, for querying by hand and for the "
-                       "simulated benchmark.",
-               tile="simulated", step="prepare", cta="Continue: prepare the lab →", busy=busy)
-    if track == "offline":
+               purpose="Containerised root, TLD and leaf servers with a validating resolver.",
+               tile="simulated", step="prepare", cta="Prepare →", busy=busy)
+    left, right = st.columns(2)
+    with left:
         _card(h, **offline)
-    elif track == "simulated":
+    with right:
         _card(h, **lab)
-    else:
-        left, right = st.columns(2)
-        with left:
-            _card(h, **offline)
-        with right:
-            _card(h, **lab)
-        _details(offline_rows, lab_rows)
+    _details(offline_rows, lab_rows)
 
 
 def setup_page(h: driver.LabHandle, stt: dict) -> None:

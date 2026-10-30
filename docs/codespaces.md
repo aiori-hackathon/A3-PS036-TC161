@@ -42,9 +42,9 @@ under **Codespaces → Change machine type**), or run it locally (see [Getting s
    ```
 
 4. Open the forwarded port from the **Ports** tab (or the pop-up) to see the dashboard.
-5. Open **Offline benchmark** and, in step ① **Image**, press **Build image** (or **Pull image** from a registry). It is
-   the `latest` stack's harness image, which a 4-core machine can build. Then step ② **Run → Quick check** runs inside
-   it. For the **Simulated lab**, step ① **Images** gets the three lab images the same way, and steps ②–④ use them.
+5. Open **Offline benchmark**. Its prerequisite panel says whether the harness image (`cipherops-bench:latest`) is on
+   this node; if not, press **Build image** (or choose **Pull from registry**). A 4-core machine can build it. Then
+   **① Run → Quick check** runs inside it. The **Simulated lab** has the same panel for its three lab images.
 
 From the terminal you can also use the command-line flow in [Getting started](getting-started.md#offline-benchmark-command-line)
 and run the tests with `python -m pytest -m "not harness"`.

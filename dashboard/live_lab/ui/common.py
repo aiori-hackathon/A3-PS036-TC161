@@ -19,16 +19,15 @@ ACTIVITY_CAP = 500
 NAV_MODES = ("home", "offline", "simulated", "compare", "learn", "setup", "reset")
 
 # What a person wants to do comes first: the two ways of benchmarking are tracks, each a short numbered path.
-# Images (setup) is the maintenance page for both image sets; each track also shows its own image card as step 1.
+# The node's images are a prerequisite shown on top of each track, not a step; "setup" is the Node images page for both.
 TRACKS = {
     "offline": {
-        "steps": (("image", "① Image"), ("run", "② Run"), ("results", "③ Results")),
-        "default": "image",
+        "steps": (("run", "① Run"), ("results", "② Results")),
+        "default": "run",
     },
     "simulated": {
-        "steps": (("images", "① Images"), ("prepare", "② Prepare lab"), ("query", "③ Query lab"),
-                  ("benchmark", "④ Benchmark")),
-        "default": "images",
+        "steps": (("prepare", "① Prepare"), ("query", "② Query"), ("benchmark", "③ Benchmark")),
+        "default": "prepare",
     },
 }
 # Old tile names (bookmarks, links) land on the matching step of a track.
@@ -39,40 +38,38 @@ TILES = {
     "offline": {
         "icon": "⏱️",
         "title": "Offline benchmark",
-        "pitch": "How fast is each algorithm? Every signing and verification call timed on one pinned core, "
-                 "no network.",
-        "cta": "Open Offline benchmark",
+        "pitch": "Signing, verification and message sizes, timed on one pinned core with no network.",
+        "cta": "Open",
     },
     "simulated": {
         "icon": "🧪",
         "title": "Simulated lab",
-        "pitch": "How does a real resolver behave? Root, TLD and leaf servers with real packets and cache: "
-                 "query it by hand or benchmark it.",
-        "cta": "Open Simulated lab",
+        "pitch": "A containerised root → TLD → leaf hierarchy with a validating resolver: packets, truncation, cache.",
+        "cta": "Open",
     },
     "compare": {
         "icon": "⚖️",
         "title": "Compare",
-        "pitch": "Algorithms side by side, run against run, and the cost of zone updates.",
-        "cta": "Open Compare",
+        "pitch": "Algorithms, runs and zone updates side by side.",
+        "cta": "Open",
     },
     "learn": {
         "icon": "📖",
         "title": "Learn",
-        "pitch": "Why DNSSEC needs MTL, and what an operator does differently: two short animations.",
-        "cta": "Open Learn",
+        "pitch": "Why DNSSEC needs MTL.",
+        "cta": "Open",
     },
     "setup": {
         "icon": "📦",
-        "title": "Images",
-        "pitch": "Both image sets in one place: build them here or pull them from a registry, and verify them.",
-        "cta": "Open Images",
+        "title": "Node images",
+        "pitch": "The pinned images this node runs: build or pull, then verify.",
+        "cta": "Manage",
     },
     "reset": {
         "icon": "🧹",
         "title": "Reset",
-        "pitch": "Clear saved runs, signed zones, captures and logs. Nothing else.",
-        "cta": "Open Reset",
+        "pitch": "Clear saved runs, zones and captures.",
+        "cta": "Open",
     },
 }
 
@@ -110,8 +107,9 @@ def _chip(text: str, kind: str = "idle") -> str:
 
 
 def _hint(text: str) -> None:
-    """One-line sidebar guidance (public-demo friendly, not a wall of text)."""
-    st.sidebar.caption(text)
+    """Sidebar explanation, shown only when 'Help text' is switched on (the dashboard is terse by default)."""
+    if st.session_state.get("show_help"):
+        st.sidebar.caption(text)
 
 
 _PCAP_KEYS = ("last_pcap", "last_dropped", "last_story", "last_wire", "last_seq_steps",
@@ -468,7 +466,8 @@ def _lab_strip(h: driver.LabHandle, stt: dict, *, mode: str = "setup") -> None:
 def _page_header(mode: str, h: driver.LabHandle, stt: dict) -> None:
     tile = TILES[mode]
     st.markdown(f"## {tile['icon']} {tile['title']}")
-    st.caption(tile["pitch"])
+    if mode not in TRACKS:  # a track's card on Home already says what it is
+        st.caption(tile["pitch"])
     if mode in ("simulated", "reset"):
         _lab_strip(h, stt, mode=mode)
 
@@ -480,9 +479,11 @@ def _gate(stt: dict, what: str) -> bool:
         return True
     missing = [name for name, ok in (("images", r["images"]), ("signed zones", r["prepared"]),
                                      ("running containers", r["running"])) if not ok]
-    st.warning(f"{what} needs a ready lab. Still missing: {', '.join(missing)}.")
-    step, label = ("images", "Go to step 1: Images") if not r["images"] else ("prepare", "Go to step 2: Prepare lab")
-    st.button(label, on_click=_go, args=("simulated", step), key=f"gate_{what}", type="primary")
+    st.warning(f"{what} needs a ready lab. Missing: {', '.join(missing)}.")
+    if not r["images"]:
+        st.caption("Get the lab images in the panel at the top of the page.")
+    else:
+        st.button("Go to ① Prepare", on_click=_go, args=("simulated", "prepare"), key=f"gate_{what}", type="primary")
     return False
 
 
@@ -493,7 +494,8 @@ def _sidebar_brand(mode: str) -> None:
     st.sidebar.caption("MTL DNSSEC Lab")
     if mode != "home":
         st.sidebar.button("← Home", on_click=_go, args=("home",), key="sb_home", width="stretch")
-        st.sidebar.markdown("---")
+    st.sidebar.toggle("Help text", key="show_help", help="Show the explanations next to each control.")
+    st.sidebar.markdown("---")
 
 
 def _step_label(n: int, title: str, state: str) -> str:

@@ -1,7 +1,7 @@
-"""Step 2 of the simulated lab: sign the zones and start or stop the lab, to query it by hand in step 3.
+"""Prepare step of the simulated lab: sign the zones and start or stop the lab, to query it in the next step.
 
-The images come from step 1 (built here or pulled); this step only uses them. The simulated *benchmark* (step 4) needs
-none of this: it signs, starts and stops its own lab for every dataset size."""
+The lab images are the track's prerequisite (shown above the steps). The simulated *benchmark* needs none of
+this: it signs, starts and stops its own lab for every dataset size."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from live_lab import compare, driver, image_job, prepare_job, prepare_story
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
 from live_lab.ui.common import (
-    ECO_DIR, _apply_ui_config, _embed_html, _go, _hint, _log_chunks, _page_header, _scenario_list,
+    ECO_DIR, _apply_ui_config, _embed_html, _go, _hint, _log_chunks, _scenario_list,
     _shape, _sidebar_brand, _step_label, _warn_unvalidated, activity, cfg, prepare_metrics_visible,
     readiness, sb,
 )
@@ -80,12 +80,7 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
 
     stack = h.stack
     building = image_job.is_running()
-    if r["images"]:
-        _hint(f"Images for **{stack}** are on this node and match the stack profile. Change the version in step 1.")
-    else:
-        st.sidebar.warning("The lab images are not ready. Build or pull them in step 1 first.")
-        st.sidebar.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="lab_to_setup",
-                          width="stretch")
+    _hint(f"Lab version `{stack}`: change it above the steps.")
 
     # —— Step 1: prepare (zone design, then sign) ——
     prep_state = "done" if prepared_session else ("partial" if r["prepared"] else "none")
@@ -135,7 +130,7 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
     signing = prepare_job.is_running(h)
     no_images = not r["images"]
     if no_images:
-        _hint("Build or pull the images in step 1 first.")
+        _hint("Needs the lab images (panel above).")
     if signing:
         _hint("Signing is running. Watch it live on this page.")
     if st.sidebar.button(gl.label("sign_zones"), key="btn_prep", help=gl.tip("sign_zones"), width="stretch",
@@ -421,7 +416,7 @@ def setup_overview(h: driver.LabHandle, stt: dict) -> None:
             b.button("Or run the benchmark →", on_click=_go, args=("simulated", "benchmark"),
                      key="lab_to_bench", width="stretch")
     else:
-        nxt = ("Build or pull the images in step 1" if not r["images"]
+        nxt = ("Get the lab images (panel above)" if not r["images"]
                else "Sign the zones (Step 1)" if not r["prepared"]
                else "Press Start to launch the containers (Step 2)")
         st.info(f"**Next:** {nxt} — use the sidebar.")
@@ -475,8 +470,7 @@ def setup_results(h: driver.LabHandle) -> None:
 def lab_body(h: driver.LabHandle, stt: dict) -> None:
     """Step 2 of the simulated lab: sign the zones and start the lab (the controls are in the sidebar)."""
     if image_job.is_running():
-        st.info("Images are being built or pulled in step 1. The lab buttons stay off until they are ready.")
-        st.button("Go to step 1: Images", on_click=_go, args=("simulated", "images"), key="lab_open_setup")
+        st.info("Images are being built or pulled. The lab buttons stay off until they are ready.")
     if prepare_job.is_running(h):
         # Signing is in progress: show it live. The other tabs describe the previous Prepare, so they
         # wait until it ends (the page reruns by itself and opens the replay).

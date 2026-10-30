@@ -639,7 +639,7 @@ offline harness as a background job.
 | Module | Role |
 |---|---|
 | `live_lab/app.py` | entry point: page chrome, the sidebar and page tables, `main()` |
-| `live_lab/ui/` | the pages: `home` (the two tracks), `track_offline` and `track_simulated` (one numbered-step page each, reusing `setup` for the image step, `benchmark_offline`, `lab`, `live` and `benchmark_simulated` for the others), `setup` (the Images page and the image cards), `compare_page`, `learn`, `reset`, plus `common` (shared state, navigation and the step bar) and `activity` (the activity log) |
+| `live_lab/ui/` | the pages: `home` (node status and the two tracks), `track_offline` and `track_simulated` (a prerequisite panel from `setup`, then numbered steps reusing `benchmark_offline`, `lab`, `live` and `benchmark_simulated`), `setup` (the prerequisite panel and the Node images page), `compare_page`, `learn`, `reset`, plus `common` (shared state, navigation, the step bar and the help-text switch) and `activity` (the activity log) |
 | `live_lab/glossary.py` | the one list of labels and their explanations (the ⓘ icons) |
 | `live_lab/driver.py` | job and suite status, the rule that nothing disturbs a running benchmark, stack pins and image pulls; it re-exports `lab.py` (lab handle and Docker Compose operations), `shapes.py` (zone sizes and estimates) and `artifacts.py` (manifests, saved runs, session, reset) |
 | `live_lab/suite.py`, `suite_report.py` | the simulated benchmark and its report |
