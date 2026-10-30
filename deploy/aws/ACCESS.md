@@ -56,8 +56,9 @@ and turn on MFA for the user. Send the key over a private channel, with the **in
 
 ## Part 2: the teammate
 
-You have: an access key, the **instance ID** and the **region** (below, `ap-south-1` and `i-0123456789abcdef0` are
-examples; use yours).
+You have: an access key, the **instance ID** and the **region**. In the commands below, replace `INSTANCE_ID` with
+your instance ID (it looks like `i-0a1b2c3d4e5f67890`; do not run the commands with `INSTANCE_ID` left in), and
+`ap-south-1` with your region if it differs.
 
 ### Once: install and sign in
 
@@ -78,7 +79,7 @@ examples; use yours).
 In a terminal, run this and **leave it running** (it should print `Waiting for connections...`):
 
 ```bash
-aws ssm start-session --region ap-south-1 --target i-0123456789abcdef0 \
+aws ssm start-session --region ap-south-1 --target INSTANCE_ID \
   --document-name AWS-StartPortForwardingSession \
   --parameters portNumber=8501,localPortNumber=8501
 ```
@@ -93,7 +94,7 @@ If port 8501 is already in use on your computer, use another local port, for exa
 In a second terminal:
 
 ```bash
-aws ssm start-session --region ap-south-1 --target i-0123456789abcdef0
+aws ssm start-session --region ap-south-1 --target INSTANCE_ID
 ```
 
 You arrive as `ssm-user`. The project lives in `/opt/cipherops` and belongs to `ec2-user`, so switch before using git:
@@ -127,7 +128,7 @@ sudo tail -n 80 /var/log/cipherops-bootstrap.log     # the first-boot setup
 | You see | Cause and fix |
 | --- | --- |
 | `SessionManagerPlugin is not found` | The plugin is not installed or not on your `PATH`. Install it (step 2 above) and check `session-manager-plugin --version`. |
-| `AccessDeniedException ... ssm:StartSession` | Your policy does not cover this instance, region or session type (a shell needs the `SSM-SessionManagerRunShell` line). Ask the account owner. |
+| `AccessDeniedException ... ssm:StartSession` | First check you used your **real instance ID**, not the placeholder (`INSTANCE_ID` or an example such as `i-0123456789abcdef0`). Otherwise your policy does not cover this instance, region or session type (a shell needs the `SSM-SessionManagerRunShell` line), or is not attached to your user. Ask the account owner to run `aws iam list-attached-user-policies --user-name <you>` and compare the instance line in the policy. |
 | `TargetNotConnected` | The instance ID or region is wrong, or the node is stopped or still starting. Check both with the account owner. |
 | `Unable to locate credentials` | Run `aws configure` again, and check `aws sts get-caller-identity`. |
 | The tunnel starts but the page does not load | Check the terminal still says `Waiting for connections...` and that you opened the same local port. If the shell shows `curl ... _stcore/health` is not `ok`, the dashboard service is down: `sudo systemctl restart cipherops-dashboard`. |
