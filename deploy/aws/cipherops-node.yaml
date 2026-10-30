@@ -194,7 +194,7 @@ Resources:
           status=0
           dnf -y install git aws-cfn-bootstrap || status=$?
           if [ $status -eq 0 ]; then
-            git clone --depth 1 --branch ${RepoBranch} ${RepoUrl} /opt/cipherops || status=$?
+            git clone --depth 1 --no-single-branch --branch ${RepoBranch} ${RepoUrl} /opt/cipherops || status=$?
           fi
           if [ $status -eq 0 ]; then
             REGISTRY=${Registry} COMPOSE_VERSION=${ComposeVersion} bash /opt/cipherops/deploy/aws/bootstrap.sh || status=$?

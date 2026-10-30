@@ -105,6 +105,19 @@ cd /opt/cipherops
 git pull
 ```
 
+To switch to another branch, fetch it first. The node's clone is shallow (one commit per branch), and on a node created
+before this was fixed it tracks only the branch it was deployed with:
+
+```bash
+git remote set-branches origin '*'          # only needed on an older node: allow all branches
+git fetch --depth 1 origin BRANCH_NAME
+git switch BRANCH_NAME
+```
+
+If git refuses because of local changes, `git status` shows them; commit, `git stash`, or discard them first. If the
+branch changed the Python requirements, run `.venv/bin/pip install -r requirements-dashboard.txt` and
+`sudo systemctl restart cipherops-dashboard`.
+
 Useful checks:
 
 ```bash
