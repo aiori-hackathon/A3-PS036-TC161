@@ -112,6 +112,32 @@ def test_pull_plan_retags_remote_images_to_the_local_names():
     assert len(cmds) == 6
 
 
+def test_the_offline_image_exists_for_the_offline_stack_only():
+    assert images.roles_for("all", "latest") == ("bench", "nsd", "unbound", "tools")
+    assert images.roles_for("all", "draft06") == ("nsd", "unbound", "tools")
+    assert images.roles_for("offline", "draft06") == ()
+    assert images.roles_for("offline") == ("bench",)  # no stack: the mode as defined
+
+
+def test_nothing_is_built_or_pulled_for_an_offline_image_on_another_stack(tmp_path, monkeypatch):
+    (tmp_path / "stacks").mkdir()
+    (tmp_path / "stacks" / "draft06.env").write_text("STACK=draft06\n", encoding="utf-8")
+    monkeypatch.setattr(images, "ECO", tmp_path)
+    # an empty service list would make `docker compose build` build everything
+    with pytest.raises(RuntimeError, match="runs on latest only|latest only"):
+        images.build_command("draft06", "offline")
+    with pytest.raises(RuntimeError, match="latest only"):
+        images.pull_plan("ghcr.io/o/b", "draft06", "offline")
+    cmds = images.pull_commands("ghcr.io/o/b", "draft06", "all")
+    assert not any("cipherops-bench" in " ".join(c) for c in cmds) and len(cmds) == 6
+    assert images.build_command("draft06", "all")[-3:] == ["nsd", "unbound", "tools"]
+
+
+def test_a_stack_without_the_offline_image_explains_it():
+    assert images.status("draft06", "offline", inspect=lambda r: None) == []
+    assert "latest stack only" in images.explain([], "offline")
+
+
 def test_an_empty_registry_is_refused():
     with pytest.raises(RuntimeError, match="registry is empty"):
         images.normalize_registry("  ")

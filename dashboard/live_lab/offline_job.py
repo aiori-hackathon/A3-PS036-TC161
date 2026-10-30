@@ -27,8 +27,8 @@ from live_lab import jobs as jb
 ACTIVE_STATES = jb.ACTIVE_STATES
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "results"
-# The harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh).
-OFFLINE_STACK = "latest"
+# The offline harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh).
+OFFLINE_STACK = images.OFFLINE_STACK
 CONTAINER = "cipherops-offline-run"
 PRESETS = {
     "quick": {"config": "configs/quick.yaml", "title": "Quick check", "note": "sizes 20, 60, 200 names · 3 trials"},

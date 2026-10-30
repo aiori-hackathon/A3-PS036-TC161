@@ -33,6 +33,9 @@ REPO = Path(__file__).resolve().parents[2]
 ECO = REPO / "ecosystem"
 BUILD_FILE = REPO / "docker" / "build.yml"
 DEFAULT_REGISTRY = os.environ.get("CIPHEROPS_REGISTRY", "ghcr.io/anithapriyanatarajan/benchmark")
+# The offline harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh), so its
+# image exists for this stack only; the lab images exist for every stack.
+OFFLINE_STACK = "latest"
 
 # role -> image repository (compose service name == role)
 REPOS = {
@@ -86,10 +89,14 @@ class ImageStatus:
         return ROLE_TITLE[self.role]
 
 
-def roles_for(mode: str) -> tuple[str, ...]:
+def roles_for(mode: str, stack: str | None = None) -> tuple[str, ...]:
+    """The images of ``mode``. With ``stack``, the offline harness image is left out of stacks it cannot run on."""
     if mode not in MODES:
         raise ValueError(f"unknown mode {mode!r}; choose one of {', '.join(MODES)}")
-    return MODES[mode]
+    roles = MODES[mode]
+    if stack is not None and stack != OFFLINE_STACK:
+        roles = tuple(r for r in roles if r != "bench")
+    return roles
 
 
 def ref(role: str, stack: str) -> str:
@@ -178,7 +185,7 @@ def check(role: str, stack: str, info: dict | None, pins: dict[str, str]) -> Ima
 
 def status(stack: str, mode: str = "all", *, inspect=_docker_inspect) -> list[ImageStatus]:
     pins = read_pins(stack)
-    return [check(role, stack, inspect(ref(role, stack)), pins) for role in roles_for(mode)]
+    return [check(role, stack, inspect(ref(role, stack)), pins) for role in roles_for(mode, stack)]
 
 
 def ready(statuses: list[ImageStatus]) -> bool:
@@ -187,6 +194,8 @@ def ready(statuses: list[ImageStatus]) -> bool:
 
 def explain(statuses: list[ImageStatus], mode: str) -> str:
     """One line for the Benchmark tile when its images are not usable; empty when they are."""
+    if not statuses:
+        return f"{MODE_TITLE[mode]} runs on the {OFFLINE_STACK} stack only. Open Setup and pick it."
     bad = [s for s in statuses if s.state != "ok"]
     if not bad:
         return ""
@@ -195,19 +204,28 @@ def explain(statuses: list[ImageStatus], mode: str) -> str:
             ". Open Setup to build or pull them.")
 
 
+def _roles_or_raise(stack: str, mode: str) -> tuple[str, ...]:
+    roles = roles_for(mode, stack)
+    if not roles:
+        raise RuntimeError(f"{MODE_TITLE[mode]} is not available for the {stack} stack: "
+                           f"the offline harness runs on {OFFLINE_STACK} only")
+    return roles
+
+
 def build_command(stack: str, mode: str = "all") -> list[str]:
     """``docker compose build`` for the roles of ``mode``; the shared OpenSSL/liboqs/MTL layers are built once."""
+    roles = _roles_or_raise(stack, mode)
     env_file = ECO / "stacks" / f"{stack}.env"
     if not env_file.is_file():
         raise RuntimeError(f"missing stack env {env_file}")
     if not BUILD_FILE.is_file():
         raise RuntimeError(f"missing {BUILD_FILE}")
-    return ["docker", "compose", "-f", str(BUILD_FILE), "--env-file", str(env_file), "build", *roles_for(mode)]
+    return ["docker", "compose", "-f", str(BUILD_FILE), "--env-file", str(env_file), "build", *roles]
 
 
 def pull_plan(registry: str, stack: str, mode: str = "all") -> list[tuple[str, str]]:
     """(remote reference, local reference) for each image of ``mode``."""
-    return [(remote_ref(registry, role, stack), ref(role, stack)) for role in roles_for(mode)]
+    return [(remote_ref(registry, role, stack), ref(role, stack)) for role in _roles_or_raise(stack, mode)]
 
 
 def pull_commands(registry: str, stack: str, mode: str = "all") -> list[list[str]]:
@@ -230,15 +248,23 @@ def _print_status(stack: str, mode: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python scripts/images.py", description=__doc__.split("\n\n")[0])
-    p.add_argument("action", choices=["status", "build", "pull"])
+    p.add_argument("action", choices=["status", "build", "pull", "refs"],
+                   help="refs prints the local image references of the stack, one per line")
     p.add_argument("--stack", default="latest", help="stack profile in ecosystem/stacks/ (default latest)")
     p.add_argument("--mode", choices=list(MODES), default="all", help="which images (default all)")
     p.add_argument("--registry", default=DEFAULT_REGISTRY, help="for pull: registry namespace")
     args = p.parse_args(argv)
-    if args.action == "status":
-        return _print_status(args.stack, args.mode)
-    cmds = [build_command(args.stack, args.mode)] if args.action == "build" else \
-        pull_commands(args.registry, args.stack, args.mode)
+    try:
+        if args.action == "refs":
+            print("\n".join(ref(role, args.stack) for role in _roles_or_raise(args.stack, args.mode)))
+            return 0
+        if args.action == "status":
+            return _print_status(args.stack, args.mode)
+        cmds = [build_command(args.stack, args.mode)] if args.action == "build" else \
+            pull_commands(args.registry, args.stack, args.mode)
+    except RuntimeError as e:
+        print(e, file=sys.stderr)
+        return 1
     for cmd in cmds:
         print("$ " + " ".join(cmd), flush=True)
         if subprocess.run(cmd).returncode != 0:

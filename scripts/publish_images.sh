@@ -18,15 +18,11 @@ registry="${registry,,}"   # registry names must be lower case
 python3 scripts/images.py status --stack "$stack" --mode "$mode" \
   || { echo "Some images are missing or do not match the '$stack' profile; build or pull them first." >&2; exit 1; }
 
-case "$mode" in
-  offline)   repos=(cipherops-bench) ;;
-  simulated) repos=(cipherops-eco-nsd cipherops-eco-unbound cipherops-eco-tools) ;;
-  all)       repos=(cipherops-bench cipherops-eco-nsd cipherops-eco-unbound cipherops-eco-tools) ;;
-  *) echo "unknown mode '$mode'" >&2; exit 1 ;;
-esac
+# The images this stack has for the mode (the offline harness image exists for `latest` only).
+mapfile -t refs < <(python3 scripts/images.py refs --stack "$stack" --mode "$mode")
 
-for repo in "${repos[@]}"; do
-  docker tag "$repo:$stack" "$registry/$repo:$stack"
-  docker push "$registry/$repo:$stack"
+for ref in "${refs[@]}"; do
+  docker tag "$ref" "$registry/$ref"
+  docker push "$registry/$ref"
 done
 echo "Pushed to $registry. Check that anonymous pulls work: docker logout ${registry%%/*}; python3 scripts/images.py pull --stack $stack --mode $mode --registry $registry"

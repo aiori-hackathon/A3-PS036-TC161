@@ -11,7 +11,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-from live_lab import driver, image_job, images, offline_job
+from live_lab import driver, image_job, images
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
@@ -95,9 +95,10 @@ def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
               format_func=images.MODE_TITLE.get,
               help="Offline benchmark: the harness image. Simulated lab: NSD, Unbound and the signing tools. "
                    "Both are built from one Dockerfile and share the compiled OpenSSL/liboqs/MTL layers.")
-    if stack != offline_job.OFFLINE_STACK and mode in ("offline", "all"):
-        st.sidebar.info(f"The offline harness runs on the **{offline_job.OFFLINE_STACK}** stack only (its liboqs has "
-                        "the FIPS 205 names). Pick that stack for the offline image.")
+    if stack != images.OFFLINE_STACK and mode in ("offline", "all"):
+        st.sidebar.info(f"The offline harness image exists for the **{images.OFFLINE_STACK}** stack only (its liboqs "
+                        "has the FIPS 205 names). "
+                        + ("Pick that stack for it." if mode == "offline" else "Here, Both covers the lab images only."))
     source = sb(st.sidebar.radio, "image_mode", SOURCES[0], "Image source", options=list(SOURCES),
                 help="Build compiles everything on this node (tens of minutes the first time). Pull downloads "
                      "images someone already built from the same stack profile; they are verified after the pull.")
@@ -112,7 +113,8 @@ def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
     if running:
         _hint("Running in the background. You can leave this page; the log is on the Setup page.")
     if st.sidebar.button(label, key="btn_images", width="stretch", type="primary",
-                         disabled=bool(bench_busy or running or (action == "pull" and not (reg or "").strip()))):
+                         disabled=bool(bench_busy or running or not images.roles_for(mode, stack)
+                                       or (action == "pull" and not (reg or "").strip()))):
         _start(h, action, mode, reg)
 
 
@@ -130,6 +132,10 @@ def _mode_card(mode: str, rows: list[images.ImageStatus], tile: str, cta: str) -
     mine = [s for s in rows if s.role in images.MODES[mode]]
     ok = bool(mine) and images.ready(mine)
     with st.container(border=True):
+        if not mine:
+            st.markdown(f"**{images.MODE_TITLE[mode]}** {_chip('not on this stack', 'idle')}", unsafe_allow_html=True)
+            st.caption(f"Runs on the **{images.OFFLINE_STACK}** stack only. Pick it above to set this up.")
+            return
         st.markdown(f"**{images.MODE_TITLE[mode]}** {_chip('ready' if ok else 'not ready', 'ok' if ok else 'idle')}",
                     unsafe_allow_html=True)
         if ok:

@@ -53,7 +53,10 @@ def start(action: str, stack: str, *, mode: str = "all", registry: str | None = 
     """Launch the job as a detached worker. Returns at once."""
     if action not in ACTIONS:
         raise RuntimeError(f"unknown action {action!r}")
-    images.roles_for(mode)
+    images.roles_for(mode, stack)
+    if not images.roles_for(mode, stack):
+        raise RuntimeError(f"{images.MODE_TITLE[mode]} is not available for the {stack} stack: "
+                           f"the offline harness runs on {images.OFFLINE_STACK} only")
     driver.require_no_suite()
     driver.require_no_offline()
     live = status()
