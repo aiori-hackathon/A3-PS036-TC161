@@ -21,6 +21,19 @@ jobs:
       # The harness tests need the compiled reference library and run inside the image instead.
       - run: python -m pytest -m "not harness" -q
 
+  aws-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cfn-lint
+      - name: Lint the CloudFormation template
+        run: cfn-lint deploy/aws/cipherops-node.yaml
+      - name: Check the bootstrap script
+        run: bash -n deploy/aws/bootstrap.sh
+
   docker:
     runs-on: ubuntu-latest
     steps:
