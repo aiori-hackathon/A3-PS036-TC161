@@ -70,8 +70,15 @@ from the draft's size formulas) are kept apart and never mixed with measured cac
 
 ### Setup: the images
 
-Setup only makes sure the pinned images are on the benchmark node; it signs and measures nothing. Pick the **stack
-version**, which images (**Offline benchmark**, **Simulated lab** or **Both**), and where they come from:
+Setup only makes sure the pinned images are on the benchmark node; it signs and measures nothing. There are two
+independent image sets, each on its own card with its version, status and button:
+
+- **Offline benchmark**: `cipherops-bench:latest`. The version is fixed, because the harness needs the stack whose
+  liboqs has the FIPS 205 names.
+- **Simulated lab**: `cipherops-eco-{nsd,unbound,tools}:<version>`, for the version chosen in the sidebar
+  (`draft06` or `latest`). Only Lab, Live and Benchmark → Simulated use it.
+
+In the sidebar choose how to get them, for both cards:
 
 - **Build locally** compiles OpenSSL, liboqs and MTL once (tens of minutes) and the lab servers on top, all from
   `docker/Dockerfile`.

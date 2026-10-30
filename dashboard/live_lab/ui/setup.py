@@ -1,8 +1,13 @@
 """Setup tile: put the pinned images on this node, then prove they match the stack profile.
 
-Two ways to get them: build them here from docker/Dockerfile, or pull them from a registry. Either way the images are
-then checked against the stack profile (ecosystem/stacks/<stack>.env), and the Benchmark and Lab tiles only use images
-that pass. Signing zones and starting a lab are the Lab tile; measuring is the Benchmark tile."""
+Two independent image sets, each with its own card, version, status and button:
+
+    Offline benchmark   cipherops-bench:latest                      (always the `latest` stack)
+    Simulated lab       cipherops-eco-{nsd,unbound,tools}:<stack>   (the stack chosen in the sidebar)
+
+Either set is built here from docker/Dockerfile or pulled from a registry. Afterwards it is checked against the stack
+profile (ecosystem/stacks/<stack>.env); Benchmark and Lab only use images that pass. Signing zones and starting a lab are
+the Lab tile; measuring is the Benchmark tile."""
 
 from __future__ import annotations
 
@@ -15,22 +20,18 @@ from live_lab import driver, image_job, images
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
-    _chip, _go, _hint, _log_chunks, _page_header, _sidebar_brand, activity, sb,
+    _chip, _go, _hint, _log_chunks, _page_header, _sidebar_brand, activity, cfg, sb,
 )
 
 SOURCES = ("Build locally", "Pull from registry")
-STATE_CHIP = {"ok": ("ready", "ok"), "mismatch": ("does not match", "warn"),
-              "unverified": ("unverified", "warn"), "missing": ("missing", "idle")}
+STATE_ICON = {"ok": "🟢", "missing": "⚪", "mismatch": "🟡", "unverified": "🟡"}
+STATE_TEXT = {"ok": "ready", "missing": "missing", "mismatch": "does not match the stack profile",
+              "unverified": "cannot be verified"}
 
 
 def _clock(seconds: float) -> str:
     seconds = int(max(0, seconds))
     return f"{seconds // 60}:{seconds % 60:02d}" if seconds < 3600 else f"{seconds // 3600}h {seconds % 3600 // 60:02d}m"
-
-
-def image_rows(stt: dict) -> list[images.ImageStatus]:
-    """Every image of the selected stack, as ``lab.status`` read it from Docker on this run."""
-    return [images.ImageStatus(**row) for row in stt.get("image_rows") or []]
 
 
 def _finish_image_job(h: driver.LabHandle) -> None:
@@ -55,95 +56,80 @@ def _finish_image_job(h: driver.LabHandle) -> None:
         activity("err", f"{verb} failed", msg, phase="build", source="compose", h=h)
 
 
-def _start(h: driver.LabHandle, action: str, mode: str, registry: str | None) -> None:
+def _start(h: driver.LabHandle, action: str, stack: str, mode: str, registry: str | None) -> None:
     what = "Pull images" if action == "pull" else "Build images"
-    activity("step", what, f"{h.stack} · {images.MODE_TITLE[mode]}" + (f" · {registry}" if registry else ""),
+    activity("step", what, f"{stack} · {images.MODE_TITLE[mode]}" + (f" · {registry}" if registry else ""),
              phase="build", source="compose", h=h)
     try:
-        image_job.start(action, h.stack, mode=mode, registry=registry)  # returns at once; the page shows the log
+        image_job.start(action, stack, mode=mode, registry=registry)  # returns at once; the page shows the log
     except Exception as e:  # noqa: BLE001
-        st.sidebar.error(str(e)[:600])
+        st.error(str(e)[:600])
         activity("err", f"{what} failed to start", str(e)[:2000], phase="build", source="compose", h=h)
+        return
     st.rerun()
 
 
 def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
     _sidebar_brand("setup")
     st.sidebar.markdown("### Setup")
-    bench_busy = suite_mod.running_suite()
-    if bench_busy:
-        st.sidebar.warning(f"Benchmark {bench_busy['id']} is running. Building or pulling would disturb its timings, "
-                           "so they are paused until it finishes or is cancelled.")
+    _hint("Two image sets, each with its own button on the page: one for the offline benchmark, one for the "
+          "simulated lab.")
     _finish_image_job(h)
-    running = image_job.is_running()
+    if suite_mod.running_suite():
+        st.sidebar.warning("A benchmark is running. Building or pulling would disturb its timings, so they are "
+                           "paused until it finishes or is cancelled.")
 
-    _hint("Put the pinned images on this node. Everything else (Lab, Benchmark) runs inside them.")
-    stack = sb(
-        st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Stack version",
-        options=driver.list_stacks(), format_func=driver.stack_label,
-        help="Which pinned Verisign DNS stack to use. "
-             "draft06 = condensed-by-default (EDNS 65050). "
-             "latest = always-full MTL, same MTL commit as the offline harness. "
-             "Images are named per stack, so both can be on the node at once.",
-    )
+    source = sb(st.sidebar.radio, "image_mode", SOURCES[0], "Get images by", options=list(SOURCES),
+                help="Build compiles everything on this node (tens of minutes the first time). Pull downloads "
+                     "images someone already built from the same stack profile; they are verified after the pull.")
+    if source == SOURCES[1]:
+        sb(st.sidebar.text_input, "registry", images.DEFAULT_REGISTRY, "Registry", placeholder="ghcr.io/org/benchmark",
+           help="Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged with the stack "
+                "name. Published with scripts/publish_images.sh.")
+
+    st.sidebar.markdown("---")
+    stack = sb(st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Simulated lab version",
+               options=driver.list_stacks(), format_func=driver.stack_label,
+               help="Which pinned Verisign DNS stack the lab runs. It only affects the simulated lab (Lab, Live "
+                    "and Benchmark → Simulated); the offline benchmark always uses `latest`. Images are named per "
+                    "stack, so both versions can be on the node at once.")
     pins = driver.stack_pins(stack)
     if pins:
         _hint(f"Pins for **{stack}**: MTL `{(pins.get('MTL_COMMIT') or '')[:12]}…` · "
               f"liboqs {pins.get('LIBOQS_TAG') or '?'} · {pins.get('OPENSSL_TAG') or '?'}.")
 
-    mode = sb(st.sidebar.radio, "image_set", "all", "Images for", options=list(images.MODES),
-              format_func=images.MODE_TITLE.get,
-              help="Offline benchmark: the harness image. Simulated lab: NSD, Unbound and the signing tools. "
-                   "Both are built from one Dockerfile and share the compiled OpenSSL/liboqs/MTL layers.")
-    if stack != images.OFFLINE_STACK and mode in ("offline", "all"):
-        st.sidebar.info(f"The offline harness image exists for the **{images.OFFLINE_STACK}** stack only (its liboqs "
-                        "has the FIPS 205 names). "
-                        + ("Pick that stack for it." if mode == "offline" else "Here, Both covers the lab images only."))
-    source = sb(st.sidebar.radio, "image_mode", SOURCES[0], "Image source", options=list(SOURCES),
-                help="Build compiles everything on this node (tens of minutes the first time). Pull downloads "
-                     "images someone already built from the same stack profile; they are verified after the pull.")
-    if source == SOURCES[1]:
-        registry = sb(st.sidebar.text_input, "registry", images.DEFAULT_REGISTRY, "Registry",
-                      placeholder="ghcr.io/org/benchmark",
-                      help="Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged "
-                           "with the stack name. Published with scripts/publish_images.sh.")
-        label, action, reg = ("Pulling…" if running else "Pull images"), "pull", registry
-    else:
-        label, action, reg = ("Building…" if running else "Build images"), "build", None
-    if running:
-        _hint("Running in the background. You can leave this page; the log is on the Setup page.")
-    if st.sidebar.button(label, key="btn_images", width="stretch", type="primary",
-                         disabled=bool(bench_busy or running or not images.roles_for(mode, stack)
-                                       or (action == "pull" and not (reg or "").strip()))):
-        _start(h, action, mode, reg)
+
+def _chip_for(rows: list[images.ImageStatus]) -> str:
+    if images.ready(rows):
+        return _chip("ready", "ok")
+    if any(s.state in ("mismatch", "unverified") for s in rows):
+        return _chip("needs attention", "warn")
+    return _chip("not on this node", "idle")
 
 
-def _table(rows: list[images.ImageStatus]) -> pd.DataFrame:
-    return pd.DataFrame([{
-        "Image": s.title, "Reference": s.ref, "State": STATE_CHIP[s.state][0],
-        "ID": s.image_id or "-", "Size (MB)": s.size_mb or None,
-        "Built": s.created[:19].replace("T", " ") if s.created else "-",
-        "Digest": (s.digest[:19] + "…") if s.digest else "-",
-        "Notes": "; ".join(s.problems),
-    } for s in rows])
-
-
-def _mode_card(mode: str, rows: list[images.ImageStatus], tile: str, cta: str) -> None:
-    mine = [s for s in rows if s.role in images.MODES[mode]]
-    ok = bool(mine) and images.ready(mine)
+def _card(h: driver.LabHandle, *, title: str, purpose: str, stack: str, stack_note: str, mode: str,
+          rows: list[images.ImageStatus], tile: str, cta: str, busy: bool) -> None:
+    source = cfg("image_mode", SOURCES[0])
+    registry = cfg("registry", images.DEFAULT_REGISTRY)
+    pull = source == SOURCES[1]
+    ok = images.ready(rows)
     with st.container(border=True):
-        if not mine:
-            st.markdown(f"**{images.MODE_TITLE[mode]}** {_chip('not on this stack', 'idle')}", unsafe_allow_html=True)
-            st.caption(f"Runs on the **{images.OFFLINE_STACK}** stack only. Pick it above to set this up.")
-            return
-        st.markdown(f"**{images.MODE_TITLE[mode]}** {_chip('ready' if ok else 'not ready', 'ok' if ok else 'idle')}",
-                    unsafe_allow_html=True)
+        st.markdown(f"#### {title}  {_chip_for(rows)}", unsafe_allow_html=True)
+        st.caption(purpose)
+        st.markdown(f"**Version:** `{stack}` · {stack_note}")
+        for s in rows:
+            note = "" if s.state == "ok" else f" · {STATE_TEXT[s.state]}"
+            st.markdown(f"{STATE_ICON[s.state]} {s.title} `{s.ref}`{note}")
+        problems = sorted({p for s in rows if s.state != "ok" for p in s.problems if p != "not on this host"})
+        if problems:
+            st.caption("; ".join(problems))
+        verb = "Pull" if pull else "Build"
+        label = f"{verb} again" if ok else f"{verb} {'image' if len(rows) == 1 else 'images'}"
+        if st.button(label, key=f"setup_get_{mode}", type="secondary" if ok else "primary", width="stretch",
+                     disabled=bool(busy or (pull and not (registry or "").strip()))):
+            _start(h, "pull" if pull else "build", stack, mode, registry if pull else None)
         if ok:
-            st.caption(f"{len(mine)} image(s) verified against the stack profile.")
-            st.button(cta, on_click=_go, args=(tile,), key=f"setup_next_{mode}", width="stretch")
-        else:
-            bad = [s for s in mine if s.state != "ok"]
-            st.caption("Needs: " + (", ".join(s.ref for s in bad) or "images"))
+            st.button(cta, on_click=_go, args=(tile,), key=f"setup_next_{mode}", type="primary", width="stretch")
 
 
 @st.fragment(run_every=2.0)
@@ -159,7 +145,8 @@ def _job_body() -> None:
     done = int(job.get("done") or 0)
     frac = min(0.99, done / total) if pull else 0.0
     verb = "Pulling" if pull else "Building"
-    st.progress(frac, text=f"{verb} images for {job.get('stack')} · {job.get('step') or ''} · {_clock(elapsed)} elapsed")
+    st.progress(frac, text=f"{verb} {images.MODE_TITLE[job.get('mode', 'all')].lower()} images for "
+                           f"{job.get('stack')} · {job.get('step') or ''} · {_clock(elapsed)} elapsed")
     if not pull:
         st.caption("A first build compiles OpenSSL, liboqs, MTL, NSD and Unbound from source and can take tens of "
                    "minutes. Later builds reuse Docker's cache and take seconds. You can leave this page.")
@@ -170,29 +157,35 @@ def _job_body() -> None:
         st.rerun()
 
 
-def _overview(h: driver.LabHandle, stt: dict) -> None:
-    rows = image_rows(stt)
-    st.markdown(f"#### Images on this node · stack **{h.stack}**")
-    if not rows:
-        st.info("Docker did not answer. Is it running, and may this user use it?")
-        return
-    a, b = st.columns(2)
-    with a:
-        _mode_card("offline", rows, "benchmark", "Continue to Benchmark →")
-    with b:
-        _mode_card("simulated", rows, "lab", "Continue to Lab →")
-    st.dataframe(_table(rows), width="stretch", hide_index=True)
-    st.caption("An image is *ready* only when the pins it was built from (its `io.cipherops.*` labels) equal the "
-               f"stack profile `ecosystem/stacks/{h.stack}.env`. A pulled image that differs is reported here, never used.")
-
-    with st.expander("Stack profile (the pins every image must match)"):
-        st.dataframe(pd.DataFrame(sorted(images.read_pins(h.stack).items()), columns=["Pin", "Value"]),
-                     width="stretch", hide_index=True)
+def _details(offline_rows: list[images.ImageStatus], lab_rows: list[images.ImageStatus]) -> None:
+    table = pd.DataFrame([{
+        "Used by": "Offline benchmark" if s.role == "bench" else "Simulated lab",
+        "Image": s.ref, "State": STATE_TEXT[s.state],
+        "ID": s.image_id or "-", "Size (MB)": s.size_mb or None,
+        "Built": s.created[:19].replace("T", " ") if s.created else "-",
+        "Digest": (s.digest[:19] + "…") if s.digest else "-",
+        "Notes": "; ".join(s.problems),
+    } for s in offline_rows + lab_rows])
+    with st.expander("Image details"):
+        st.dataframe(table, width="stretch", hide_index=True)
+        st.caption("An image is *ready* only when the pins it was built from (its `io.cipherops.*` labels) equal "
+                   "its stack profile `ecosystem/stacks/<stack>.env`. A pulled image that differs is reported "
+                   "here, never used.")
+    with st.expander("Stack profiles (the pins every image must match)"):
+        stacks = driver.list_stacks()
+        pins = {s: images.read_pins(s) for s in stacks}
+        keys = sorted({k for p in pins.values() for k in p})
+        st.dataframe(pd.DataFrame({s: [pins[s].get(k, "") for k in keys] for s in stacks}, index=keys),
+                     width="stretch")
     with st.expander("The same from a terminal"):
         st.code(
-            f"python scripts/images.py status --stack {h.stack}\n"
-            f"python scripts/images.py build  --stack {h.stack} --mode all\n"
-            f"python scripts/images.py pull   --stack {h.stack} --mode all --registry {images.DEFAULT_REGISTRY}",
+            f"python scripts/images.py status --stack {images.OFFLINE_STACK} --mode offline\n"
+            f"python scripts/images.py build  --stack {images.OFFLINE_STACK} --mode offline\n"
+            f"python scripts/images.py pull   --stack {images.OFFLINE_STACK} --mode offline "
+            f"--registry {images.DEFAULT_REGISTRY}\n\n"
+            "python scripts/images.py status --stack draft06 --mode simulated\n"
+            "python scripts/images.py build  --stack draft06 --mode simulated\n"
+            f"python scripts/images.py pull   --stack draft06 --mode simulated --registry {images.DEFAULT_REGISTRY}",
             language="bash")
         st.caption("Publish with `scripts/publish_images.sh <stack>` from a machine that is logged in to the registry; "
                    "the registry's owner makes each package public once.")
@@ -205,6 +198,21 @@ def setup_page(h: driver.LabHandle, stt: dict) -> None:
         return
     images_tab, log_tab = st.tabs(["Images", "Activity log"])
     with images_tab:
-        _overview(h, stt)
+        offline_rows = images.status(images.OFFLINE_STACK, "offline")
+        lab_rows = images.status(h.stack, "simulated")
+        busy = bool(suite_mod.running_suite())
+        left, right = st.columns(2)
+        with left:
+            _card(h, title="Offline benchmark", mode="offline", stack=images.OFFLINE_STACK, rows=offline_rows,
+                  stack_note="fixed: the harness needs liboqs's FIPS 205 names",
+                  purpose="Times each signing and verification call on one pinned core with no network.",
+                  tile="benchmark", cta="Continue to Benchmark →", busy=busy)
+        with right:
+            _card(h, title="Simulated lab", mode="simulated", stack=h.stack, rows=lab_rows,
+                  stack_note="change it in the sidebar",
+                  purpose="Root, TLD and leaf servers behind a validating resolver, for Lab, Live and the "
+                          "simulated benchmark.",
+                  tile="lab", cta="Continue to Lab →", busy=busy)
+        _details(offline_rows, lab_rows)
     with log_tab:
         activity_tab(h)
