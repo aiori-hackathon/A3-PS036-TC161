@@ -40,10 +40,10 @@ Parameters:
     Description: Repository to deploy.
   RepoBranch:
     Type: String
-    Default: aws-cloudformation
+    Default: main
     Description: >-
-      Branch, tag or commit-ish to check out. It must contain deploy/aws/bootstrap.sh, so use this branch (or a branch
-      made from it) until it is merged.
+      Branch, tag or commit-ish to check out. It must contain deploy/aws/bootstrap.sh. Until the AWS template is merged
+      to main, pass RepoBranch=aws-cloudformation.
   Registry:
     Type: String
     Default: ghcr.io/anithapriyanatarajan/benchmark

@@ -58,15 +58,10 @@ def test_the_node_hardening_defaults(template):
     assert arns == ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
 
 
-def test_the_default_branch_contains_the_bootstrap_script(template):
-    """The user data runs deploy/aws/bootstrap.sh from the cloned branch, so the default branch must have it."""
-    import subprocess as sp
-    branch = template["Parameters"]["RepoBranch"]["Default"]
-    shown = sp.run(["git", "cat-file", "-e", f"origin/{branch}:deploy/aws/bootstrap.sh"], cwd=ROOT, capture_output=True)
-    if shown.returncode != 0 and sp.run(["git", "rev-parse", "--verify", f"origin/{branch}"], cwd=ROOT,
-                                        capture_output=True).returncode != 0:
-        pytest.skip(f"origin/{branch} is not fetched here")
-    assert shown.returncode == 0, f"{branch} has no deploy/aws/bootstrap.sh"
+def test_the_template_deploys_main_and_the_bootstrap_script_is_in_this_tree(template):
+    """Users should not have to pick a branch: the node clones main. The script it runs must exist in the repo."""
+    assert template["Parameters"]["RepoBranch"]["Default"] == "main"
+    assert (AWS / "bootstrap.sh").is_file()
 
 
 def test_the_dashboard_only_listens_on_localhost():
