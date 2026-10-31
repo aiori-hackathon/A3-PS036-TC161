@@ -28,7 +28,7 @@ marks a finished step. Explanations are hidden unless **Help text** (sidebar) is
 | ② Results | tables, charts and downloads of a saved run | a finished run |
 | **Prerequisite** (simulated) | the three lab images for the chosen version (`draft06` or `latest`) are on this node | Docker |
 | **Simulated lab** ① Prepare | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
-| ② Query | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets | a started lab |
+| ② Query | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets (minimal mode keeps the algorithm switch and the lookups) | a started lab |
 | ③ Benchmark | signs, starts, measures and stops its own lab for each zone size (steps ① and ② are not needed) | the lab images |
 | **Compare** | *Algorithms side by side*, *Run against run*, and *Zone updates* | a finished benchmark |
 | **Learn** | why DNSSEC needs MTL; what an operator does | nothing |
