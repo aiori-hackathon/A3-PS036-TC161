@@ -311,7 +311,7 @@ from live_lab.shapes import (  # noqa: E402,F401
 from live_lab.lab import (  # noqa: E402,F401
     DIG_MAX_ARGS, DIG_PLAIN_FLAGS, DIG_VALUE_FLAGS, NAMES, SCENARIO_ALGS, STAT_KEYS, LabHandle,
     _lab_name, _reclaim_fixed_lab_names, activate, capture_target, client_exec, compose_cmd,
-    check_probe_args, container_logs, dig, dig_argv, dig_presets, down, flush, probe, prepare, prepare_command,
+    check_probe_args, container_logs, example_names, dig, dig_argv, dig_presets, down, flush, probe, prepare, prepare_command,
     prepare_container_name, query_presets, run_benchmark, sanitize_label, sign_trials, sld_server_ip,
     start_capture, status, stop_capture, stop_other_labs, unbound_stats, unbound_stats_delta, up,
     write_ui_config,

@@ -199,8 +199,22 @@ def show_sequence_diagram(steps: list) -> None:
         pass
 
 
+def _cache_state(row: dict) -> str:
+    """'hit' or 'miss' for a lookup that went through the resolver, from its own counters; '' when they do not say
+    clearly (another visitor's lookup landed in between, or the counters could not be read)."""
+    if row.get("path") != "Through Unbound":
+        return ""
+    stats = row.get("unbound_stats") or {}
+    hits, miss = stats.get("total.num.cachehits"), stats.get("total.num.cachemiss")
+    if hits is None or miss is None or hits + miss != 1:
+        return ""
+    return "hit" if hits == 1 else "miss"
+
+
 def query_panel(h: driver.LabHandle, stt: dict) -> None:
-    st.caption("Send one DNS lookup. Enable Capture to inspect packets afterward.")
+    st.caption("Send one DNS lookup" + (" (Capture shows its packets afterwards)." if not minimal.enabled() else ".")
+               + " Send the same name twice: the first is resolved from the root down, the repeat comes from the "
+               "resolver's cache. Every host has one record type; the Preset list has names that exist.")
     if not _gate(stt, "Querying"):
         return
 
@@ -349,12 +363,17 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
             st.warning(f"This result was taken on **{shown}**; the lab is now on **{now}**. Run the query again.")
         elif (row.get("qname"), row.get("qtype")) != (qname, qtype) or row.get("path") != path:
             st.caption("The query above has changed since this result. Press Run query to refresh it.")
-        m = st.columns(5)
+        cache = _cache_state(row)
+        m = st.columns(6 if cache else 5)
         m[0].metric("RCODE", row.get("rcode", "—"))
         m[1].metric("AD", "YES" if row.get("ad") else "no")
         m[2].metric("Transport", row.get("transport", "—"))
         m[3].metric("Bytes", f"{(row.get('tcp_response_bytes') or row.get('response_bytes') or 0):,}")
         m[4].metric("Latency", f"{row.get('latency_ms', 0):.1f} ms")
+        if cache:
+            m[5].metric("Resolver cache", cache, help="From the resolver's own counters for this lookup. hit: answered "
+                        "from the cache. miss: resolved from the root down (the first lookup of a name, or its cached "
+                        "answer has expired). Ask for the same name twice to see both.")
         st.caption("Full history, packet decode and sequence diagram are in the Results tab.")
 
 

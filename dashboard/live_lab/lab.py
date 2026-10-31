@@ -654,6 +654,34 @@ def unbound_stats_delta(before: dict[str, float], after: dict[str, float]) -> di
     return {k: delta[k] for k in STAT_KEYS if k in delta}
 
 
+_HOST_RR = re.compile(r"^(host\d+\.\S+?)\.?\s+\d+\s+IN\s+(A|AAAA|MX|TXT)\s")
+
+
+def example_names(h: LabHandle, zones: int = 2, per_zone: int = 4) -> list[tuple[str, str]]:
+    """A few names that exist in this lab, with the one record type each has (every host has exactly one: asking for
+    another type returns an empty NOERROR answer). Read from the first lines of the signed leaf zones."""
+    try:
+        scenario = h.active_scenario() or next(iter(h.scenarios()))
+        manifest = json.loads((h.work / "zones" / scenario / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, StopIteration, KeyError):
+        return []
+    out: list[tuple[str, str]] = []
+    for z in [z for z in manifest.get("zones", []) if z.get("tier") == "sld"][:zones]:
+        seen: set[str] = set()
+        try:
+            with open(h.work / "zones" / scenario / z["signed_file"], encoding="utf-8") as fh:
+                for line in fh:
+                    m = _HOST_RR.match(line)
+                    if m and m.group(1) not in seen:
+                        seen.add(m.group(1))
+                        out.append((m.group(1) + ".", m.group(2)))
+                        if len(seen) >= per_zone:
+                            break
+        except OSError:
+            continue
+    return out
+
+
 def query_presets(h: LabHandle) -> list[tuple[str, str, str]]:
     """Presets aligned with the selected lab config (smoke vs lab)."""
     cfg = h.cfg()
@@ -665,6 +693,8 @@ def query_presets(h: LabHandle) -> list[tuple[str, str, str]]:
         (f"host000000.zone00.{tld}.", "A", "Data name through full chain"),
         (f"nx4e50797e7b57.zone00.{tld}.", "A", "NXDOMAIN proof"),
     ]
+    known = {(n, t) for n, t, _ in presets}
+    presets += [(n, t, "A name in this lab") for n, t in example_names(h) if (n, t) not in known]
     return presets
 
 
