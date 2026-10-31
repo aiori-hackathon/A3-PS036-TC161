@@ -1,6 +1,6 @@
 # Readout
 
-Five slides' worth. Full deck: [revised 30 Oct 2026](presentation/A3-PS036-TC161_2026-10-30.pdf).
+Five slides' worth. Full deck: [revised 31 Oct 2026](presentation/A3-PS036-TC161_2026-10-31.pdf).
 
 ## 1. Problem
 

@@ -1,0 +1,51 @@
+// Wide, compact variant of architecture.dot for the deck's slide 10.
+// Rebuild: dot -Tpng -Gdpi=250 -Gbgcolor=transparent docs/architecture-slide.dot -o docs/architecture-slide.png
+digraph cipherops_slide {
+  graph [rankdir=TB, fontname="Carlito", nodesep=0.25, ranksep=0.35, pad=0.1, splines=spline, newrank=true];
+  node  [shape=box, style="filled", fillcolor="#eef0ff", color="#1a1ad6", fontname="Carlito", fontsize=14, margin="0.12,0.07"];
+  edge  [fontname="Carlito", fontsize=11, color="#1a1ad6", arrowsize=0.7];
+
+  operator [label=<«actor» <b>Operator</b><br/><font point-size="11" color="#555555">browser · or CLI scripts</font>>, fillcolor=white, penwidth=2];
+
+  subgraph cluster_dash {
+    label=<«component» <b>Streamlit dashboard</b>>; style="rounded,dashed"; color="#1a1ad6"; fontsize=14;
+    home  [label=<<b>Home</b><br/><font point-size="11" color="#555555">This node · Manage images</font>>];
+    tr_a  [label=<<b>Offline benchmark</b><br/><font point-size="11" color="#555555">① Run → ② Results</font>>];
+    tr_b  [label=<<b>Simulated lab</b><br/><font point-size="11" color="#555555">① Prepare → ② Query → ③ Benchmark</font>>];
+    cmp   [label=<<b>Compare</b> · Learn · Reset<br/><font point-size="11" color="#555555">reads runs and suites, never mixes A and B</font>>];
+  }
+
+  subgraph cluster_img {
+    label=<«images» <b>Pinned images</b>>; style="rounded,dashed"; color="#555555"; fontsize=14;
+    reg   [label=<<b>ghcr.io/hackchamp25</b><br/><font point-size="11" color="#555555">team registry (or built locally)</font>>, fillcolor=white, color="#555555"];
+    prof  [label=<<b>stacks/&lt;profile&gt;.env</b><br/><font point-size="11" color="#555555">pins · latest | draft06</font>>, fillcolor=white, color="#555555"];
+  }
+
+  subgraph cluster_a {
+    label=<«node» <b>Path A · Offline</b><br/><font color="#555555" point-size="12">cipherops-bench:latest (FIPS 205), pulled or built<br/>one pinned core · no network</font>>;
+    style="rounded,dashed"; color="#1a1ad6"; fontsize=14; labelloc=b;
+    runner [label=<<b>runner.py</b><br/><font point-size="11" color="#d5d8ff">config → gate → zones → sign/verify →<br/>answers &amp; cache → statistics → report</font>>, fillcolor="#1a1ad6", fontcolor=white];
+    libs   [label=<«library» <b>Verisign MTL · liboqs · OpenSSL</b><br/><font point-size="11" color="#555555">unmodified</font>>, fillcolor="#f7f7f7", color="#555555"];
+  }
+
+  subgraph cluster_b {
+    label=<«node» <b>Path B · Simulated lab</b><br/><font color="#555555" point-size="12">cipherops-eco-*:draft06 (pre-standard), pulled or built<br/>internal Docker network · not core-pinned</font>>;
+    style="rounded,dashed"; color="#1a1ad6"; fontsize=14; labelloc=b;
+    suite [label=<<b>suite.py</b><br/><font point-size="11" color="#d5d8ff">sizes × algorithms × cold/warm</font>>, fillcolor="#1a1ad6", fontcolor=white];
+    lab   [label=<<b>ldns signer → NSD (root · TLD · leaf)</b><br/>↔ <b>Unbound</b> ↔ <b>eco-client</b><br/><font point-size="11" color="#555555">validating resolver · tcpdump</font>>];
+  }
+
+  res_a [label=<«artifact» <b>results/runs/&lt;id&gt;/</b><br/><font point-size="11" color="#555555">report.html · CSVs · environment.json</font>>, fillcolor=white, color="#555555"];
+  res_b [label=<«artifact» <b>ecosystem/results/suites/&lt;id&gt;/</b><br/><font point-size="11" color="#555555">suite.json · report · captures</font>>, fillcolor=white, color="#555555"];
+
+  operator -> home;
+  home -> tr_a; home -> tr_b; home -> cmp;
+  home -> reg [style=dashed, color="#555555", label="manage"];
+  reg -> prof [style=invis];
+  tr_a -> runner [label="starts"];
+  tr_b -> suite  [label="starts"];
+  runner -> libs [style=dashed, color="#555555", label="uses"];
+  runner -> res_a;
+  suite -> lab [label="runs"];
+  lab -> res_b;
+}

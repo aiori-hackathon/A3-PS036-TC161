@@ -9,7 +9,7 @@ What the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideli
 
 | Deliverable | Where | State |
 | --- | --- | --- |
-| **Presentation** (PDF) | [revised 30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf); [original 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) | done |
+| **Presentation** (PDF) | [revised 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf); [30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf); [original 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) | done |
 | **Team video** (YouTube link in the repository) | [YouTube](https://youtu.be/FaVfeO5WTV8), linked from the [README](README.md) | done |
 | **Source code, documents and supporting material** | this repository; start at the [README](README.md) and [docs/](docs/README.md) | done |
 | **Working demo** | run it in the browser with [Codespaces](docs/codespaces.md), or [locally](docs/getting-started.md); the demo is built by the visitor, not hosted | done |
@@ -33,7 +33,8 @@ Supporting material: the [project page](hackathon/README.md), a short [readout](
   ([feedback.md](hackathon/feedback.md)), not something this repository can fix.
 - **Team registry.** The `latest` lab images (`cipherops-eco-{nsd,unbound,tools}:latest`) are not yet published in
   `ghcr.io/hackchamp25`; an owner of that namespace must run `scripts/publish_images.sh latest simulated`.
-- **Deck.** Slides 9 to 11 still need the changes listed in [hackathon/README.md](hackathon/README.md#deck-corrections).
+- **Deck.** The 31 Oct deck labels slide 9's source and carries the new architecture on slide 10, but slide 9's numbers
+  still come from an unfrozen run; they change when the full run is frozen ([hackathon/README.md](hackathon/README.md#deck-revision-of-31-oct)).
 - **Fixed state.** Tag the repository (for example `hackathon-submission`) when the submission is final.
 - **Findings.** The findings in [hackathon/feedback.md](hackathon/feedback.md) are written up with evidence but not
   reported to the upstream projects.

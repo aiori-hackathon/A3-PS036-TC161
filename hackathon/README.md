@@ -34,27 +34,28 @@ Akash Joshi · Anitha Natarajan · Indu Radhakrishnan (faculty).
 | [readout.md](readout.md) | the short readout: problem, what was done, results, issues found, next steps |
 | [feedback.md](feedback.md) | findings, the interop and results matrix, follow-ups |
 | [results/](results/README.md) | frozen results, with where and how they ran |
-| [presentation/](presentation) | the deck: [revised 30 Oct 2026](presentation/A3-PS036-TC161_2026-10-30.pdf) and [original 13 Oct 2026](presentation/A3-PS036-TC161_2026-10-13.pdf) |
+| [presentation/](presentation) | the deck: [revised 31 Oct 2026](presentation/A3-PS036-TC161_2026-10-31.pdf), [30 Oct 2026](presentation/A3-PS036-TC161_2026-10-30.pdf) and [original 13 Oct 2026](presentation/A3-PS036-TC161_2026-10-13.pdf) |
 | [../DELIVERABLES.md](../DELIVERABLES.md) | what is submitted, the PS-036 requirements, and open items |
 | [../ecosystem/drafts/](../ecosystem/drafts/README.md) | working text for an Informational Internet-Draft based on the lab (not an IETF document) |
 
 Video: [YouTube](https://youtu.be/FaVfeO5WTV8). Run it: [Codespaces](../docs/codespaces.md) or
 [locally](../docs/getting-started.md).
 
-## Deck corrections
+## Deck revision of 31 Oct
 
-The deck is a PDF exported from slides that are not in this repository, so these changes are made in the slide source:
+[The 31 Oct deck](presentation/A3-PS036-TC161_2026-10-31.pdf) is the 30 Oct deck with three edits, made directly in the PDF
+because the slide source is not available. Everything else is unchanged, apart from the footer date.
 
-- **Slide 9.** Label it with its source run, trial count, zone size, lookup count and machine. It currently shows
-  "medians of 5 trials" on a 10,005-RRset zone, which matches no frozen run (the full configuration is 10 trials); replace
-  the numbers with the full run's report once frozen, see [results/](results/README.md#still-to-freeze).
-- **Slide 10.** Replace the architecture figure with [docs/architecture.png](../docs/architecture.png)
-  ([source](../docs/architecture.dot)): it shows the dashboard's two tracks (Offline benchmark, Simulated lab) and
-  Compare, images pulled from the team registry or built, and no longer says "Setup · Live · Benchmark · Compare" or
-  `phase1-demo-safety`.
-- **Slide 11.** Update the caption and any dashboard wording the same way; it shows the offline runner sequence only.
-- **A findings slide.** State that there is no single end-to-end FIPS 205 result: offline is FIPS 205 (`latest`), the lab is
+- **Slide 9** has a source line: the numbers come from a run that is not frozen in the repository, and the full 10-trial run
+  on the reference machine will replace them. The table itself is unchanged, including "medians of 5 trials", which no
+  frozen run supports.
+- **Slide 10** shows the two-track dashboard (Offline benchmark, Simulated lab, Compare), images pulled from the team
+  registry or built, and no longer names `phase1-demo-safety`. Its source is [docs/architecture-slide.dot](../docs/architecture-slide.dot).
+  The caption states that there is no single end-to-end FIPS 205 result: offline is FIPS 205 (`latest`), the lab is
   pre-standard (`draft06`), because the `latest` resolver answers SERVFAIL for plain SLH-DSA ([feedback.md](feedback.md)).
+- **Slide 11** is unchanged: it shows the offline runner sequence, which still matches the code.
+
+Still to do once the full run is frozen: replace slide 9's table and subtitle from that run's report, and name the machine.
 
 ## Known limits
 

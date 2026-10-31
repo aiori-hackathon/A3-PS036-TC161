@@ -29,7 +29,7 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 
 | | |
 | :--- | :--- |
-| **Solution proposed** | [Revised, 30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
+| **Solution proposed** | [Revised, 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
 | **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8). [Solution Demo]() |
 | **Working demo** | [Run it in your browser with Codespaces](docs/codespaces.md), [locally](docs/getting-started.md), or [on an AWS instance](deploy/aws/README.md) |
 | **Submission** | [Deliverables](DELIVERABLES.md) · [project page and readout](hackathon/README.md) · [frozen results](hackathon/results/README.md) |
