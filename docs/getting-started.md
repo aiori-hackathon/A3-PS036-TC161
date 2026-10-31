@@ -27,18 +27,7 @@ streamlit run dashboard/live_lab/app.py
 
 The easiest way to use everything below; see the [dashboard guide](../dashboard/live_lab/README.md).
 
-**Minimal mode** (read-mostly second copy, typically port 8502): set `CIPHEROPS_MINIMAL=1` in the process environment.
-Details: [MINIMAL.md](../deploy/aws/MINIMAL.md).
-
-```bash
-CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
-```
-
-```powershell
-# Windows PowerShell — $env: exports to Streamlit; `$CIPHEROPS_MINIMAL=1` does not
-$env:CIPHEROPS_MINIMAL = "1"
-python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
-```
+Read-only copy for visitors (port 8502, `CIPHEROPS_MINIMAL=1`): [minimal mode](../deploy/aws/MINIMAL.md#run-it-locally).
 
 ## Offline benchmark (command line)
 

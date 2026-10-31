@@ -59,6 +59,6 @@ report names its profile. Both use a Fedora 42 base and OpenSSL 3.6.0.
 
 The harness uses `latest` so that MTL and the baseline are the same FIPS 205 primitive; on `draft06` its gate reports
 NO-GO. The lab uses `draft06` because only there does a resolver validate all three algorithms. On `latest` the
-Unbound binary still names a SPHINCS+ algorithm that liboqs 0.16 removed, which points to an upstream mismatch; this is
-not confirmed from source and not yet reported upstream. Evidence and rejected alternatives:
+Unbound binary still names a SPHINCS+ algorithm that liboqs 0.16 removed, which points to an upstream mismatch; the source
+has not been checked. Evidence and rejected alternatives:
 [design decisions](design-decisions.md).

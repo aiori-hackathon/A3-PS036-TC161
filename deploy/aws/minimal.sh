@@ -191,15 +191,23 @@ EOF
   fi
 }
 
+# Read the whole log into a variable before matching: `journalctl | grep -q` under `set -o pipefail` reports failure when
+# grep stops at the first match and journalctl is killed by SIGPIPE, even though the line was there.
+tunnel_connected() {
+  local out
+  out="$(journalctl -u "$TUNNEL_UNIT" --no-pager -o cat 2>/dev/null || true)"
+  [[ "$out" == *"Registered tunnel connection"* ]]
+}
+
 # A named tunnel is up when cloudflared has registered a connection; the address answers once the public hostname in
 # the Cloudflare dashboard points at http://localhost:$PORT and DNS has caught up (usually a minute or two).
 wait_named() {
   local host="$1"
   for _ in $(seq 1 30); do
-    journalctl -u "$TUNNEL_UNIT" --no-pager -o cat 2>/dev/null | grep -q 'Registered tunnel connection' && break
+    tunnel_connected && break
     sleep 2
   done
-  if ! journalctl -u "$TUNNEL_UNIT" --no-pager -o cat 2>/dev/null | grep -q 'Registered tunnel connection'; then
+  if ! tunnel_connected; then
     journalctl -u "$TUNNEL_UNIT" --no-pager -n 30
     echo "the tunnel did not connect: check the token, and that this node can reach Cloudflare (outbound 443/7844)" >&2
     exit 1
@@ -230,10 +238,13 @@ status() {
   echo "link: $(link || echo none)"
 }
 
-case "${1:-}" in
-  start) shift; start "$@" ;;
-  stop) stop ;;
-  url) link || { echo "no link yet" >&2; exit 1; } ;;
-  status) status ;;
-  *) sed -n '2,8p' "$0"; exit 2 ;;
-esac
+# Sourcing the file (the tests do) only defines the functions.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  case "${1:-}" in
+    start) shift; start "$@" ;;
+    stop) stop ;;
+    url) link || { echo "no link yet" >&2; exit 1; } ;;
+    status) status ;;
+    *) sed -n '2,10p' "$0"; exit 2 ;;
+  esac
+fi

@@ -77,9 +77,8 @@ Algorithms 246 ... Failed to match any usable anchor` and the query returns SERV
 (algorithm 130) and ECDSA scenarios validate. liboqs 0.16 no longer has the SPHINCS+ names; the ldns signer calls
 `SLH_DSA_PURE_SHA2_128S`, while the Unbound binary at the pinned commit still contains only the SPHINCS+ name. That
 strongly indicates an upstream mismatch in Verisign's Unbound at that commit: built against liboqs 0.16 but still asking
-for an algorithm name that library no longer provides. It is **not confirmed from the source** and **has not been
-reported upstream**. Recommended next step: report it to the Verisign Unbound repository with this evidence; once
-fixed, `latest` can serve both paths.
+for an algorithm name that library no longer provides. The source has not been checked, so this is an inference from the
+binary and the logs. If it holds, `latest` can serve both paths once Verisign's Unbound is rebuilt against the new name.
 
 **Alternatives rejected.**
 

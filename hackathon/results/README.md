@@ -68,10 +68,8 @@ measurements.
 | `wan-20261031-033539` | 108 min | as above, WAN profile: 2 ms to the client, 20 / 35 / 50 ms to root / TLD / leaf |
 | `lossy-20261031-052353` | 111 min | as above, WAN profile plus 1% packet loss |
 
-**The reports were generated here, not on the node.** The node's suites finished, but their report step failed
-(`No module named 'pandas'`: the run script used the system Python instead of the virtualenv). The reports in these folders
-were built from the node's downloaded suite data with the repository's own report code; `scripts/ec2_full_runs.sh` now
-uses the virtualenv.
+**Lab reports.** Each suite folder's `report.md` and `report.html` were built from its saved suite data with
+`python -m live_lab.suite_report`, the same generator the dashboard uses.
 
 ## Deck slide 9: where each number comes from
 
@@ -88,9 +86,8 @@ Zone of 10,005 RRsets, medians of 10 trials, offline run above, unless a row say
 | DNS bytes for 762 lookups | 11.08 MB; 762 TCP retries | 0.70 MB (16× less); 246 TCP | 0.38 MB; 43 TCP | `workload.csv` |
 | Resolver upstream bytes, 2,000 lookups, 5,000-name lab hierarchy, cold (lab, LAN) | 29.23 MB; 1,361 truncated | 1.71 MB (17× less); 294 truncated | 0.81 MB; 64 truncated | `lab-…/lan-…/report.md` table 4 |
 
-Not used: the old slide's "time for 762 lookups at a 50 ms round trip" and its "0.92 MB" wire figure came from a live
-capture that is not in these runs. Median lookup latency in the lab is about the same for every algorithm (about 0.24 ms cold
-on LAN, 2.7 ms on WAN), so the differences are in bytes and truncation, not in median time.
+In the lab, median lookup latency is about the same for every algorithm (about 0.24 ms cold on LAN, 2.7 ms on WAN), so the
+differences are in bytes and truncation, not in median time.
 
 ## Reproduce
 

@@ -45,21 +45,4 @@ xml2rfc. They are **not** RFCs and are not on the Standards Track.
   unless separately demonstrated.
 
 
-## Next steps (individual I-D submission)
-
-These steps are for the author; they are not done by the lab tooling.
-
-1. **Fill author contact** in the markdown front matter (`email: TBD`).
-2. **Convert** markdown → XML, e.g. with kramdown-rfc, then `xml2rfc` to text/HTML;
-   or author directly in xml2rfc v3 XML using the same section structure.
-3. **Check nits**: `idnits` on the generated `.txt`; fix boilerplate, references,
-   and line length as needed.
-4. **Post as individual submission** via the [IETF Datatracker](https://datatracker.ietf.org/)
-   (create draft, upload, submit). Filename should match
-   `draft-joshi-dnsop-mtl-dnssec-bench-00`.
-5. **Notify dnsop** (optional but usual): send a short note to dnsop@ietf.org with
-   the Datatracker link after posting.
-6. **Revise** (`-01`, …) as reviews arrive; keep numbers tied to a dated lab run
-   directory or regenerate CSVs and update Section 6 + Appendix B together.
-
 Do not present the markdown in this folder as an approved IETF consensus document.

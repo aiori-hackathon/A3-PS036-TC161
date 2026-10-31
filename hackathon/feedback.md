@@ -1,7 +1,7 @@
 # Findings and interop matrix
 
-What we found while measuring, with the evidence and the state of each item. **Nothing here has been reported to the
-upstream projects yet**; each entry says what a report would contain.
+What we found while measuring, with the evidence and the status of each item. None has been filed with the upstream
+projects; each entry says what a report would contain.
 
 ## Interop and results matrix
 
@@ -42,15 +42,15 @@ library's known-answer vectors cover ML-DSA, not SLH-DSA. That is not a NIST kno
 ## What a report to upstream would contain
 
 For findings 1 and 2: the pinned commit and stack file (`ecosystem/stacks/*.env`), the exact lab command to reproduce
-(Setup → build images → sign zones → start, then a query for the algorithm in question), the Unbound log lines above and
-the `ldns-verify-zone` result. Finding 1 should first be checked against the Unbound source at that commit.
+(**Manage images** to build or pull, then Simulated lab → Prepare → Sign zones → Start, then a query for the algorithm in
+question), the Unbound log lines above and the `ldns-verify-zone` result. Finding 1 should first be checked against the
+Unbound source at that commit.
 
 ## Follow-ups
 
-1. Run the full benchmark on the reference machine and freeze it under [results/](results/README.md).
-2. File findings 1 and 2 with the Verisign repositories; raise finding 3 with the draft authors if they agree it is
+1. File findings 1 and 2 with the Verisign repositories; raise finding 3 with the draft authors if they agree it is
    worth specifying.
-3. Measure ML-DSA-MTL (draft-kaizer-dnsop-ml-dsa-mtl-dnssec), which the newest drafts centre on, and the always-full
+2. Measure ML-DSA-MTL (draft-kaizer-dnsop-ml-dsa-mtl-dnssec), which the newest drafts centre on, and the always-full
    encoding, which the `latest` lab already serves.
-4. Re-run on a resolver that validates plain SLH-DSA on the newer stack, so one stack can serve both paths.
-5. Status of the drafts, as of 30 Oct 2026: [Learn](../docs/learn/README.md#where-the-ietf-stands).
+3. Re-run on a resolver that validates plain SLH-DSA on the newer stack, so one stack can serve both paths.
+4. Status of the drafts, as of 30 Oct 2026: [Learn](../docs/learn/README.md#where-the-ietf-stands).

@@ -31,8 +31,8 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 | :--- | :--- |
 | **Solution proposed** | [Revised, 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
 | **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8) |
-| **Explore a running node** | [Minimal mode](https://products-fellow-ideas-physically.trycloudflare.com/): saved results, Compare, Learn and live DNS lookups, with every lab-changing action turned off, for more details refer [here](deploy/aws/MINIMAL.md) |
-| **Submission** | [Deliverables and open items](DELIVERABLES.md) · [readout](hackathon/readout.md) · [findings](hackathon/feedback.md) · [frozen results](hackathon/results/README.md) |
+| **Try it now (read-only)** | **[eval.cipherops.stream](https://eval.cipherops.stream)**: the saved benchmark results, Compare, Learn, and DNS lookups against the live lab. Nothing there can change the lab ([how it works](deploy/aws/MINIMAL.md)). Reachable while the team's AWS node is running. |
+| **Submission** | [Deliverables](DELIVERABLES.md) · [readout](hackathon/readout.md) · [findings](hackathon/feedback.md) · [frozen results](hackathon/results/README.md) |
 
 Numbers live in each run's `report.html` (frozen runs are in [hackathon/results](hackathon/results/README.md)), not in
 the documentation, so they cannot go stale.
@@ -87,20 +87,8 @@ streamlit run dashboard/live_lab/app.py                   # the dashboard
 bash scripts/run_benchmark.sh configs/quick.yaml          # or a short offline run from the shell
 ```
 
-**Minimal mode** (`CIPHEROPS_MINIMAL=1`) is a read-mostly copy for evaluators on a shared node: results, Compare,
-Learn and lookups against the live lab, nothing that changes it. See [deploy/aws/MINIMAL.md](deploy/aws/MINIMAL.md).
-
-```bash
-# Linux / macOS / Git Bash
-CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
-```
-
-```powershell
-# Windows PowerShell — use $env:… so the child process inherits it.
-# `$CIPHEROPS_MINIMAL=1` only sets a PowerShell variable; Streamlit never sees it and both ports look the same.
-$env:CIPHEROPS_MINIMAL = "1"
-python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
-```
+Setting `CIPHEROPS_MINIMAL=1` starts a read-only copy of the dashboard, as hosted above. Commands for Linux, macOS and
+Windows PowerShell: [minimal mode](deploy/aws/MINIMAL.md#run-it-locally).
 
 [Dashboard guide](dashboard/live_lab/README.md) · [Scope and limits](docs/scope-and-limits.md) · all documents:
 [docs/README.md](docs/README.md)

@@ -374,7 +374,7 @@ Rules the live-lab benchmark follows:
   `draft06` validates it. The MTL versus non-MTL live comparison is therefore
   run on `draft06`. The Unbound binary on `latest` names only the SPHINCS+
   algorithm that liboqs 0.16 removed, which strongly indicates an upstream
-  mismatch; it is not confirmed from source and has not been reported.
+  mismatch; the source has not been checked.
 
 ## 11. Limitations
 
