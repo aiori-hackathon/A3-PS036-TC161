@@ -44,10 +44,10 @@ Parameters:
     Description: Branch, tag or commit-ish to check out. It must contain deploy/aws/bootstrap.sh.
   Registry:
     Type: String
-    Default: ghcr.io/anithapriyanatarajan/benchmark
+    Default: ghcr.io/hackchamp25
     Description: >-
-      Registry namespace the pinned images are pulled from (must be public). The bootstrap pulls the latest offline image
-      and the draft06 lab images; ghcr.io/anithapriyanatarajan/benchmark and ghcr.io/hackchamp25 both have them.
+      Registry namespace the pinned images are pulled from (must be public). The default is the team registry. The
+      bootstrap pulls the latest offline image and the draft06 lab images.
   ComposeVersion:
     Type: String
     Default: v5.6.1

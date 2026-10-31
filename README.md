@@ -49,7 +49,7 @@ On zones of 50, 500 and 5,000 names: signing time, verification time, signature 
 use, and the cost of updating a zone. Two paths answer different questions: an **offline harness** (one pinned core,
 no network) and a **simulated lab** (root, TLD and leaf NSD servers behind a validating Unbound, with packet capture).
 
-![CipherOps architecture](docs/architecture_itr2.png)
+![CipherOps architecture](docs/architecture.png)
 
 ## Quick start
 

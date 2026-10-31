@@ -2,7 +2,7 @@
 # Provision an Amazon Linux 2023 (x86_64) node for CipherOps. Run as root from inside a checkout of the repository;
 # deploy/aws/cipherops-node.yaml clones it to /opt/cipherops and calls this script from the instance's user data.
 #
-#   REGISTRY       registry namespace the images are pulled from   (default ghcr.io/anithapriyanatarajan/benchmark)
+#   REGISTRY       registry namespace the images are pulled from   (default ghcr.io/hackchamp25)
 #   COMPOSE_VERSION  docker compose release to install             (default v5.6.1)
 #
 # It installs Docker, Compose and Python, pulls the pinned images (instead of compiling them for tens of minutes), and
@@ -10,7 +10,7 @@
 # port-forward or an SSH tunnel. Exits non-zero if anything fails, which fails the CloudFormation stack.
 set -euo pipefail
 
-REGISTRY="${REGISTRY:-ghcr.io/anithapriyanatarajan/benchmark}"
+REGISTRY="${REGISTRY:-ghcr.io/hackchamp25}"
 COMPOSE_VERSION="${COMPOSE_VERSION:-v5.6.1}"
 RUN_USER="${RUN_USER:-ec2-user}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

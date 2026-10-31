@@ -47,5 +47,5 @@ def learn_page(h: driver.LabHandle, stt: dict) -> None:
     st.markdown(f"**{title}**")
     components.html(_learn_html(name, page.stat().st_mtime), height=height, scrolling=True)
     st.caption("A teaching aid, not a measurement: its sizes are illustrative or the draft's maximum-size formulas. "
-               "The measured results are in the Benchmark and Compare tiles and in each run's report.")
+               "The measured results are in the Offline benchmark and Simulated lab tracks, in Compare and in each run's report.")
     st.button("Back to Home", on_click=_go, args=("home",), key="learn_home")

@@ -1,4 +1,4 @@
-"""Benchmark tile, Offline mode: the harness run (sidebar, plan, progress, results and downloads)."""
+"""Offline benchmark track: the harness run (sidebar, plan, progress, results and downloads)."""
 
 from __future__ import annotations
 

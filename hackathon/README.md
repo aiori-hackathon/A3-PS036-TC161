@@ -41,6 +41,21 @@ Akash Joshi · Anitha Natarajan · Indu Radhakrishnan (faculty).
 Video: [YouTube](https://youtu.be/FaVfeO5WTV8). Run it: [Codespaces](../docs/codespaces.md) or
 [locally](../docs/getting-started.md).
 
+## Deck corrections
+
+The deck is a PDF exported from slides that are not in this repository, so these changes are made in the slide source:
+
+- **Slide 9.** Label it with its source run, trial count, zone size, lookup count and machine. It currently shows
+  "medians of 5 trials" on a 10,005-RRset zone, which matches no frozen run (the full configuration is 10 trials); replace
+  the numbers with the full run's report once frozen, see [results/](results/README.md#still-to-freeze).
+- **Slide 10.** Replace the architecture figure with [docs/architecture.png](../docs/architecture.png)
+  ([source](../docs/architecture.dot)): it shows the dashboard's two tracks (Offline benchmark, Simulated lab) and
+  Compare, images pulled from the team registry or built, and no longer says "Setup · Live · Benchmark · Compare" or
+  `phase1-demo-safety`.
+- **Slide 11.** Update the caption and any dashboard wording the same way; it shows the offline runner sequence only.
+- **A findings slide.** State that there is no single end-to-end FIPS 205 result: offline is FIPS 205 (`latest`), the lab is
+  pre-standard (`draft06`), because the `latest` resolver answers SERVFAIL for plain SLH-DSA ([feedback.md](feedback.md)).
+
 ## Known limits
 
 See [Scope and limits](../docs/scope-and-limits.md). In short: timings are on pinned stacks and not a security proof,

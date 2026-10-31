@@ -19,6 +19,11 @@ What each stack does in the simulated lab. Read from the built binaries and from
 | Offline harness go/no-go gate | **NO-GO** (needs `SLH_DSA_PURE_SHA2_128S`) | passes |
 | Used here for | the simulated lab | the offline harness |
 
+**There is no single end-to-end FIPS 205 result.** The offline harness runs the FIPS 205 build (`latest`); the simulated
+lab runs the pre-standard `draft06` build, because the `latest` lab's resolver answers SERVFAIL for plain SLH-DSA (finding
+1). Offline and lab numbers are therefore never drawn on one chart, and a FIPS 205 end-to-end run waits for a resolver
+that validates it (follow-up 4). We present this as a finding, not a footnote.
+
 Results (sizes, times, cache) are in each run's report; the frozen one is in [results/](results/README.md). Sizes in the
 draft's formulas are maxima; the benchmark measures the real values.
 

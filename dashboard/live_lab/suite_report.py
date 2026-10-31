@@ -279,7 +279,7 @@ def build_markdown(sd: dict, figs: dict[str, str]) -> str:
     for req, how, where in TRACEABILITY:
         L.append(f"| {req} | {how} | {where} |")
     L.append("| Reproducible results report | This `report.md` / `report.html`, regenerated from suite artifacts | this document |")
-    L.append("| Technical demonstration | Dashboard Benchmark + Compare + Live tiles over the same stack | dashboard |")
+    L.append("| Technical demonstration | Dashboard Simulated lab (Prepare, Query, Benchmark) + Compare over the same stack | dashboard |")
     L.append("")
 
     L.append("## 4. Methodology")

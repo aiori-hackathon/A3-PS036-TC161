@@ -1,4 +1,4 @@
-"""Live tile: query, dig and cold/warm cache panels, and the packet views."""
+"""Simulated lab, Query step: query, dig and cold/warm cache panels, and the packet views."""
 
 from __future__ import annotations
 

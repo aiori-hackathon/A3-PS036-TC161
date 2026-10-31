@@ -1,4 +1,4 @@
-"""Benchmark tile, Simulated mode: the zone-size suite on the Verisign stack (plan, progress, settings, results)."""
+"""Simulated lab, Benchmark step: the zone-size suite on the Verisign stack (plan, progress, settings, results)."""
 
 from __future__ import annotations
 

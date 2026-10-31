@@ -228,7 +228,7 @@ bash scripts/run_benchmark.sh configs/quick.yaml        # Windows: .\scripts\run
 1. `docker compose --env-file ecosystem/stacks/<stack>.env -f docker/build.yml build bench` builds the pinned image
    for the stack profile (default `latest`; set `CIPHEROPS_STACK`)
    (only slow the first time; later builds use the cache). Set `CIPHEROPS_SKIP_BUILD=1` to run the image already on
-   the host instead (built earlier, or pulled in the dashboard's Setup); the script stops if it is missing.
+   the host instead (built earlier, or pulled in the dashboard's Node images page); the script stops if it is missing.
 2. Records the git commit (`CIPHEROPS_GIT_SHA`), the image ID
    (`CIPHEROPS_HOST_IMAGE_ID`) and the CPU core (`CIPHEROPS_CPUSET`) so they
    end up in `environment.json`.
@@ -632,8 +632,9 @@ satisfies it. `build_html()` embeds images so the HTML is one file.
 
 ### 6.14 `dashboard/`
 
-One Streamlit app (`streamlit run dashboard/live_lab/app.py`; `dashboard/app.py` launches it). It has six tiles:
-Setup, Live, Benchmark, Compare, Learn and Reset. It drives the multi-zone lab in `ecosystem/` and starts the
+One Streamlit app (`streamlit run dashboard/live_lab/app.py`; `dashboard/app.py` launches it). Home shows two tracks, **Offline benchmark**
+(Run → Results) and **Simulated lab** (Prepare → Query → Benchmark), then Compare, Learn, Reset and the Node images
+page (Manage images). It drives the multi-zone lab in `ecosystem/` and starts the
 offline harness as a background job.
 
 | Module | Role |
@@ -689,7 +690,7 @@ docker run --rm --network none cipherops-bench:latest \
   `-O2` because upstream forces `-O0`; source unmodified). Four targets share it: `bench` (the offline harness image:
   libraries, NSD, tcpdump, pinned Python packages, `mtlbench`, the package) and the simulated lab's `nsd`, `unbound`
   and `tools` (ldns signer, resolver and client). Each image records the pins it was built from as `io.cipherops.*`
-  labels, which Setup checks against the stack profile.
+  labels, which the Node images page checks against the stack profile.
 - `docker/build.yml`: builds those targets (`docker compose -f docker/build.yml --env-file <profile>.env build [bench |
   nsd unbound tools]`) under the names `cipherops-bench:<stack>` and `cipherops-eco-{nsd,unbound,tools}:<stack>`.
   `scripts/publish_images.sh` pushes the built images to a registry for the dashboard's "Pull from registry", and

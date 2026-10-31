@@ -72,7 +72,7 @@ What this means:
 | What each output file and column means | [outputs reference](../outputs-reference.md) |
 | How the code fits together, and the MTL formulas | [architecture](../architecture.md) |
 | A run's real numbers | `report.html` in `results/runs/<run>/` (run `bash scripts/run_benchmark.sh configs/quick.yaml`) |
-| To see it live, with real packets | the dashboard (`streamlit run dashboard/live_lab/app.py`), tiles **Live**, **Benchmark** and **Compare** |
+| To see it live, with real packets | the dashboard (`streamlit run dashboard/live_lab/app.py`), the **Simulated lab** track (Prepare → Query → Benchmark) and **Compare** |
 
 ## Honest limits of the explainer
 

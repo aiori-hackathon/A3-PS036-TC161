@@ -2,9 +2,9 @@
 
     streamlit run dashboard/live_lab/app.py
 
-Layout: a home hub of independent tiles (Setup, Live, Benchmark, Reset). Setup is the one
-mandatory first step; every other tile works on its own once the lab is up. Each tile keeps
-its controls in the sidebar and its own Results view in the main area.
+Layout: a home hub with two tracks, Offline benchmark (Run → Results) and Simulated lab (Prepare → Query →
+Benchmark), then Compare, Learn, Reset and the Node images page. Each track checks its own images first and
+keeps its controls in the sidebar and its results in the main area.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Setup tile: put the pinned images on this node, then prove they match the stack profile.
+"""Node images page (opened from Home's "Manage images"): put the pinned images on this node, then prove they match the stack profile.
 
 Two independent image sets, each with its own card, version, status and button:
 
@@ -6,8 +6,8 @@ Two independent image sets, each with its own card, version, status and button:
     Simulated lab       cipherops-eco-{nsd,unbound,tools}:<stack>   (the stack chosen in the sidebar)
 
 Either set is built here from docker/Dockerfile or pulled from a registry. Afterwards it is checked against the stack
-profile (ecosystem/stacks/<stack>.env); Benchmark and Lab only use images that pass. Signing zones and starting a lab are
-the Lab tile; measuring is the Benchmark tile."""
+profile (ecosystem/stacks/<stack>.env); the two tracks only use images that pass. Signing zones and starting a lab are
+Simulated lab → Prepare; measuring is Offline benchmark → Run and Simulated lab → Benchmark."""
 
 from __future__ import annotations
 

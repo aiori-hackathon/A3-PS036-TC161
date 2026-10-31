@@ -71,7 +71,7 @@ bash scripts/run_live.sh <run-folder> lan 1232 1      # one profile, one UDP siz
 powershell -ExecutionPolicy Bypass -File .\scripts\run_live.ps1 -Run <run-folder>
 ```
 
-**4. Read the results.** Open `results/runs/<id>/report.html`, or use the dashboard (**Benchmark → Offline →
+**4. Read the results.** Open `results/runs/<id>/report.html`, or use the dashboard (**Offline benchmark →
 Results**, then **Compare**). Every file and column: [outputs reference](outputs-reference.md).
 
 ## Configuration
@@ -102,9 +102,9 @@ What each test file covers: [architecture §6.16](architecture.md#616-tests).
 | Symptom | Cause and fix |
 | --- | --- |
 | `Permission denied` under `ecosystem/work` or `results` | Docker creates files as root on Linux. The dashboard's **Reset** removes them; by hand use `sudo rm -rf`. |
-| **Sign zones** or **Start** is disabled in Lab | The lab images for the chosen stack are not on this node, or do not match its profile. Open Setup and build or pull them. |
+| **Sign zones** or **Start** is disabled in Simulated lab | The lab images for the chosen stack are not on this node, or do not match its profile. Open **Manage images** on Home and build or pull them. |
 | Every query to `slh-dsa` returns SERVFAIL on `latest` | Known limitation of that stack; use `draft06` for the lab. |
 | `cpuset` error when the harness container starts | The host has fewer than 3 cores; pass another core number as the script's second argument. |
 | Buttons are greyed out or say "busy" | A benchmark, image build or signing job is running and owns the lab or the CPU; wait or cancel it. |
-| An image build or pull seems idle | It runs in the background. Open Setup to see the live log, or cancel it. |
+| An image build or pull seems idle | It runs in the background. Open **Manage images** to see the live log, or cancel it. |
 | A pulled image shows **does not match** | It was built from other pins than this checkout's stack profile, so it is never used. Pull a matching tag or build locally. |

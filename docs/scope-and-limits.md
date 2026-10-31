@@ -13,7 +13,7 @@ What CipherOps claims and what it does not. How the requirements of the problem 
   | What it is | a C harness (`harness/mtlbench.c`) times each library call; DNS messages are built and counted in Python | a root → TLD → leaf hierarchy of unmodified NSD servers behind a validating Unbound, in Docker |
   | Best for | signing and verification time, signature and response sizes, cache arithmetic, zone updates | what a resolver does: bytes per hop from packet captures, truncation, TCP retry, Unbound's cache counters |
   | Environment | one pinned image, one dedicated core, no network | three images per stack; containers share all host CPUs |
-  | Start it | `scripts/run_benchmark.sh`, or **Benchmark → Offline** | **Benchmark → Simulated** |
+  | Start it | `scripts/run_benchmark.sh`, or **Offline benchmark → Run** | **Simulated lab → Benchmark** |
 
   The two are never drawn on one chart: they use different libraries and versions.
 

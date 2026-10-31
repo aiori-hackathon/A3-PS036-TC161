@@ -69,23 +69,23 @@ aws ssm start-session --region ap-south-1 --target <instance id>     # then: sud
 Common causes: the registry images are private (pull is denied), the branch has no `deploy/aws/bootstrap.sh`, or the
 account cannot reach the internet from the new VPC.
 
-## Image registries
+## Image registry
 
-The pinned images are published in two public registries, and **either one works** for the node. It pulls the offline
-image (`latest`) and the lab images for `draft06`; both registries have all four.
+All pinned images come from one registry, the team's: **`ghcr.io/hackchamp25`**. It is the default of the template, of
+`bootstrap.sh`, of `scripts/publish_images.sh` and of the dashboard's *Pull from registry*. The node pulls the offline
+image (`latest`) and the lab images for `draft06` at boot.
 
-| Registry | Offline `latest` | Lab `draft06` | Lab `latest` | Used by |
-| --- | --- | --- | --- | --- |
-| `ghcr.io/anithapriyanatarajan/benchmark` | yes | yes | yes | **this template's default** |
-| `ghcr.io/hackchamp25` | yes | yes | no (not published) | the dashboard's default pull registry on `ui-two-tracks` |
+| Image set | In `ghcr.io/hackchamp25` |
+| --- | --- |
+| Offline `cipherops-bench:latest` | yes |
+| Lab `cipherops-eco-{nsd,unbound,tools}:draft06` | yes |
+| Lab `cipherops-eco-{nsd,unbound,tools}:latest` | **not yet**: an owner of the namespace must run `scripts/publish_images.sh latest simulated` |
 
-- To use the team registry: `--parameter-overrides Registry=ghcr.io/hackchamp25`.
-- Lab images for `latest` are not pulled at boot, since the lab is used with `draft06`. If you pick `latest` in the
-  Simulated lab's prerequisite panel, it shows them as missing and can pull them, but only a registry that has them
-  (today `ghcr.io/anithapriyanatarajan/benchmark`) will succeed.
-- The node's dashboard uses the `Registry` you deploy with as its default pull registry, whatever the repository's own
-  default is, so a pull from the dashboard's prerequisite panel goes to the same place as the bootstrap.
-- A pull from either registry is verified against the stack profile, so an image built from other pins is refused.
+- Until the `latest` lab images are published, choosing `latest` in the Simulated lab shows them as missing and a pull
+  fails with "not found". Build them instead (**Build locally**), or use `draft06`.
+- To try another registry, set `Registry=` at deploy time (`--parameter-overrides Registry=ghcr.io/<owner>/<repo>`).
+  The node's dashboard uses it as its default pull registry, so the bootstrap and the dashboard always agree.
+- A pull is verified against the stack profile, so an image built from other pins is refused.
 
 ## Parameters
 
@@ -96,7 +96,7 @@ Set with `--parameter-overrides Name=value` on `deploy`.
 | `InstanceType` | `m7i.2xlarge` | x86_64 only (the images are amd64). 8 vCPU / 32 GiB, what the simulated lab was sized for. `c7i.2xlarge` (16 GiB) is cheaper. |
 | `VolumeSizeGiB` | `100` | gp3, encrypted. Minimum 64. |
 | `RepoUrl`, `RepoBranch` | this repository, `main` | What is checked out to `/opt/cipherops`. The branch must contain `deploy/aws/bootstrap.sh`. |
-| `Registry` | `ghcr.io/anithapriyanatarajan/benchmark` | Must be public. `ghcr.io/hackchamp25` works too: see [Image registries](#image-registries). |
+| `Registry` | `ghcr.io/hackchamp25` | The team registry; must be public. See [Image registry](#image-registry). |
 | `KeyName`, `SshCidr` | empty | Set both to also allow SSH from that range. The dashboard is never exposed. |
 
 ## Good to know

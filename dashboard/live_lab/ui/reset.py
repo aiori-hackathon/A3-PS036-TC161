@@ -113,7 +113,7 @@ def reset_controls(h: driver.LabHandle, stt: dict) -> None:
     with st.container(border=True):
         st.markdown("**Evidence** · you can regenerate it, but not recover it")
         _scope_row("pcaps", "Live captures",
-                   f"{pv['pcaps']} file(s) · {_fmt_size(pv['pcap_bytes'])} from the Live tile.", default=False)
+                   f"{pv['pcaps']} file(s) · {_fmt_size(pv['pcap_bytes'])} from Simulated lab → Query.", default=False)
         _scope_row("runs", "Saved lab runs (older)",
                    f"{pv['runs']} run(s) · {_fmt_size(pv['run_bytes'])} for lab {h.tag}.", default=False)
         _scope_row("suites", "Benchmarks (dataset sizes)",

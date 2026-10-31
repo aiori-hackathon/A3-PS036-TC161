@@ -1,0 +1,49 @@
+{
+  "label": "small-lab-draft06",
+  "stack": "draft06",
+  "reuse": "",
+  "sizes": [
+    50,
+    500
+  ],
+  "scenarios": [
+    "ecdsa",
+    "ed25519",
+    "rsa",
+    "slh-dsa",
+    "mtl"
+  ],
+  "trials": 3,
+  "sign_trials": 3,
+  "sample_names": 20,
+  "n_queries": 500,
+  "networks": [
+    "lan"
+  ],
+  "udp": 1232,
+  "jobs": 1,
+  "workload": {
+    "nx_fraction": 0.1,
+    "zone_zipf_s": 1.0,
+    "name_zipf_s": 1.1,
+    "timeout_s": 5.0
+  },
+  "profiles": {
+    "wan": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 0
+    },
+    "lossy": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 1
+    }
+  },
+  "suite_id": "20261031-095503_small-lab-draft06",
+  "stamp": "20261031-095503"
+}
