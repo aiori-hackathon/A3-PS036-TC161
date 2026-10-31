@@ -77,6 +77,24 @@ aws ssm start-session --region ap-south-1 --target <instance id>     # then: sud
 Common causes: the registry images are private (pull is denied), the branch has no `deploy/aws/bootstrap.sh`, or the
 account cannot reach the internet from the new VPC.
 
+## Image registries
+
+The pinned images are published in two public registries. Check the table before choosing one, because they do not
+hold the same set. The node pulls `latest` (offline image and lab images) and `draft06` (lab images).
+
+| Registry | Offline `latest` | Lab `latest` | Lab `draft06` | Used by |
+| --- | --- | --- | --- | --- |
+| `ghcr.io/anithapriyanatarajan/benchmark` | yes | yes | yes | **this template's default** |
+| `ghcr.io/hackchamp25` | yes | **no** (not published) | yes | the dashboard's default pull registry on `ui-two-tracks` |
+
+- The default `Registry` stays `ghcr.io/anithapriyanatarajan/benchmark`, the one that has everything the bootstrap pulls.
+- **Do not set `Registry=ghcr.io/hackchamp25` yet.** The bootstrap would fail on the missing `latest` lab images and the
+  stack would roll back. Publish them there first (`scripts/publish_images.sh latest simulated` from a machine that has
+  them and is logged in to that registry), then it works.
+- The node's dashboard uses the `Registry` you deploy with as its default pull registry, whatever the repository's own
+  default is, so a pull from the dashboard's prerequisite panel goes to the same place as the bootstrap.
+- A pull from either registry is verified against the stack profile, so an image built from other pins is refused.
+
 ## Parameters
 
 Set with `--parameter-overrides Name=value` on `deploy`.
@@ -86,7 +104,7 @@ Set with `--parameter-overrides Name=value` on `deploy`.
 | `InstanceType` | `m7i.2xlarge` | x86_64 only (the images are amd64). 8 vCPU / 32 GiB, what the simulated lab was sized for. `c7i.2xlarge` (16 GiB) is cheaper. |
 | `VolumeSizeGiB` | `100` | gp3, encrypted. Minimum 64. |
 | `RepoUrl`, `RepoBranch` | this repository, `main` | What is checked out to `/opt/cipherops`. Use `RepoBranch=aws-cloudformation` until the template is merged to `main`; the branch must contain `deploy/aws/bootstrap.sh`. |
-| `Registry` | `ghcr.io/anithapriyanatarajan/benchmark` | Must be public. |
+| `Registry` | `ghcr.io/anithapriyanatarajan/benchmark` | Must be public. See [Image registries](#image-registries): `ghcr.io/hackchamp25` lacks the `latest` lab images. |
 | `KeyName`, `SshCidr` | empty | Set both to also allow SSH from that range. The dashboard is never exposed. |
 
 ## Good to know
