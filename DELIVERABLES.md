@@ -10,10 +10,12 @@ From the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideli
 | Deliverable | Where |
 | --- | --- |
 | **Presentation** (PDF) | [31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) (earlier: [30 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf), [13 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf)) |
-| **Team video** | [YouTube](https://youtu.be/FaVfeO5WTV8) |
+| **Project video** | [**Level 2 - solution demo**](https://youtu.be/rr-2rKe6dZE)  Detailed walkthrough of architecture, lab features and report walktrough. [Level 2 -Deliverables](https://youtu.be/Vj-sbfWenNY) Quick video capture of outcomes pointed to their locations |
 | **Source code, documents, supporting material** | this repository, from the [README](README.md); the [readout](hackathon/readout.md) and the [findings](hackathon/feedback.md) |
 | **Working demo** | read-only, hosted: [eval.cipherops.stream](https://eval.cipherops.stream) (saved results, Compare, Learn and live DNS lookups; reachable while the team's AWS node is running). Full copy: [AWS](deploy/aws/README.md), [Codespaces](docs/codespaces.md) or [locally](docs/getting-started.md) |
 | **Final deliverable files** | [hackathon/results/](hackathon/results/README.md): the full offline run (10 trials) and the full simulated-lab suites (LAN, WAN, lossy), with their reports and the machine they ran on |
+| **Knowledge Article by Faculty** | [PQC Algorithms - quick overview](https://youtu.be/JHi0ZwhpMB4) |
+
 
 ## PS-036 requirements
 
