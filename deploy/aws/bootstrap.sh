@@ -41,10 +41,11 @@ runuser -u "$RUN_USER" -- "$REPO_DIR/.venv/bin/pip" install --quiet --upgrade pi
 runuser -u "$RUN_USER" -- "$REPO_DIR/.venv/bin/pip" install --quiet -r "$REPO_DIR/requirements-dashboard.txt"
 runuser -u "$RUN_USER" -- install -d "$REPO_DIR/results"
 
-# The offline harness image exists for the latest stack only; the lab images exist for both stacks.
+# The node needs the offline harness image (it exists for the latest stack only) and the lab images of draft06, the
+# version the lab is used with. Lab images for latest are not pulled; the dashboard's prerequisite panel can fetch them.
 log "pulling images from $REGISTRY"
 cd "$REPO_DIR"
-.venv/bin/python scripts/images.py pull --stack latest --mode all --registry "$REGISTRY"
+.venv/bin/python scripts/images.py pull --stack latest --mode offline --registry "$REGISTRY"
 .venv/bin/python scripts/images.py pull --stack draft06 --mode simulated --registry "$REGISTRY"
 
 log "dashboard service"

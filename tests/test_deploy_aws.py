@@ -67,5 +67,6 @@ def test_the_template_deploys_main_and_the_bootstrap_script_is_in_this_tree(temp
 def test_the_dashboard_only_listens_on_localhost():
     text = (AWS / "bootstrap.sh").read_text(encoding="utf-8")
     assert "--server.address 127.0.0.1" in text and "0.0.0.0" not in text
-    assert "scripts/images.py pull --stack latest --mode all" in text
-    assert "--stack draft06 --mode simulated" in text   # the offline image exists for latest only
+    assert "scripts/images.py pull --stack latest --mode offline" in text   # the offline image exists for latest only
+    assert "--stack draft06 --mode simulated" in text
+    assert "--stack latest --mode all" not in text   # lab images for latest are not needed, and not in every registry

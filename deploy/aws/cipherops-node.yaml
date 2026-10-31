@@ -48,9 +48,8 @@ Parameters:
     Type: String
     Default: ghcr.io/anithapriyanatarajan/benchmark
     Description: >-
-      Registry namespace the pinned images are pulled from (must be public). The bootstrap pulls the latest offline and
-      lab images and the draft06 lab images. ghcr.io/anithapriyanatarajan/benchmark has all of them; ghcr.io/hackchamp25
-      has no latest lab images yet, so a node pointed there would fail until they are published.
+      Registry namespace the pinned images are pulled from (must be public). The bootstrap pulls the latest offline image
+      and the draft06 lab images; ghcr.io/anithapriyanatarajan/benchmark and ghcr.io/hackchamp25 both have them.
   ComposeVersion:
     Type: String
     Default: v5.6.1
