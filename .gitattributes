@@ -1,0 +1,10 @@
+# Exclude learning/reference material from language stats
+learning/** linguist-documentation
+notes/**    linguist-documentation
+
+# Or exclude all HTML anywhere from the stats
+*.html linguist-detectable=false
+
+# Generated benchmark reports (e.g. HTML/plots from your harness)
+results/**  linguist-generated
+reports/**  linguist-generated
