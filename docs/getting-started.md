@@ -27,6 +27,8 @@ streamlit run dashboard/live_lab/app.py
 
 The easiest way to use everything below; see the [dashboard guide](../dashboard/live_lab/README.md).
 
+Read-only copy for visitors (port 8502, `CIPHEROPS_MINIMAL=1`): [minimal mode](../deploy/aws/MINIMAL.md#run-it-locally).
+
 ## Offline benchmark (command line)
 
 The harness times every signing and verification call on one dedicated core with no network, and counts DNS message

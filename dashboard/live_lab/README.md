@@ -11,7 +11,9 @@ streamlit run dashboard/live_lab/app.py
 Needs Docker (except for **Learn** and for viewing saved results). On AWS or in Codespaces: [AWS](../../deploy/aws/README.md), [Codespaces](../../docs/codespaces.md).
 For a first visit use the **Small** zone size, and use the **`draft06`** image version for any MTL-versus-plain
 comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (the dashboard warns about it).
-A read-only copy for visitors (`CIPHEROPS_MINIMAL=1`) is described in [minimal mode](../../deploy/aws/MINIMAL.md).
+A read-only copy for visitors (`CIPHEROPS_MINIMAL=1`: results, Compare, Learn and lookups against a running lab, nothing
+that changes it) is described in [minimal mode](../../deploy/aws/MINIMAL.md#run-it-locally), with the commands for Linux,
+macOS and Windows PowerShell.
 
 ## Tracks and pages
 

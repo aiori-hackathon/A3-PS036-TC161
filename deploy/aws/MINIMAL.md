@@ -27,11 +27,30 @@ reach only the lab's own servers (10.53.0.0/24), times out after 10 seconds, and
 are not written to the team's files: the lab config, saved preferences, query session, activity log and job notices
 stay as they were.
 
-## Run it
+## Run it locally
 
-Locally, for a look at it: `CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502`
-(PowerShell: `$env:CIPHEROPS_MINIMAL = "1"` on its own line first; the value must be exactly `1`). Live lookups need a lab
-already running (Simulated lab → Prepare → Start in the full dashboard).
+The same app as the full dashboard, with `CIPHEROPS_MINIMAL=1` in the **process environment**. Use another port so the full
+dashboard can stay on 8501. It worked when every page shows the **Minimal mode** notice and the lab controls (build, sign,
+start/stop, Run benchmark, Reset) are refused. Live lookups need a lab already running (Simulated lab → Prepare → Start in
+the full dashboard).
+
+```bash
+# Linux / macOS / Git Bash
+CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+```powershell
+# Windows PowerShell: use $env:CIPHEROPS_MINIMAL. `$CIPHEROPS_MINIMAL=1` only sets a PowerShell variable that Streamlit
+# never sees, so port 8502 would look identical to the full dashboard. The value must be exactly 1.
+$env:CIPHEROPS_MINIMAL = "1"
+python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+For an optional access code (asked once per browser session), also set `CIPHEROPS_MINIMAL_PASSWORD='choose-a-code'`
+(PowerShell: `$env:CIPHEROPS_MINIMAL_PASSWORD = "choose-a-code"`). To return to a full session in the same PowerShell
+window: `Remove-Item Env:CIPHEROPS_MINIMAL, Env:CIPHEROPS_MINIMAL_PASSWORD -ErrorAction SilentlyContinue`.
+
+## Run it on the AWS node
 
 On the AWS node, open a shell (Session Manager, see [ACCESS.md](ACCESS.md)) and use `minimal.sh`. It starts the minimal
 dashboard on `127.0.0.1:8502` and puts it on the internet through an outbound Cloudflare tunnel, so no inbound port or

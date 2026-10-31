@@ -87,7 +87,8 @@ streamlit run dashboard/live_lab/app.py                   # the dashboard
 bash scripts/run_benchmark.sh configs/quick.yaml          # or a short offline run from the shell
 ```
 
-Setting `CIPHEROPS_MINIMAL=1` starts a read-only copy of the dashboard, as hosted above: [minimal mode](deploy/aws/MINIMAL.md).
+Setting `CIPHEROPS_MINIMAL=1` starts a read-only copy of the dashboard, as hosted above. Commands for Linux, macOS and
+Windows PowerShell: [minimal mode](deploy/aws/MINIMAL.md#run-it-locally).
 
 [Dashboard guide](dashboard/live_lab/README.md) · [Scope and limits](docs/scope-and-limits.md) · all documents:
 [docs/README.md](docs/README.md)
