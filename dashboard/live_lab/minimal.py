@@ -33,14 +33,22 @@ MAX_CONCURRENT = 3
 DIG_TIMEOUT_S = 10
 
 NOTICE = ("**Minimal mode.** You are exploring a running CipherOps node: the results already produced, "
-          "Compare, Learn, and DNS lookups against the live lab. Changing the lab (images, signing, starting or "
-          "stopping, switching algorithms, flushing the cache, running benchmarks, Reset) is turned off here so "
-          "the shared environment stays as it is.")
+          "Compare, Learn, and DNS lookups against the live lab, which you can switch between the algorithms it has "
+          "signed. Changing anything else (images, signing, starting or stopping, flushing the cache, running "
+          "benchmarks, Reset) is turned off here so the shared environment stays as it is.")
 FULL_EXPERIENCE = ("To use every feature, deploy your own copy by following the "
                    "[README](https://github.com/aiori-hackathon/A3-PS036-TC161#readme): on your machine, in GitHub "
                    "Codespaces, or on AWS with `deploy/aws`.")
 
+# Switching the active algorithm restarts the shared servers for everyone, so it is one switch at a time for the whole
+# node, with a pause between switches, and it waits for lookups already in flight.
+SWITCH_COOLDOWN_S = 15.0
+SWITCH_WAIT_S = 20.0
+LOOKUP_WAIT_S = 15.0   # how long a lookup waits for a free slot (all slots are taken while the lab switches)
+
 _slots = threading.BoundedSemaphore(MAX_CONCURRENT)
+_switch_lock = threading.Lock()
+_last_switch = [float("-inf")]
 
 
 class MinimalModeRefused(RuntimeError):
@@ -93,7 +101,7 @@ class lookup_slot:
     def __enter__(self):
         self._held = False
         if enabled():
-            if not _slots.acquire(timeout=15):
+            if not _slots.acquire(timeout=LOOKUP_WAIT_S):
                 raise MinimalModeRefused("The lab is busy with other visitors' lookups. Try again in a moment.")
             self._held = True
         return self
@@ -115,3 +123,46 @@ def cooldown(store: dict, key: str = "_minimal_last_lookup") -> float:
         return wait
     store[key] = now
     return 0.0
+
+
+class switch_algorithm:
+    """Context manager around switching the shared lab's algorithm (a no-op outside minimal mode).
+
+    Refuses when another visitor is switching or switched moments ago. Otherwise it takes every lookup slot, so
+    lookups in flight finish first and new ones wait (or are told the lab is busy) until the servers are back.
+    The pause before the next switch starts when this one ends, whether it worked or not."""
+
+    def __enter__(self):
+        self._taken = 0
+        self._locked = False
+        if not enabled():
+            return self
+        if not _switch_lock.acquire(blocking=False):
+            raise MinimalModeRefused("Another visitor is switching the algorithm right now. Try again in a moment.")
+        self._locked = True
+        try:
+            wait = SWITCH_COOLDOWN_S - (time.monotonic() - _last_switch[0])
+            if wait > 0:
+                raise MinimalModeRefused(f"The algorithm was switched moments ago. Try again in {wait:.0f} s.")
+            for _ in range(MAX_CONCURRENT):
+                if not _slots.acquire(timeout=SWITCH_WAIT_S):
+                    raise MinimalModeRefused("Lookups are still running. Try again in a moment.")
+                self._taken += 1
+        except BaseException:
+            self._release()
+            raise
+        return self
+
+    def _release(self):
+        for _ in range(self._taken):
+            _slots.release()
+        self._taken = 0
+        if self._locked:
+            self._locked = False
+            _switch_lock.release()
+
+    def __exit__(self, *exc):
+        if self._locked:
+            _last_switch[0] = time.monotonic()
+        self._release()
+        return False

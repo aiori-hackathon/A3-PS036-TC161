@@ -423,10 +423,30 @@ def client_exec(h: LabHandle, inner: str, timeout: int | None = 120) -> str:
     return cp.stdout
 
 
+_SCENARIO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$")
+
+
 def activate(h: LabHandle, scenario: str, udp: int = 1232) -> str:
-    _minimal.refuse('Switching the active algorithm')
+    """Switch the running lab to a signed algorithm (restarts its servers).
+
+    In minimal mode a visitor may do this too, but only to an algorithm this lab has signed, with the lab's current UDP
+    size, one switch at a time for the whole node (see ``minimal.switch_algorithm``)."""
+    scenario = (scenario or "").strip()
+    if not _SCENARIO_RE.match(scenario):
+        raise ValueError("Algorithm must be a name such as mtl, slh-dsa or ecdsa.")
     require_not_signing(h)
-    return client_exec(h, f"python3 -m ecolab activate {h.config} --scenario {scenario} --udp {udp}", timeout=180)
+    if _minimal.enabled():
+        if scenario not in h.scenarios() or not (h.work / "zones" / scenario / "manifest.json").is_file():
+            raise _minimal.MinimalModeRefused(f"{scenario!r} is not one of the algorithms this lab has signed.")
+        if scenario == h.active_scenario():
+            return f"{scenario} is already the active algorithm.\n"
+        try:
+            udp = int((h.work / "active" / "scenario.txt").read_text(encoding="utf-8").split()[1])
+        except (OSError, IndexError, ValueError):
+            udp = 1232
+    cmd = f"python3 -m ecolab activate {shlex.quote(h.config)} --scenario {shlex.quote(scenario)} --udp {int(udp)}"
+    with _minimal.switch_algorithm():
+        return client_exec(h, cmd, timeout=180)
 
 
 def flush(h: LabHandle) -> str:

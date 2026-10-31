@@ -43,8 +43,30 @@ def sidebar_live(h: driver.LabHandle, stt: dict) -> None:
     active = r["active"]
     if minimal.enabled():
         st.sidebar.markdown(f"Active algorithm: **{active or 'none'}**")
-        _hint(SCENARIO_BLURB.get(active, "") + " Switching algorithms restarts the shared servers, so it is "
-              "turned off in minimal mode.")
+        _hint(SCENARIO_BLURB.get(active, ""))
+        if len(scenarios) > 1 and r["running"]:
+            # An explicit button: switching restarts the servers for every visitor, so it must never happen just
+            # because this visitor's selector is out of date after someone else switched.
+            pick = st.sidebar.selectbox(
+                "Switch to", scenarios, index=scenarios.index(active) if active in scenarios else 0,
+                key="minimal_switch_pick", help="Reloads the signed zones of that algorithm and restarts the lab's "
+                "servers for everyone, so it takes a few seconds and can be done once every "
+                f"{minimal.SWITCH_COOLDOWN_S:.0f} s.")
+            if st.sidebar.button(f"Switch to {pick}", key="minimal_switch_btn", width="stretch",
+                                 disabled=pick == active or bool(suite_mod.running_suite())):
+                with st.spinner(f"Switching to {pick}… (reloading root, TLD, leaf and resolver)"):
+                    try:
+                        driver.activate(h, pick)
+                        st.session_state.query_log = []
+                        for k in ("last_query", "last_stats", "pcap_story_choice", "pcap_seq_choice", *_PCAP_KEYS):
+                            st.session_state.pop(k, None)  # they describe the previous algorithm
+                        st.toast(f"{pick} is live. Run a query to see its answer.", icon="✅")
+                    except (minimal.MinimalModeRefused, ValueError) as e:
+                        st.sidebar.warning(str(e))
+                    except Exception as e:  # noqa: BLE001
+                        st.sidebar.error(str(e)[:600])
+                    else:
+                        st.rerun()
         st.sidebar.markdown(_step_label(2, "Query", "done" if st.session_state.get("last_query") else "none"))
         _hint("Send a lookup from the Query tab or the dig terminal; Results shows the team's saved queries and "
               "packet captures.")

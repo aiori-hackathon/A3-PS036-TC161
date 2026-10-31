@@ -45,7 +45,7 @@ H = driver.LabHandle()
 
 
 @pytest.mark.parametrize("call", [
-    lambda: driver.up(H), lambda: driver.down(H), lambda: driver.activate(H, "mtl"), lambda: driver.flush(H),
+    lambda: driver.up(H), lambda: driver.down(H), lambda: driver.flush(H),
     lambda: driver.start_capture(H), lambda: driver.stop_capture(H), lambda: driver.prepare(H),
     lambda: driver.stop_other_labs(H), lambda: driver.write_ui_config(),
     lambda: driver.sign_trials(H, ["mtl"], 1, [20], "/x"),
@@ -242,3 +242,127 @@ def test_tunnel_connected_finds_the_line_in_a_long_log_under_pipefail(tmp_path):
     assert run().stdout.strip() == "yes"
     (fake / "journalctl").write_text("#!/bin/sh\necho 'INF Starting tunnel'\nseq 1 1000\n")
     assert run().stdout.strip() == "no"
+
+
+@pytest.fixture
+def signed_lab(tmp_path, monkeypatch):
+    """A lab with two signed algorithms (ecdsa active) and a recorder for the commands sent to the client."""
+    (tmp_path / "configs").mkdir()
+    (tmp_path / "configs" / "x.yaml").write_text("name: eco-test\nscenarios:\n  ecdsa: {}\n  mtl: {}\n  slh-dsa: {}\n")
+    for mod in (driver, lab, artifacts):
+        monkeypatch.setattr(mod, "ECO", tmp_path)
+    h = driver.LabHandle(config="configs/x.yaml", stack="draft06")
+    for sc in ("ecdsa", "mtl"):
+        (h.work / "zones" / sc).mkdir(parents=True)
+        (h.work / "zones" / sc / "manifest.json").write_text("{}")
+    (h.work / "active").mkdir()
+    (h.work / "active" / "scenario.txt").write_text("ecdsa 1232\n")
+    sent = []
+
+    def fake_exec(hh, inner, timeout=None):
+        sent.append(inner)
+        scenario = inner.split("--scenario ")[1].split()[0]
+        (hh.work / "active" / "scenario.txt").write_text(f"{scenario} 1232\n")  # what ecolab activate leaves behind
+        return "active: ok\n"
+
+    monkeypatch.setattr(lab, "client_exec", fake_exec)
+    monkeypatch.setattr(lab, "require_not_signing", lambda hh: None)
+    monkeypatch.setattr(minimal, "_last_switch", [float("-inf")])
+    return h, sent
+
+
+def test_a_visitor_can_switch_to_a_signed_algorithm(on, signed_lab):
+    h, sent = signed_lab
+    assert driver.activate(h, "mtl") == "active: ok\n"
+    assert sent == ["python3 -m ecolab activate configs/x.yaml --scenario mtl --udp 1232"]
+
+
+def test_a_switch_keeps_the_labs_udp_size_whatever_the_visitor_asks(on, signed_lab):
+    h, sent = signed_lab
+    (h.work / "active" / "scenario.txt").write_text("ecdsa 4096\n")
+    driver.activate(h, "mtl", udp=1)
+    assert sent[0].endswith("--udp 4096")
+
+
+@pytest.mark.parametrize("scenario", ["slh-dsa", "nope", "ed25519"])
+def test_a_visitor_cannot_switch_to_an_algorithm_the_lab_has_not_signed(on, signed_lab, scenario):
+    h, sent = signed_lab
+    with pytest.raises(minimal.MinimalModeRefused):
+        driver.activate(h, scenario)  # slh-dsa is configured but has no signed zones
+    assert sent == []
+
+
+@pytest.mark.parametrize("scenario", ["mtl; id", "$(id)", "mtl --udp 1", "../x", "", "a b", "mtl\nid"])
+def test_activate_rejects_names_that_are_not_algorithm_names_in_every_mode(monkeypatch, signed_lab, scenario):
+    h, sent = signed_lab
+    monkeypatch.delenv(minimal.ENV, raising=False)
+    with pytest.raises(ValueError):
+        driver.activate(h, scenario)
+    assert sent == []
+
+
+def test_switching_to_the_active_algorithm_restarts_nothing(on, signed_lab):
+    h, sent = signed_lab
+    assert "already" in driver.activate(h, "ecdsa")
+    assert sent == []
+
+
+def test_switches_are_spaced_out_for_the_whole_node(on, signed_lab):
+    h, sent = signed_lab
+    driver.activate(h, "mtl")
+    with pytest.raises(minimal.MinimalModeRefused, match="moments ago"):
+        driver.activate(h, "ecdsa")
+    assert len(sent) == 1
+    minimal._last_switch[0] -= minimal.SWITCH_COOLDOWN_S  # the pause is over
+    driver.activate(h, "ecdsa")
+    assert len(sent) == 2
+
+
+def test_a_failed_switch_still_starts_the_pause_and_frees_the_lookup_slots(on, signed_lab, monkeypatch):
+    h, _ = signed_lab
+    monkeypatch.setattr(lab, "client_exec", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("docker down")))
+    with pytest.raises(RuntimeError):
+        driver.activate(h, "mtl")
+    with pytest.raises(minimal.MinimalModeRefused, match="moments ago"):
+        driver.activate(h, "mtl")
+    for _ in range(minimal.MAX_CONCURRENT):  # every slot is free again
+        assert minimal._slots.acquire(blocking=False)
+    for _ in range(minimal.MAX_CONCURRENT):
+        minimal._slots.release()
+
+
+def test_only_one_visitor_switches_at_a_time(on, signed_lab, monkeypatch):
+    h, _ = signed_lab
+    with minimal.switch_algorithm():
+        with pytest.raises(minimal.MinimalModeRefused, match="Another visitor"):
+            driver.activate(h, "mtl")
+
+
+def test_a_switch_waits_for_lookups_in_flight(on, monkeypatch):
+    monkeypatch.setattr(minimal, "SWITCH_WAIT_S", 0.2)
+    monkeypatch.setattr(minimal, "_last_switch", [float("-inf")])
+    with minimal.lookup_slot():  # a visitor's lookup is running
+        with pytest.raises(minimal.MinimalModeRefused, match="still running"):
+            with minimal.switch_algorithm():
+                pass
+    with minimal.switch_algorithm():  # nothing was left held, and the failed attempt started no pause
+        pass
+
+
+def test_lookups_are_told_the_lab_is_busy_while_it_switches(on, monkeypatch):
+    monkeypatch.setattr(minimal, "LOOKUP_WAIT_S", 0.1)
+    monkeypatch.setattr(minimal, "_last_switch", [float("-inf")])
+    with minimal.switch_algorithm():
+        with pytest.raises(minimal.MinimalModeRefused, match="busy"):
+            with minimal.lookup_slot():
+                pass
+    with minimal.lookup_slot():  # and they go through again afterwards
+        pass
+
+
+def test_outside_minimal_mode_switching_has_no_guard(monkeypatch, signed_lab):
+    h, sent = signed_lab
+    monkeypatch.delenv(minimal.ENV, raising=False)
+    driver.activate(h, "mtl")
+    driver.activate(h, "ecdsa")
+    assert len(sent) == 2

@@ -6,16 +6,26 @@ change it. The team's own dashboard and the lab keep running as they are. The te
 
 ## What visitors can and cannot do
 
-| Can | Cannot |
-| --- | --- |
-| **Offline benchmark → Results**: every finished run, its report and downloads | build or pull images, run or cancel an offline benchmark |
-| **Simulated lab → Query**: send a lookup and read the answer, size, AD flag and latency | switch the active algorithm (it restarts the shared servers) |
-| **Simulated lab → Query → dig terminal**: a restricted terminal (below) | flush the resolver cache, or capture packets |
-| **Simulated lab → Query → Results**: the team's saved queries and packet captures | sign zones, start or stop the lab |
-| **Simulated lab → Benchmark**: saved benchmarks, reports and downloads | start or cancel a benchmark |
-| **Compare** and **Learn** | Reset, or open the Node images page |
+**Visitors can**
+- read every finished offline run, its report and downloads (**Offline benchmark → Results**);
+- send lookups and read the answer, size, AD flag and latency (**Simulated lab → Query**), and run `dig` in a restricted
+  terminal (below);
+- **switch the active algorithm** between the ones the lab has signed (below);
+- browse the team's saved queries, packet captures, benchmarks and reports, and use **Compare** and **Learn**.
+
+**Visitors cannot**
+- build or pull images, sign zones, start or stop the lab, flush the resolver cache or capture packets;
+- start or cancel an offline or lab benchmark;
+- Reset, or open the Node images page.
 
 Every page shows a notice that this is minimal mode, with a pointer to the README for a full copy.
+
+**Switching algorithms** reloads the signed zones of the chosen algorithm and restarts the lab's servers, which affects
+every visitor at once. It is therefore limited to algorithms the lab has signed, keeps the lab's current UDP size, takes
+effect only when the visitor presses **Switch to …** (never because a selector is out of date), and is one switch at a
+time for the whole node with a 15-second pause after each. A switch waits for lookups already running, and lookups sent
+during it are told the lab is busy. Results taken on one algorithm are labelled with it, and the Query page warns when the
+lab has moved on.
 
 **The terminal** runs `dig` only, with no shell. It accepts `+options` and the dash options `-4 -6 -x -t -q -c -p`, can
 reach only the lab's own servers (10.53.0.0/24), times out after 10 seconds, and allows one command per visitor every
@@ -89,7 +99,7 @@ after a restart the link, the dashboard and the lab return by themselves; `stop`
 dashboard picks up the setting at its next restart. `start` does not restart it, because restarting a service ends any
 background job it launched.
 
-Visitors can only query a lab that is signed and running, with the algorithm it was last switched to. A benchmark suite
+Visitors can only query a lab that is signed and running, and switch between the algorithms it was signed with. A benchmark suite
 stops its own lab when it ends, so start the lab again from the team's dashboard afterwards. Saved results are available
 either way.
 
