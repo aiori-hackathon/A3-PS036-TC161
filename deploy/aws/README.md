@@ -25,15 +25,7 @@ aws cloudformation deploy --region ap-south-1 --stack-name cipherops \
   --template-file deploy/aws/cipherops-node.yaml --capabilities CAPABILITY_IAM
 ```
 
-The node clones `main` by default, so there is no branch to pick. **Until the AWS template is merged to `main`**, use
-the branch it lives on, for both your checkout and the node:
-
-```bash
-git switch aws-cloudformation
-aws cloudformation deploy --region ap-south-1 --stack-name cipherops \
-  --template-file deploy/aws/cipherops-node.yaml --capabilities CAPABILITY_IAM \
-  --parameter-overrides RepoBranch=aws-cloudformation
-```
+The node clones `main` by default, so there is no branch to pick.
 
 The command waits until the node reports it is ready: typically 10 to 20 minutes, mostly the image pulls. To watch it,
 open CloudFormation → *cipherops* → Events, or run
@@ -103,7 +95,7 @@ Set with `--parameter-overrides Name=value` on `deploy`.
 | --- | --- | --- |
 | `InstanceType` | `m7i.2xlarge` | x86_64 only (the images are amd64). 8 vCPU / 32 GiB, what the simulated lab was sized for. `c7i.2xlarge` (16 GiB) is cheaper. |
 | `VolumeSizeGiB` | `100` | gp3, encrypted. Minimum 64. |
-| `RepoUrl`, `RepoBranch` | this repository, `main` | What is checked out to `/opt/cipherops`. Use `RepoBranch=aws-cloudformation` until the template is merged to `main`; the branch must contain `deploy/aws/bootstrap.sh`. |
+| `RepoUrl`, `RepoBranch` | this repository, `main` | What is checked out to `/opt/cipherops`. The branch must contain `deploy/aws/bootstrap.sh`. |
 | `Registry` | `ghcr.io/anithapriyanatarajan/benchmark` | Must be public. `ghcr.io/hackchamp25` works too: see [Image registries](#image-registries). |
 | `KeyName`, `SshCidr` | empty | Set both to also allow SSH from that range. The dashboard is never exposed. |
 

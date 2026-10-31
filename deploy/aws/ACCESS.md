@@ -105,11 +105,9 @@ cd /opt/cipherops
 git pull
 ```
 
-To switch to another branch, fetch it first. The node's clone is shallow (one commit per branch), and on a node created
-before this was fixed it tracks only the branch it was deployed with:
+To switch to another branch, fetch it first (the node's clone is shallow, one commit per branch):
 
 ```bash
-git remote set-branches origin '*'          # only needed on an older node: allow all branches
 git fetch --depth 1 origin BRANCH_NAME
 git switch BRANCH_NAME
 ```
