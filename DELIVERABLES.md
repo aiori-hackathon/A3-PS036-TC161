@@ -1,28 +1,19 @@
 # Deliverables
 
-What this team submits and where each item lives, the open items, and how each PS-036 requirement is met.
+What the team submits for AIORI Hackathon 3 (problem statement PS-036), where each item lives, and how each PS-036
+requirement is met.
 
-## AIORI Hackathon 3 deliverables
+## Submission
 
 From the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideline/).
 
-| Deliverable | Where | State |
-| --- | --- | --- |
-| **Presentation** (PDF) | [revised 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) ([30 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf), [13 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf)) | done |
-| **Team video** | [YouTube](https://youtu.be/FaVfeO5WTV8) | done |
-| **Source code, documents, supporting material** | this repository, from the [README](README.md); also the [readout](hackathon/readout.md) and [findings](hackathon/feedback.md) | done |
-| **Working demo** | built by the visitor, not hosted: [AWS](deploy/aws/README.md), [Codespaces](docs/codespaces.md) or [locally](docs/getting-started.md) | done |
-| **Final deliverable files** | [hackathon/results/](hackathon/results/README.md): the full offline run and the full simulated-lab suites (LAN, WAN, lossy), frozen with their reports and the machine they ran on | done |
-
-## Open items
-
-- **Team registry.** `ghcr.io/hackchamp25` lacks the `latest` lab images; an owner of that namespace must run
-  `scripts/publish_images.sh latest simulated`.
-- **No single FIPS 205 end-to-end result.** Offline runs the FIPS 205 build (`latest`); the lab runs the pre-standard
-  `draft06`, because the `latest` resolver answers SERVFAIL for plain SLH-DSA. This is presented as a finding
-  ([feedback.md](hackathon/feedback.md)), not something this repository can fix.
-- **Upstream reports.** The findings are written up with evidence but not yet reported to the upstream projects.
-- **Fixed state.** Tag the repository (for example `hackathon-submission`) when the submission is final.
+| Deliverable | Where |
+| --- | --- |
+| **Presentation** (PDF) | [31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) (earlier: [30 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf), [13 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf)) |
+| **Team video** | [YouTube](https://youtu.be/FaVfeO5WTV8) |
+| **Source code, documents, supporting material** | this repository, from the [README](README.md); the [readout](hackathon/readout.md) and the [findings](hackathon/feedback.md) |
+| **Working demo** | read-only, hosted: [eval.cipherops.stream](https://eval.cipherops.stream) (saved results, Compare, Learn and live DNS lookups; reachable while the team's AWS node is running). Full copy: [AWS](deploy/aws/README.md), [Codespaces](docs/codespaces.md) or [locally](docs/getting-started.md) |
+| **Final deliverable files** | [hackathon/results/](hackathon/results/README.md): the full offline run (10 trials) and the full simulated-lab suites (LAN, WAN, lossy), with their reports and the machine they ran on |
 
 ## PS-036 requirements
 
@@ -39,3 +30,10 @@ From the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideli
 | Cache: measured vs analytical, kept apart | `cache.csv` has a `kind` column; the report never mixes them |
 | Defer if implementation or fixtures are missing | the go/no-go gate (`preflight`) blocks the run |
 | No new cryptography, resolver or deployment | the harness only calls libraries; the lab uses stock servers |
+
+## Scope note
+
+Offline results use the FIPS 205 stack (`latest`) and the simulated lab uses the pre-standard `draft06` stack, because the
+`latest` lab's resolver answers SERVFAIL for plain SLH-DSA. There is therefore no single end-to-end FIPS 205 result; the
+two are never compared on one chart. Evidence: [findings](hackathon/feedback.md); limits:
+[scope and limits](docs/scope-and-limits.md).

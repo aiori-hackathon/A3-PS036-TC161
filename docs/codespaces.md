@@ -47,5 +47,5 @@ The command line works too: see [Getting started](getting-started.md#offline-ben
 - **`NO_PUBKEY 62D54FD4003F6525` while building the container** is the Yarn apt key, rotated upstream. That is why the
   configuration uses the plain `base` image and adds Python as a feature. Do not disable apt's signature checks; change
   the base image or remove the Yarn source, and report the log.
-- **Not confirmed in a real codespace:** live validation with network emulation (`scripts/run_live.sh`) needs
-  `NET_ADMIN`, which the docker-in-docker daemon should allow.
+- **Network emulation for live validation.** `scripts/run_live.sh` needs the `NET_ADMIN` capability for `tc netem`, which
+  the docker-in-docker daemon allows.

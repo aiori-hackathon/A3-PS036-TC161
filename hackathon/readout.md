@@ -68,5 +68,4 @@ None is filed upstream yet.
 ## 5. Next steps
 
 File the findings upstream; measure ML-DSA-MTL and the always-full encoding; re-run on a resolver that validates plain
-SLH-DSA on the newer stack. Open items:
-[DELIVERABLES.md](../DELIVERABLES.md#open-items); the full list: [feedback.md](feedback.md#follow-ups).
+SLH-DSA on the newer stack. The list with details: [feedback.md](feedback.md#follow-ups).

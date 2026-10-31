@@ -41,7 +41,8 @@ aws cloudformation describe-stacks --region ap-south-1 --stack-name cipherops \
 Run the command it prints and leave it running, then open <http://localhost:8501>. Both **Node ready** panels should
 be green already, so go straight to **Offline benchmark → ① Run**, or **Simulated lab → ① Prepare**. To let a teammate
 in with their own AWS login, give them [ACCESS.md](ACCESS.md). To let evaluators explore the running node without changing it, see
-[MINIMAL.md](MINIMAL.md): one command gives them a public HTTPS link to a minimal-mode dashboard.
+[MINIMAL.md](MINIMAL.md): a read-only dashboard on a public HTTPS address (the team's is
+[eval.cipherops.stream](https://eval.cipherops.stream)).
 
 **4. Get your results out, then delete the stack**
 
@@ -80,10 +81,9 @@ image (`latest`) and the lab images for `draft06` at boot.
 | --- | --- |
 | Offline `cipherops-bench:latest` | yes |
 | Lab `cipherops-eco-{nsd,unbound,tools}:draft06` | yes |
-| Lab `cipherops-eco-{nsd,unbound,tools}:latest` | **not yet**: an owner of the namespace must run `scripts/publish_images.sh latest simulated` |
+| Lab `cipherops-eco-{nsd,unbound,tools}:latest` | no: build them locally, or publish them with `scripts/publish_images.sh latest simulated` (needs write access to the namespace) |
 
-- Until the `latest` lab images are published, choosing `latest` in the Simulated lab shows them as missing and a pull
-  fails with "not found". Build them instead (**Build locally**), or use `draft06`.
+- Without the `latest` lab images, choosing `latest` in the Simulated lab shows them as missing and a pull fails with "not found". Build them (**Build locally**), or use `draft06`, which is the lab's default.
 - To try another registry, set `Registry=` at deploy time (`--parameter-overrides Registry=ghcr.io/<owner>/<repo>`).
   The node's dashboard uses it as its default pull registry, so the bootstrap and the dashboard always agree.
 - A pull is verified against the stack profile, so an image built from other pins is refused.
