@@ -445,6 +445,11 @@ _QNAME_RE = re.compile(r"^(\.|[A-Za-z0-9_*][A-Za-z0-9_.*-]{0,252})$")
 _QTYPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,15}$")
 
 
+def check_probe_args(qname: str, qtype: str, server: str) -> tuple[str, str, str]:
+    """Validate and normalise a lookup before anything is started for it (a capture, say)."""
+    return _probe_args(qname, qtype, server)
+
+
 def _probe_args(qname: str, qtype: str, server: str) -> tuple[str, str, str]:
     qname, qtype, server = (qname or "").strip(), (qtype or "").strip().upper(), (server or "").strip()
     if not _QNAME_RE.match(qname):

@@ -88,6 +88,18 @@ def test_probe_rejects_anything_that_is_not_a_dns_name_in_every_mode(no_docker, 
         driver.probe(H, qname, qtype)
 
 
+@pytest.mark.parametrize("qname,qtype", [("x.test; id", "A"), ("x.test", "A; id"), ("", "A")])
+def test_check_probe_args_rejects_bad_lookups_without_touching_docker(no_docker, qname, qtype):
+    with pytest.raises(ValueError):
+        driver.check_probe_args(qname, qtype, "10.53.0.53")
+    assert driver.check_probe_args("*.Zone00.test", "aaaa", "10.53.0.2") == ("*.Zone00.test", "AAAA", "10.53.0.2")
+
+
+def test_query_page_validates_before_it_starts_a_capture():
+    src = (ROOT / "dashboard" / "live_lab" / "ui" / "live.py").read_text(encoding="utf-8")
+    assert src.index("driver.check_probe_args(") < src.index("driver.start_capture(")
+
+
 def test_probe_quotes_its_arguments(monkeypatch):
     monkeypatch.delenv(minimal.ENV, raising=False)
     seen = {}

@@ -246,6 +246,7 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
                 box.update(label=text)
 
         try:
+            driver.check_probe_args(qname, qtype, server)  # before the capture starts, so a bad lookup leaves nothing behind
             if recurse:
                 try:
                     step("1 · Reading the resolver's counters before the lookup")
@@ -310,7 +311,7 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
             box.update(label="Query failed", state="error", expanded=True)
             st.error(str(e)[:800])
             activity("err", "Query failed", str(e)[:2000], phase="probe", source="probe", h=h)
-            if capture:
+            if capture and (h.capture_dir / ".current").exists():  # a capture was actually started
                 try:
                     driver.stop_capture(h)
                 except Exception:  # noqa: BLE001
