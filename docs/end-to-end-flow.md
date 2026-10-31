@@ -1,7 +1,8 @@
 # Cipherops end-to-end flow
 
-What goes into each of the 7 stages, what comes out, with illustrative values from an
-earlier quick demo run (they are not results; each run's own numbers are in its `report.html`). Column-level detail for every output is in
+What goes into each of the 7 stages and what comes out, shown for `configs/quick.yaml` (sizes and counts follow from the
+configuration; timings and byte totals are not shown, because they are results: each run's own numbers are in its
+`report.html`). Column-level detail for every output is in
 [outputs-reference.md](outputs-reference.md). To watch every variable being filled on tiny zones, run `scripts/own.py`.
 
 ```
@@ -37,7 +38,7 @@ quick.yaml ──► 1 config + environment ──► 2 go/no-go ──► 3 zon
 |---|---|
 | `run_id` / folder | `<timestamp>-quick-demo` → `results/runs/<timestamp>-quick-demo/` |
 | `config.yaml` | the config above, as used |
-| `environment.json` | CPU Intel Core Ultra 7 155U, pinned core `[2]`, kernel WSL2 6.18.33.2, OpenSSL 3.6.0, liboqs 0.16.0, MTL commit `7cef0191…` with `-O2`, git `75e0809…-dirty`, image `sha256:b01f41ed…`, `mtlbench` SHA-256, Python package versions |
+| `environment.json` | CPU, pinned core, kernel, governor, library versions and MTL commit (`-O2`), git commit and whether the tree was modified, image ID, `mtlbench` SHA-256, Python package versions |
 | in memory | `cfg` (dict), `root` (run folder) |
 
 ## Stage 2 – Go/no-go gate (PS-036: defer if the reference implementation fails)
@@ -74,7 +75,7 @@ quick.yaml ──► 1 config + environment ──► 2 go/no-go ──► 3 zon
 | names per zone | 20 / 60 / 200 |
 | zone seeds | 20261005 / 20261006 / 20261007 (`seed + dataset index`) |
 | origin | `bench.example.` |
-| modes | algorithm numbers 50 (MTL), 249 (SLH-DSA), 15, 13, 8; key tags 27185, 18047, 60190, 37121, 15346 (small zone) |
+| modes | algorithm numbers 50 (MTL), 249 (SLH-DSA), 15, 13, 8 |
 | caps | direct SLH-DSA signs 60 of 125 (medium) and 100 of 405 (large) |
 
 What happens: each zone gets 4 apex RRsets, one data RRset per name (60% small A/AAAA, 30% medium MX/AAAA,
@@ -114,9 +115,9 @@ signature for another message, wrong key, and for MTL a damaged ladder) must be 
 | Output | Value |
 |---|---|
 | `raw/*.json.gz` | 45 files, the exact JSON of each run |
-| `artifacts/<ds>/<mode>/` | real signatures from trial 0, e.g. large MTL: `condensed.bin` 80,660 B + `signed_ladder.bin` 8,056 B; large SLH-DSA: `signatures.bin` 786,004 B (100 × 7,856) |
+| `artifacts/<ds>/<mode>/` | real signatures from trial 0 (MTL: `condensed.bin` + `signed_ladder.bin`; SLH-DSA on the large zone: 100 × 7,856 B) |
 | `trials.csv` | 45 rows (one per run) |
-| `ops.parquet` | 16,899 rows (one per timed call) |
+| `ops.parquet` | one row per timed call |
 | result | every run: exit 0, 0 verification failures, tampering rejected |
 
 ## Stage 5 – DNS answers, transmitted bytes, cache
@@ -134,20 +135,12 @@ What happens: dnspython builds real DNS queries and answers with the real signat
 exact size. A transport model adds UDP, truncation (TC=1) and TCP retry. The lookup stream is replayed through a
 resolver cache; MTL fetches the ladder once over TCP. Cached answers are loaded into dnspython's cache and measured.
 
-| Output | Rows | Example value |
+| Output | Rows | What it holds |
 |---|---|---|
-| `responses.csv` | 5,196 | small, `host000000 A`: Ed25519 178 B (UDP), MTL 271 B (UDP), SLH-DSA 7,970 B (truncated → TCP) |
-| `workload.csv` | 30 | large at 1232: 106 answers sent; Ed25519 53,292 B, MTL 88,895 B, SLH-DSA 1,522,371 B |
-| `cache.csv` | 36 | large, resolver signature material: Ed25519 11,968 B, MTL 44,231 B, SLH-DSA 1,469,072 B |
-| `sizes.csv` | 27 | large: condensed 204 B (formula 204), ladder 8,056 B (max 8,216), zone storage MTL 87,092 B vs direct 3,181,680 B |
-
-Bytes on the wire for the 301-lookup stream at a 1232-byte buffer:
-
-| Zone | Ed25519 | ECDSA | RSA | SLH-DSA + MTL | SLH-DSA direct |
-|---|---|---|---|---|---|
-| small (48 sent) | 30,376 | 30,408 | 55,148 | 48,196 | 955,504 |
-| medium (74 sent) | 54,136 | 54,168 | 86,690 | 77,323 | 1,254,261 |
-| large (106 sent) | 53,292 | 53,324 | 92,610 | 88,895 | 1,522,371 |
+| `responses.csv` | 5,196 | the exact size of every answer, per dataset, mode, record class and EDNS size |
+| `workload.csv` | 30 | bytes on the wire for the lookup stream, per dataset × mode × UDP limit |
+| `cache.csv` | 36 | resolver signature material, measured and analytical |
+| `sizes.csv` | 27 | MTL signature and ladder sizes against the draft's formulas, and zone storage |
 
 ## Stage 6 – Statistics
 
@@ -162,11 +155,9 @@ What happens: for every dataset × mode and timing column, the 3 trial values be
 p05, p95, min, max and a distribution-free CI of the median with its coverage (see methodology §6.2). Checks are combined into one
 `all_checks_passed`. Workload totals and UDP fit percentages are copied in.
 
-| Output | Example |
+| Output | Example keys |
 |---|---|
-| `summary.json` | `trials.large.slh-dsa-mtl.sign_total_ns`: median 0.516 s, CI [0.472 s, 0.575 s], n 3 |
-| | `transmitted.large.slh-dsa-mtl.1232.dns_bytes` = 88,895 |
-| | `response_fit.large.slh-dsa-mtl.small` = 100% fit, median 319 B |
+| `summary.json` | `trials.large.slh-dsa-mtl.sign_total_ns` (median, interval, n), `transmitted.large.slh-dsa-mtl.1232.dns_bytes`, `response_fit.large.slh-dsa-mtl.small` |
 
 ## Stage 7 – Report
 

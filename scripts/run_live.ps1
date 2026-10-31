@@ -1,5 +1,5 @@
 # Live mode on a finished run: real client, real NSD, tc-netem network profiles, pcaps.
-#   .\scripts\run_live.ps1 -Run 20261007T045213Z-quick-demo
+#   .\scripts\run_live.ps1 -Run <run-folder>
 #   .\scripts\run_live.ps1 -Run <run> -Profiles lan -Udp 1232 -Repeats 1     quick look
 param(
     [Parameter(Mandatory = $true)][string]$Run,
