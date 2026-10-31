@@ -1,0 +1,95 @@
+{
+  "scenario": "ecdsa",
+  "algorithms": {
+    "root": "ECDSAP256SHA256",
+    "tld": "ECDSAP256SHA256",
+    "sld": "ECDSAP256SHA256"
+  },
+  "trust_anchor": [
+    ".\t3600\tIN\tDS\t47607 13 2 faf08f489272e94b00448a13b7b070e8a2b8e7d89a0984eacb2743f926da239b"
+  ],
+  "signing": {
+    "inception": "20260101000000",
+    "expiration": "20360101000000",
+    "nsec3_iterations": 0
+  },
+  "jobs": 2,
+  "zones": [
+    {
+      "origin": ".",
+      "tier": "root",
+      "server": "root",
+      "algorithm": "ECDSAP256SHA256",
+      "keys": [
+        "K.+013+47607"
+      ],
+      "ds": [
+        ".\t3600\tIN\tDS\t47607 13 2 faf08f489272e94b00448a13b7b070e8a2b8e7d89a0984eacb2743f926da239b"
+      ],
+      "n_names": 0,
+      "signed_file": "root.zone.signed",
+      "signed_bytes": 2627,
+      "signed_sha256": "46af497e6e8e630a54ab3c7ab1e151eccf2d908ae12786d3ad864cfaa81d6615",
+      "rrsig_count": 10,
+      "sign_seconds": 0.016,
+      "verify_seconds": 0.01
+    },
+    {
+      "origin": "test.",
+      "tier": "tld",
+      "server": "tld-test",
+      "algorithm": "ECDSAP256SHA256",
+      "keys": [
+        "Ktest.+013+52066"
+      ],
+      "ds": [
+        "test.\t3600\tIN\tDS\t52066 13 2 3405a3dc020c51b88c05efee6a15050ecaa5a8e02ec876c93a4a1afa9ed3c696"
+      ],
+      "n_names": 0,
+      "signed_file": "test.zone.signed",
+      "signed_bytes": 3106,
+      "signed_sha256": "3f9817f18a28e67afdfdb779e162226c29529fa16c31dad84873789a4b431e75",
+      "rrsig_count": 11,
+      "sign_seconds": 0.01,
+      "verify_seconds": 0.014
+    },
+    {
+      "origin": "zone00.test.",
+      "tier": "sld",
+      "server": "sld1",
+      "algorithm": "ECDSAP256SHA256",
+      "keys": [
+        "Kzone00.test.+013+56784"
+      ],
+      "ds": [
+        "zone00.test.\t3600\tIN\tDS\t56784 13 2 49fd3493dd4e5c6882d4769968902c99c09f021c6bad99235bc2dbec3f7d9978"
+      ],
+      "n_names": 5,
+      "signed_file": "zone00.test.zone.signed",
+      "signed_bytes": 6621,
+      "signed_sha256": "1b198fc817635d3501b7d05962ea9812fc7770da8cccdfbb72ee788bb21f6b62",
+      "rrsig_count": 17,
+      "sign_seconds": 0.009,
+      "verify_seconds": 0.014
+    },
+    {
+      "origin": "zone01.test.",
+      "tier": "sld",
+      "server": "sld1",
+      "algorithm": "ECDSAP256SHA256",
+      "keys": [
+        "Kzone01.test.+013+44972"
+      ],
+      "ds": [
+        "zone01.test.\t3600\tIN\tDS\t44972 13 2 f7885c9e79c8a31822987c5cd4b7dee5b635804800d5b251cbca46ec871031c3"
+      ],
+      "n_names": 5,
+      "signed_file": "zone01.test.zone.signed",
+      "signed_bytes": 6301,
+      "signed_sha256": "ff0af3b1d72d30eb0bf59ff4124c0392af4ed9565b4fd08df845bec082e38ba1",
+      "rrsig_count": 17,
+      "sign_seconds": 0.018,
+      "verify_seconds": 0.013
+    }
+  ]
+}
