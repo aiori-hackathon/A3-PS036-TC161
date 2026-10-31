@@ -225,3 +225,20 @@ def test_named_tunnel_inputs_are_checked_before_anything_changes(tmp_path, args,
 
 def test_minimal_sh_is_valid_bash():
     assert subprocess.run(["bash", "-n", str(MINIMAL_SH)]).returncode == 0
+
+
+def test_tunnel_connected_finds_the_line_in_a_long_log_under_pipefail(tmp_path):
+    """Regression: `journalctl | grep -q` under pipefail failed on a long log, so a connected tunnel was reported as down."""
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "journalctl").write_text(
+        "#!/bin/sh\necho 'INF Registered tunnel connection connIndex=0'\nseq 1 300000\n")
+    (fake / "journalctl").chmod(0o755)
+    (fake / "empty").mkdir()
+    env = {"PATH": f"{fake}:/usr/bin:/bin", "HOME": str(tmp_path)}
+    run = lambda: subprocess.run(  # noqa: E731
+        ["bash", "-c", f"set -euo pipefail; source {MINIMAL_SH}; tunnel_connected && echo yes || echo no"],
+        capture_output=True, text=True, env=env, timeout=20)
+    assert run().stdout.strip() == "yes"
+    (fake / "journalctl").write_text("#!/bin/sh\necho 'INF Starting tunnel'\nseq 1 1000\n")
+    assert run().stdout.strip() == "no"
