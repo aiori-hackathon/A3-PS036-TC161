@@ -16,7 +16,8 @@ its documentation, in the rest of the repository, stay generic and reusable.
 Video: [YouTube](https://youtu.be/FaVfeO5WTV8). Run it: [AWS](../deploy/aws/README.md), [Codespaces](../docs/codespaces.md)
 or [locally](../docs/getting-started.md). Limits: [Scope and limits](../docs/scope-and-limits.md).
 
-**The 31 Oct deck** is the 30 Oct deck patched in the PDF (the slide source is not available): slide 9 says its numbers
-come from a run not frozen in this repository, slide 10 shows the two-track dashboard and the FIPS 205 finding (source:
-[architecture-slide.dot](../docs/architecture-slide.dot)), and the footer date changed. Slide 9's table is replaced once
-the full run is frozen.
+**The 31 Oct deck** is the 30 Oct deck patched in the PDF (the slide source is not available). Slide 9 now quotes the
+frozen full run (10 trials, AWS node), and [results/](results/README.md#deck-slide-9-where-each-number-comes-from) traces
+each number to a file. Slide 10 shows the two-track dashboard and the FIPS 205 finding (source:
+[architecture-slide.dot](../docs/architecture-slide.dot)). The footer date changed. Slide 12 still says "762 lookups
+measured on a real NSD server", which refers to a live capture that is not in the frozen runs.

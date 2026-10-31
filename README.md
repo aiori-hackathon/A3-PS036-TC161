@@ -76,7 +76,7 @@ aws cloudformation delete-stack --region ap-south-1 --stack-name cipherops      
 
 The node pulls the pinned images from `ghcr.io/hackchamp25`, so both tracks are ready on arrival. To let a teammate in
 with their own AWS login, see [ACCESS.md](deploy/aws/ACCESS.md); for the full run and freezing its result, see
-[results](hackathon/results/README.md#still-to-freeze).
+[results](hackathon/results/README.md#reproduce).
 
 **Locally:**
 

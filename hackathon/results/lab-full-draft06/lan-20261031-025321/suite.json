@@ -1,0 +1,121 @@
+{
+  "label": "ec2-ps036-sim-50-500-5000-lan",
+  "stack": "draft06",
+  "reuse": "",
+  "sizes": [
+    50,
+    500,
+    5000
+  ],
+  "scenarios": [
+    "ecdsa",
+    "ed25519",
+    "rsa",
+    "slh-dsa",
+    "mtl"
+  ],
+  "trials": 5,
+  "sign_trials": 5,
+  "sample_names": 100,
+  "n_queries": 2000,
+  "networks": [
+    "lan"
+  ],
+  "udp": 1232,
+  "jobs": 1,
+  "workload": {
+    "nx_fraction": 0.1,
+    "zone_zipf_s": 1.0,
+    "name_zipf_s": 1.1,
+    "timeout_s": 5.0
+  },
+  "profiles": {
+    "wan": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 0
+    },
+    "lossy": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 1
+    }
+  },
+  "suite_id": "20261031-025321_ec2-ps036-sim-50-500-5000-lan",
+  "stamp": "20261031-025321",
+  "finished": "20261031-033537",
+  "seconds": 2537,
+  "sizes_detail": {
+    "50": {
+      "tag": "eco-bench-50-draft06",
+      "run_folder": "20261031-025530_ec2-ps036-sim-50-500-5000-lan-n50",
+      "names": 50,
+      "zones": 6,
+      "config": "configs/_bench-50.yaml"
+    },
+    "500": {
+      "tag": "eco-bench-500-draft06",
+      "run_folder": "20261031-030346_ec2-ps036-sim-50-500-5000-lan-n500",
+      "names": 500,
+      "zones": 6,
+      "config": "configs/_bench-500.yaml"
+    },
+    "5000": {
+      "tag": "eco-bench-5000-draft06",
+      "run_folder": "20261031-033247_ec2-ps036-sim-50-500-5000-lan-n5000",
+      "names": 5000,
+      "zones": 6,
+      "config": "configs/_bench-5000.yaml"
+    }
+  },
+  "host": {
+    "platform": "Linux-6.18.56-125.164.amzn2023.x86_64-x86_64-with-glibc2.34",
+    "cpus": 8,
+    "python": "3.9.25"
+  },
+  "provenance": {
+    "git_commit": "f12bb437582ce7816a5da9b3ed998d57f197f131",
+    "git_dirty": true,
+    "platform": "Linux-6.18.56-125.164.amzn2023.x86_64-x86_64-with-glibc2.34",
+    "kernel": "6.18.56-125.164.amzn2023.x86_64",
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8488C",
+    "cpus": 8,
+    "mem_total": "MemTotal:       32313712 kB",
+    "cpu_governor": "unavailable",
+    "python": "3.9.25",
+    "docker_server": "25.0.18",
+    "stack": "draft06",
+    "stack_pins": {
+      "STACK": "draft06",
+      "OPENSSL_TAG": "openssl-3.6.0",
+      "LIBOQS_TAG": "0.14.0",
+      "MTL_COMMIT": "93b05ef73dab53b953cc4e262401a2ce9bc9e431",
+      "LDNS_COMMIT": "64906672ae0d80ae03933240daab27e19ceccf70",
+      "NSD_COMMIT": "09ebb4e551b5029f7ddf7e381b7bb8a966fa1320",
+      "UNBOUND_COMMIT": "fab43ad682301633fa119158ecd22924f042cb26"
+    },
+    "images": {
+      "cipherops-bench": {
+        "id": "unavailable",
+        "created": ""
+      },
+      "cipherops-eco-nsd": {
+        "id": "sha256:d37b860c8023b780b1da374f06a638db687fe7a151eceefc60cd3be93e558b54",
+        "created": "2026-10-31T02:52:45.147179165Z"
+      },
+      "cipherops-eco-unbound": {
+        "id": "sha256:8b0d032387d16c98019dc53bab83f22c9b669b596f2dd7465bbb83a8559d34d6",
+        "created": "2026-10-31T02:52:54.134066069Z"
+      },
+      "cipherops-eco-tools": {
+        "id": "sha256:c56784b90b4863f238bba9943962ea3330cf7a923028f7e2dcfc0a07dd7db637",
+        "created": "2026-10-31T02:53:15.1506676Z"
+      }
+    },
+    "cpu_isolation": "none (lab containers share all host CPUs)"
+  }
+}

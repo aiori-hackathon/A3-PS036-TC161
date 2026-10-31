@@ -1,0 +1,44 @@
+run_name: ec2-ps036-offline-full10
+seed: 20261005
+trials: 10
+warmup_trials: 1
+modes:
+- slh-dsa-mtl
+- slh-dsa
+- ed25519
+- ecdsa-p256
+- rsa-2048
+control: ed25519
+datasets:
+- name: small
+  n_names: 50
+- name: medium
+  n_names: 500
+- name: large
+  n_names: 5000
+full_verify_sample: 64
+direct_sign_limit:
+  small: null
+  medium: null
+  large: 1000
+evolution:
+  k:
+  - 1
+  - 10
+  - 100
+  rounds:
+  - 10
+  - 10
+  - 5
+  ages:
+  - 0
+  - 1
+  - 2
+  - 4
+  - 8
+wire:
+  nx_sample: 200
+  workload:
+    n_queries: 2000
+    nx_fraction: 0.1
+    zipf_s: 1.1
