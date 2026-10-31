@@ -1,6 +1,7 @@
 # Exclude learning/reference material from language stats
 learning/** linguist-documentation
 notes/**    linguist-documentation
+hackathon/** linguist-documentation
 
 # Or exclude all HTML anywhere from the stats
 *.html linguist-detectable=false
