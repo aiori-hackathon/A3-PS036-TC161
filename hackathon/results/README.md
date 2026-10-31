@@ -10,10 +10,8 @@ from the same data after a wording change to the report subtitle; every number a
 | [`lab-small-draft06-20261031T043656Z`](#lab-small-draft06-20261031t043656z) | Simulated lab | `draft06` (pre-standard SLH-DSA) | small finished lab benchmark |
 | full offline run | Offline benchmark | `latest` | **not frozen yet**, see [Still to freeze](#still-to-freeze) |
 
-**Deck slide 9 is not backed by anything in this folder.** It quotes a 10,005-RRset zone, "medians of 5 trials" and 762
-lookups. The full run that this folder is waiting for is 10 trials, and the only frozen offline run is the quick demo
-below. Until the full run is frozen, slide 9 should be read as coming from an unfrozen run on a laptop, and the numbers
-quoted in the [readout](../readout.md) are the ones that can be traced to a report here.
+**Deck slide 9 is not backed by anything in this folder** (10,005-RRset zone, "medians of 5 trials", 762 lookups; the full
+run is 10 trials). The numbers in the [readout](../readout.md) are the ones that trace to a report here.
 
 ## quick-demo-20261030T074948Z
 

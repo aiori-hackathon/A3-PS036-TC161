@@ -1,21 +1,17 @@
 # Scope and limits
 
-What CipherOps claims and what it does not. How the requirements of the problem statement (PS-036) are covered: [DELIVERABLES.md](../DELIVERABLES.md#ps-036-requirements).
+What CipherOps claims and what it does not. How each PS-036 requirement is covered: [DELIVERABLES.md](../DELIVERABLES.md#ps-036-requirements).
 
 ## Scope
 
-- Empirical timings and wire sizes on pinned stacks. This is **not** a security proof and **not** a production DNSSEC
-  product. It calls published libraries and adds no cryptography.
-- Two measurement paths that answer different questions:
+Empirical timings and wire sizes on pinned stacks. This is **not** a security proof and **not** a production DNSSEC
+product; it calls published libraries and adds no cryptography. Two tracks answer different questions, and their results
+are never drawn on one chart because they use different library versions:
 
-  | | Offline harness | Simulated lab |
-  | --- | --- | --- |
-  | What it is | a C harness (`harness/mtlbench.c`) times each library call; DNS messages are built and counted in Python | a root → TLD → leaf hierarchy of unmodified NSD servers behind a validating Unbound, in Docker |
-  | Best for | signing and verification time, signature and response sizes, cache arithmetic, zone updates | what a resolver does: bytes per hop from packet captures, truncation, TCP retry, Unbound's cache counters |
-  | Environment | one pinned image, one dedicated core, no network | three images per stack; containers share all host CPUs |
-  | Start it | `scripts/run_benchmark.sh`, or **Offline benchmark → Run** | **Simulated lab → Benchmark** |
-
-  The two are never drawn on one chart: they use different libraries and versions.
+- **Offline harness** (`scripts/run_benchmark.sh`, or **Offline benchmark** in the dashboard): crypto cost, exact message
+  sizes and cache arithmetic, on one pinned core with no network.
+- **Simulated lab** (**Simulated lab** in the dashboard): what a validating resolver does, from packet captures. The
+  containers share all host CPUs.
 
 ## Limits
 
@@ -36,22 +32,11 @@ What CipherOps claims and what it does not. How the requirements of the problem 
 - **The drafts are drafts.** MTL mode and its DNSSEC profiles are individual Internet-Drafts, not RFCs. Status:
   [Learn: where the IETF stands](learn/README.md#where-the-ietf-stands).
 
-## Benchmark practice
+## Reporting results
 
-What a result needs so that someone else can trust and repeat it, and where each point is met:
-
-- **Pinned, recorded environment.** Software comes from a stack profile; every run records versions, git commit
-  (and whether the tree was modified), CPU, memory, kernel, governor and image IDs (`environment.json`, `suite.json`).
-- **Controlled noise.** The offline harness runs on one dedicated core with no network, discards a warm-up run, seeds
-  every order, and measures an A/A control (a mode against itself) so a difference smaller than the noise floor is not
-  reported as a difference.
-- **Honest statistics.** Medians with a distribution-free interval whose real coverage is stated; too few trials are
-  labelled as such ([methodology §6.2](methodology.md#62-statistics)).
-- **No cherry-picking.** Reports are generated from the data, not typed in; failed queries are excluded from latency but
-  stay counted and warned about; measured, estimated and analytical numbers are labelled and never blended.
-- **Fail safe.** The go/no-go gate blocks a run when the reference library or fixtures are not available.
-- **Report like this.** Quote the run id and stack profile with every number, and say whether it is offline or
-  simulated. Do not present results as Verisign's, or as a product comparison.
+How runs are made repeatable and honest is in the [methodology](methodology.md) and the
+[design decisions](design-decisions.md). When you quote a number, quote the run id and stack profile, say whether it is
+offline or simulated, and do not present it as Verisign's or as a product comparison.
 
 ## Responsible use
 
@@ -77,7 +62,3 @@ NO-GO. The lab uses `draft06` because only there does a resolver validate all th
 Unbound binary still names a SPHINCS+ algorithm that liboqs 0.16 removed, which points to an upstream mismatch; this is
 not confirmed from source and not yet reported upstream. Evidence and rejected alternatives:
 [design decisions](design-decisions.md).
-
-## PS-036 coverage
-
-The requirements and where each is met are in [DELIVERABLES.md](../DELIVERABLES.md#ps-036-requirements).

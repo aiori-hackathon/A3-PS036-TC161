@@ -19,12 +19,10 @@ PS-036 asks: what does that change, compared with the same algorithm without MTL
 
 ## 3. Results
 
-Quoted from the generated report of the frozen run
-[`quick-demo-20261030T074948Z`](results/quick-demo-20261030T074948Z/report.md); where and how it ran:
-[results/](results/README.md). **This is a 3-trial quick demonstration on small zones (45 / 125 / 405 RRsets), run on a
-laptop with a power-saving CPU governor, not the full run.** Slide 9 of the deck quotes a larger run (10,005 RRsets,
-5 trials, 762 lookups) that is not frozen in this repository; the full configuration is 10 trials. Once the full run is
-frozen on the [reference machine](results/README.md#reference-machine), this section and slide 9 are quoted from it.
+Quoted from the frozen run [`quick-demo-20261030T074948Z`](results/quick-demo-20261030T074948Z/report.md) (how it ran:
+[results/](results/README.md)). **It is a 3-trial quick demonstration on small zones (45 / 125 / 405 RRsets) on a laptop,
+not the full run.** Slide 9 quotes a larger run that is not frozen here; both are replaced by the full run once it is
+frozen on the [reference machine](results/README.md#reference-machine).
 
 - **Signing, small zone (45 RRsets).** MTL 835.42 ms; direct SLH-DSA 36.55 s. MTL was 43.8× faster (median of per-trial
   ratios, interval 38.6×–44.8×).
@@ -61,7 +59,6 @@ None is filed upstream yet.
 
 ## 5. Next steps
 
-1. Run the full benchmark on the reference machine (the AWS node) and freeze it here; update slide 9 from its report.
-2. File the findings with the Verisign repositories.
-3. Measure ML-DSA-MTL, which the newest IETF drafts centre on, and the always-full encoding of draft-kaizer.
-4. Re-run on a resolver build that validates plain SLH-DSA on the newer stack, so one stack serves both paths.
+Run the full benchmark on the reference machine and freeze it; file the findings upstream; measure ML-DSA-MTL and the
+always-full encoding; re-run on a resolver that validates plain SLH-DSA on the newer stack. Open items:
+[DELIVERABLES.md](../DELIVERABLES.md#open-items); the full list: [feedback.md](feedback.md#follow-ups).

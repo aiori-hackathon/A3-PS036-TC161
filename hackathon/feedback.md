@@ -47,7 +47,7 @@ the `ldns-verify-zone` result. Finding 1 should first be checked against the Unb
 
 ## Follow-ups
 
-1. Run the full benchmark on a fixed machine and freeze it under [results/](results/README.md).
+1. Run the full benchmark on the reference machine and freeze it under [results/](results/README.md).
 2. File findings 1 and 2 with the Verisign repositories; raise finding 3 with the draft authors if they agree it is
    worth specifying.
 3. Measure ML-DSA-MTL (draft-kaizer-dnsop-ml-dsa-mtl-dnssec), which the newest drafts centre on, and the always-full

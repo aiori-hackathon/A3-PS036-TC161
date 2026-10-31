@@ -243,7 +243,7 @@ def readiness(stt: dict) -> dict:
 
 
 def _scenario_list(h: driver.LabHandle) -> list[str]:
-    """Scenarios chosen in the Prepare lab step (and present on disk after signing), not only the active one."""
+    """Scenarios chosen in the Prepare step (and present on disk after signing), not only the active one."""
     chosen = [str(s) for s in (cfg("scenarios") or [])]
     on_disk: list[str] = []
     zones = h.work / "zones"
@@ -391,12 +391,12 @@ def _apply_ui_config(h: driver.LabHandle) -> str | None:
     """Write configs/_dashboard.yaml from the stored settings and point the handle at it."""
     sc = list(cfg("scenarios") or ["ecdsa", "slh-dsa", "mtl"])
     if not sc:
-        return "Select at least one algorithm in the Prepare lab step."
+        return "Select at least one algorithm in the Prepare step."
     zone = cfg("zone_size", "small")
     shape, errors, _warnings = _shape()
     st.session_state.shape_errors = errors
     if errors or shape is None:
-        return "Fix the custom zone numbers in the Prepare lab step: " + " ".join(errors)
+        return "Fix the custom zone numbers in the Prepare step: " + " ".join(errors)
     if cfg("_zone_prev") != zone:
         # New zone size → queries-per-trial follows that size's default until the user edits it.
         _store()["n_queries"] = int(shape["n_queries_default"])

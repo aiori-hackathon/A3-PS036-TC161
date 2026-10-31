@@ -1,43 +1,33 @@
 # Deliverables
 
-The single place that says what this team is submitting and where each item lives. The README links here, so this file
-is the source of truth for the PS-036 requirements.
+What this team submits and where each item lives, the open items, and how each PS-036 requirement is met.
 
 ## AIORI Hackathon 3 deliverables
 
-What the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideline/) asks for, and where each is here.
+From the [hackathon guideline](https://portal.aiori.in/aiori-3/hackathon-guideline/).
 
 | Deliverable | Where | State |
 | --- | --- | --- |
-| **Presentation** (PDF) | [revised 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf); [30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf); [original 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) | done |
-| **Team video** (YouTube link in the repository) | [YouTube](https://youtu.be/FaVfeO5WTV8), linked from the [README](README.md) | done |
-| **Source code, documents and supporting material** | this repository; start at the [README](README.md) and [docs/](docs/README.md) | done |
-| **Working demo** | run it in the browser with [Codespaces](docs/codespaces.md), or [locally](docs/getting-started.md); the demo is built by the visitor, not hosted | done |
-| **Final deliverable files**, for evaluators who do not run the demo | [hackathon/results/](hackathon/results/README.md): frozen runs with their reports: an offline quick run and a small simulated-lab run | the full run is pending (below) |
+| **Presentation** (PDF) | [revised 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) ([30 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf), [13 Oct](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf)) | done; slide 9 awaits the full run |
+| **Team video** | [YouTube](https://youtu.be/FaVfeO5WTV8) | done |
+| **Source code, documents, supporting material** | this repository, from the [README](README.md); also the [readout](hackathon/readout.md) and [findings](hackathon/feedback.md) | done |
+| **Working demo** | built by the visitor, not hosted: [AWS](deploy/aws/README.md), [Codespaces](docs/codespaces.md) or [locally](docs/getting-started.md) | done |
+| **Final deliverable files** | [hackathon/results/](hackathon/results/README.md): an offline quick run and a small simulated-lab run, frozen with their reports | the full run is pending |
 
-Supporting material: the [project page](hackathon/README.md), a short [readout](hackathon/readout.md), and
-[findings with an interop matrix and follow-ups](hackathon/feedback.md).
+## Open items
 
-### Open items before the submission is final
-
-- **Full run on a fixed machine.** The frozen offline run is a 3-trial quick demonstration on a laptop CPU with the
-  `powersave` governor. The full run (50 / 500 / 5,000 names, 10 trials, about 5 hours) has not been frozen; it is to run
-  on the [AWS node](deploy/aws/README.md) under the [reference machine rules](hackathon/results/README.md#reference-machine).
-  Until it is, the numbers on slide 9 of the deck (10,005-RRset zone, 5 trials, 762 lookups) have no frozen run behind
-  them, and the quick run is only a demonstration.
-- **Simulated-lab benchmark.** A small finished lab run is frozen
-  ([`lab-small-draft06-20261031T043656Z`](hackathon/results/README.md#lab-small-draft06-20261031t043656z)); the full lab
-  run is not.
+- **Full run on the reference machine.** The frozen offline run is a 3-trial quick demonstration on a laptop with the
+  `powersave` governor. The full run (50 / 500 / 5,000 names, 10 trials, about 5 hours) is to run on the
+  [AWS node](deploy/aws/README.md) under the [reference machine rules](hackathon/results/README.md#reference-machine).
+  Until it is frozen, slide 9's numbers (10,005-RRset zone, "5 trials", 762 lookups) have no frozen run behind them, and
+  the full lab run is not frozen either (a small one is).
+- **Team registry.** `ghcr.io/hackchamp25` lacks the `latest` lab images; an owner of that namespace must run
+  `scripts/publish_images.sh latest simulated`.
 - **No single FIPS 205 end-to-end result.** Offline runs the FIPS 205 build (`latest`); the lab runs the pre-standard
-  `draft06` build because the `latest` resolver answers SERVFAIL for plain SLH-DSA. This is a presented finding
+  `draft06`, because the `latest` resolver answers SERVFAIL for plain SLH-DSA. This is presented as a finding
   ([feedback.md](hackathon/feedback.md)), not something this repository can fix.
-- **Team registry.** The `latest` lab images (`cipherops-eco-{nsd,unbound,tools}:latest`) are not yet published in
-  `ghcr.io/hackchamp25`; an owner of that namespace must run `scripts/publish_images.sh latest simulated`.
-- **Deck.** The 31 Oct deck labels slide 9's source and carries the new architecture on slide 10, but slide 9's numbers
-  still come from an unfrozen run; they change when the full run is frozen ([hackathon/README.md](hackathon/README.md#deck-revision-of-31-oct)).
+- **Upstream reports.** The findings are written up with evidence but not yet reported to the upstream projects.
 - **Fixed state.** Tag the repository (for example `hackathon-submission`) when the submission is final.
-- **Findings.** The findings in [hackathon/feedback.md](hackathon/feedback.md) are written up with evidence but not
-  reported to the upstream projects.
 
 ## PS-036 requirements
 

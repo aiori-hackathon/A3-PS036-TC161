@@ -237,7 +237,7 @@ def _cmp_live_detail(df: pd.DataFrame, sd, ds, use_suite: bool, man_rows: list, 
             st.markdown(":green-badge[Measured] from the last signing run")
         sg = df.dropna(subset=["sign_s"]) if "sign_s" in df else df
         if sg.empty:
-            st.info("No signing data: sign the zones in step 2 (Prepare lab) of the simulated lab.")
+            st.info("No signing data: sign the zones in Simulated lab ① Prepare.")
         else:
             c1, c2 = st.columns(2)
             long = sg.melt(id_vars="scenario", value_vars=["sign_s", "verify_s"], var_name="what", value_name="seconds")

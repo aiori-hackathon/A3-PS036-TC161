@@ -8,7 +8,7 @@ pip install -r requirements-dashboard.txt
 streamlit run dashboard/live_lab/app.py
 ```
 
-Needs Docker (except for **Learn** and for viewing saved results). In Codespaces: [Codespaces](../../docs/codespaces.md).
+Needs Docker (except for **Learn** and for viewing saved results). On AWS or in Codespaces: [AWS](../../deploy/aws/README.md), [Codespaces](../../docs/codespaces.md).
 For a first visit use the **Small** zone size, and use the **`draft06`** image version for any MTL-versus-plain
 comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (the dashboard warns about it).
 
@@ -109,11 +109,11 @@ missing or does-not-match for each, and Benchmark and Lab only use images that p
 
 | Where | Numbers | Needs signing again |
 | --- | --- | --- |
-| Simulated lab ② Prepare lab → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed (step ③ only) | yes |
-| Simulated lab ④ Benchmark → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
-| Simulated lab ④ Benchmark → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
+| Simulated lab ① Prepare → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed | yes |
+| Simulated lab ③ Benchmark → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
+| Simulated lab ③ Benchmark → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
 
-Lab shows a **Planned lab** card (zones, names, containers, rough signing time) and the exact YAML. A custom shape
+Prepare shows a **Planned lab** card (zones, names, containers, rough signing time) and the exact YAML. A custom shape
 gets its own lab folder named after a hash of its numbers (`eco-ui-custom-<hash>`), so results from different shapes
 never mix. Only one lab runs at a time: Start stops any other.
 
@@ -133,7 +133,7 @@ Offline and simulated data are never drawn together.
 
 ## Signing replay and live progress
 
-After **Sign zones**, step ② Prepare lab opens an animated replay of how the hierarchy was signed (also under its **Signing
+After **Sign zones**, step ① Prepare opens an animated replay of how the hierarchy was signed (also under its **Signing
 replay**). It plays bottom-up: leaf zones, TLDs, then the root, with each DS record travelling to its parent. For `mtl`
 the RRsets become leaves of a Merkle tree, the ladder is signed once and each RRset keeps a short path; for the other
 algorithms every RRset is signed on its own, with a bar per signature on one scale. Counts, times and bytes are
