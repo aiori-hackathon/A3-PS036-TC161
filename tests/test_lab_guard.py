@@ -308,3 +308,30 @@ def test_suite_cannot_start_while_images_build(eco):
 def test_stacks_that_cannot_validate_a_scenario_are_flagged():
     assert driver.unvalidated_scenarios("latest", ["ecdsa", "slh-dsa", "mtl"]) == ["slh-dsa"]
     assert driver.unvalidated_scenarios("draft06", ["ecdsa", "slh-dsa", "mtl"]) == []
+
+
+def test_up_sets_a_restart_policy_only_when_the_node_asks_for_one(eco, monkeypatch):
+    root, calls = eco
+    h = _handle(root)
+
+    def run(cmd, **kw):
+        calls.append(cmd)
+        done = _Done()
+        if cmd[-2:] == ["ps", "-q"]:
+            done.stdout = "aaa\nbbb\n"
+        return done
+
+    monkeypatch.setattr(lab, "_run", run)
+    monkeypatch.delenv(lab.RESTART_ENV, raising=False)
+    driver.up(h)
+    assert not any(c[:2] == ["docker", "update"] for c in calls)
+
+    monkeypatch.setenv(lab.RESTART_ENV, "unless-stopped")
+    note = driver.up(h)
+    assert ["docker", "update", "--restart", "unless-stopped", "aaa", "bbb"] in calls
+    assert "unless-stopped" in note
+
+    calls.clear()
+    monkeypatch.setenv(lab.RESTART_ENV, "no; rm -rf /")  # anything but a known policy is ignored
+    driver.up(h)
+    assert not any(c[:2] == ["docker", "update"] for c in calls)

@@ -1,0 +1,50 @@
+{
+  "label": "ec2-ps036-sim-50-500-5000-loss",
+  "stack": "draft06",
+  "reuse": "20261031-025321_ec2-ps036-sim-50-500-5000-lan",
+  "sizes": [
+    50,
+    500,
+    5000
+  ],
+  "scenarios": [
+    "ecdsa",
+    "ed25519",
+    "rsa",
+    "slh-dsa",
+    "mtl"
+  ],
+  "trials": 5,
+  "sign_trials": 5,
+  "sample_names": 100,
+  "n_queries": 2000,
+  "networks": [
+    "lossy"
+  ],
+  "udp": 1232,
+  "jobs": 1,
+  "workload": {
+    "nx_fraction": 0.1,
+    "zone_zipf_s": 1.0,
+    "name_zipf_s": 1.1,
+    "timeout_s": 5.0
+  },
+  "profiles": {
+    "wan": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 0
+    },
+    "lossy": {
+      "client_ms": 2,
+      "root_ms": 20,
+      "tld_ms": 35,
+      "sld_ms": 50,
+      "loss_pct": 1
+    }
+  },
+  "suite_id": "20261031-052353_ec2-ps036-sim-50-500-5000-loss",
+  "stamp": "20261031-052353"
+}

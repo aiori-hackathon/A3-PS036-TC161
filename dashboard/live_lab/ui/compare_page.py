@@ -237,7 +237,7 @@ def _cmp_live_detail(df: pd.DataFrame, sd, ds, use_suite: bool, man_rows: list, 
             st.markdown(":green-badge[Measured] from the last signing run")
         sg = df.dropna(subset=["sign_s"]) if "sign_s" in df else df
         if sg.empty:
-            st.info("No signing data: sign the zones in step 2 (Prepare lab) of the simulated lab.")
+            st.info("No signing data: sign the zones in Simulated lab ① Prepare.")
         else:
             c1, c2 = st.columns(2)
             long = sg.melt(id_vars="scenario", value_vars=["sign_s", "verify_s"], var_name="what", value_name="seconds")
@@ -279,7 +279,7 @@ def _cmp_live_detail(df: pd.DataFrame, sd, ds, use_suite: bool, man_rows: list, 
         st.markdown(":green-badge[Measured] from packet counts in the saved run")
         bw = df.dropna(subset=["upstream_bytes"]) if "upstream_bytes" in df else df
         if bw.empty:
-            st.info("No benchmark data: run a benchmark in the Benchmark tile.")
+            st.info("No benchmark data: run an Offline benchmark or a Simulated lab benchmark.")
         else:
             c1, c2 = st.columns(2)
             hops = bw.melt(id_vars="scenario", value_vars=["root_bytes", "tld_bytes", "sld_bytes"],
@@ -307,7 +307,7 @@ def _cmp_live_detail(df: pd.DataFrame, sd, ds, use_suite: bool, man_rows: list, 
         cc = df.dropna(subset=["cache_rrset"]) if "cache_rrset" in df else df
         st.markdown("##### Measured :green-badge[Measured]")
         if cc.empty:
-            st.info("No benchmark data: run a benchmark in the Benchmark tile.")
+            st.info("No benchmark data: run an Offline benchmark or a Simulated lab benchmark.")
         else:
             c1, c2 = st.columns(2)
             mem = cc.melt(id_vars="scenario", value_vars=["cache_rrset", "cache_message"],

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from live_lab import driver, images
+from live_lab import driver, images, minimal
 
 ROOT = Path(__file__).resolve().parents[3]
 ECO_DIR = ROOT / "ecosystem"
@@ -56,7 +56,8 @@ TILES = {
     "learn": {
         "icon": "📖",
         "title": "Learn",
-        "pitch": "Why DNSSEC needs MTL.",
+        "pitch": "Why DNSSEC needs MTL, what the benchmark measures and why in two modes, and what an operator does "
+                 "differently.",
         "cta": "Open",
     },
     "setup": {
@@ -242,7 +243,7 @@ def readiness(stt: dict) -> dict:
 
 
 def _scenario_list(h: driver.LabHandle) -> list[str]:
-    """Scenarios chosen in the Prepare lab step (and present on disk after signing), not only the active one."""
+    """Scenarios chosen in the Prepare step (and present on disk after signing), not only the active one."""
     chosen = [str(s) for s in (cfg("scenarios") or [])]
     on_disk: list[str] = []
     zones = h.work / "zones"
@@ -257,20 +258,34 @@ def _scenario_list(h: driver.LabHandle) -> list[str]:
     return chosen
 
 
+def track_steps(track: str) -> tuple:
+    """The (key, label) steps of a track that may be shown (fewer in minimal mode)."""
+    return minimal.steps(track, TRACKS[track]["steps"])
+
+
+def track_default(track: str) -> str:
+    keys = [key for key, _label in track_steps(track)]
+    default = TRACKS[track]["default"]
+    return default if default in keys else keys[0]
+
+
 def resolve_tile(tile: str, step: str | None = None) -> tuple[str, str | None]:
-    """Map a tile name (possibly an old one such as ``live``) and an optional step to ``(mode, step)``."""
+    """Map a tile name (possibly an old one such as ``live``) and an optional step to ``(mode, step)``.
+
+    In minimal mode a page or step a visitor may not open resolves to Home or to the track's first allowed step,
+    whether it comes from a link, a bookmark or a button."""
     if tile in LEGACY_TILES:
         track, legacy_step = LEGACY_TILES[tile]
-        return track, step if _is_step(track, step) else legacy_step
-    if tile not in NAV_MODES:
+        tile, step = track, step if _is_step(track, step) else legacy_step
+    if tile not in NAV_MODES or not minimal.mode_allowed(tile):
         return "home", None
     if tile in TRACKS:
-        return tile, step if _is_step(tile, step) else TRACKS[tile]["default"]
+        return tile, step if _is_step(tile, step) else track_default(tile)
     return tile, None
 
 
 def _is_step(track: str, step: str | None) -> bool:
-    return any(step == key for key, _label in TRACKS[track]["steps"])
+    return any(step == key for key, _label in track_steps(track))
 
 
 def step_key(track: str) -> str:
@@ -281,14 +296,14 @@ def current_step(track: str) -> str:
     """The step of ``track`` being shown. Sidebars read it before the page draws the step bar."""
     value = st.session_state.get(step_key(track))
     if not _is_step(track, value):
-        value = TRACKS[track]["default"]
+        value = track_default(track)
         st.session_state[step_key(track)] = value
     return value
 
 
 def step_bar(track: str, done: dict[str, bool]) -> str:
     """Draw the numbered steps of a track (a tick marks a finished step) and return the chosen one."""
-    labels = {key: (f"{label} ✓" if done.get(key) else label) for key, label in TRACKS[track]["steps"]}
+    labels = {key: (f"{label} ✓" if done.get(key) else label) for key, label in track_steps(track)}
     current_step(track)  # make sure the stored value is valid before the widget uses it
     return st.radio("Step", list(labels), key=step_key(track), horizontal=True, format_func=labels.get,
                     label_visibility="collapsed")
@@ -322,10 +337,13 @@ def _init_nav() -> None:
         tile, step = st.query_params.get("tile", "home"), st.query_params.get("step")
     except Exception:  # noqa: BLE001
         pass
+    requested = (tile, step)
     mode, step = resolve_tile(tile, step)
     st.session_state.nav = mode
     if step:
         st.session_state[step_key(mode)] = step
+    if minimal.enabled() and requested != (mode, step):
+        _go(mode, step)  # the address bar shows the page actually opened, not a refused one
 
 
 PROFILE_FIELDS = (
@@ -387,15 +405,24 @@ def _restore_workload() -> None:
 
 
 def _apply_ui_config(h: driver.LabHandle) -> str | None:
-    """Write configs/_dashboard.yaml from the stored settings and point the handle at it."""
+    """Write configs/_dashboard.yaml from the stored settings and point the handle at it.
+
+    In minimal mode nothing is written: the handle follows the lab the team last set up on this node."""
+    if minimal.enabled():
+        if not (driver.ECO / driver.DASHBOARD_CONFIG).is_file():
+            return "No lab has been set up on this node yet."
+        h.config = driver.DASHBOARD_CONFIG
+        h.stack = driver.load_ui_prefs().get("stack") or cfg("stack", driver.DEFAULT_STACK)
+        st.session_state.lab_handle = h
+        return None
     sc = list(cfg("scenarios") or ["ecdsa", "slh-dsa", "mtl"])
     if not sc:
-        return "Select at least one algorithm in the Prepare lab step."
+        return "Select at least one algorithm in the Prepare step."
     zone = cfg("zone_size", "small")
     shape, errors, _warnings = _shape()
     st.session_state.shape_errors = errors
     if errors or shape is None:
-        return "Fix the custom zone numbers in the Prepare lab step: " + " ".join(errors)
+        return "Fix the custom zone numbers in the Prepare step: " + " ".join(errors)
     if cfg("_zone_prev") != zone:
         # New zone size → queries-per-trial follows that size's default until the user edits it.
         _store()["n_queries"] = int(shape["n_queries_default"])
@@ -480,6 +507,10 @@ def _gate(stt: dict, what: str) -> bool:
     missing = [name for name, ok in (("images", r["images"]), ("signed zones", r["prepared"]),
                                      ("running containers", r["running"])) if not ok]
     st.warning(f"{what} needs a ready lab. Missing: {', '.join(missing)}.")
+    if minimal.enabled():
+        st.caption("The team's lab is not running on this node right now. The saved results under Results, the "
+                   "Benchmark step and Compare are still available.")
+        return False
     if not r["images"]:
         st.caption("Get the lab images in the panel at the top of the page.")
     else:

@@ -4,18 +4,17 @@ New to DNSSEC, post-quantum signatures or Merkle Tree Ladder (MTL) mode? Start h
 minutes and needs no prior knowledge. Everything on this page is background; the measured results are in the
 run reports.
 
-## The interactive walkthrough
+## The walkthroughs
 
-**[why-dnssec-needs-mtl.html](why-dnssec-needs-mtl.html)** is an animated, seven-scene explainer (the last scene is where the IETF drafts stand). It is one
-self-contained file with no network access and no dependencies. Open it in a browser (on GitHub, download the file
-first, because GitHub shows HTML as source). Use the arrow keys to step, space to play. The dashboard shows the same
-page in its **Learn** tile.
+Three self-contained animated pages, no network or dependencies. Open one in a browser (on GitHub, download the file
+first, because GitHub shows HTML as source); arrow keys step, space plays. The dashboard shows the same pages in its
+**Learn** tile. They teach; the measured results are in the run reports.
 
-A second page, **[mtl-dnssec-ops-walkthrough.html](mtl-dnssec-ops-walkthrough.html)**, follows a DNS operator
-through bringing up a signed zone and then adding one record, with a switch between plain SLH-DSA and SLH-DSA with
-MTL at every step (commands, bytes on the wire and the resolver's work). It is also self-contained and is the
-dashboard's second **Learn** view. Its byte figures are illustrative for a small zone; the measured ones are in the
-run reports.
+| Page | About |
+| --- | --- |
+| [why-dnssec-needs-mtl.html](why-dnssec-needs-mtl.html) | seven scenes from a poisoned cache to the packet-size problem, ending with where the IETF drafts stand |
+| [mtl-dnssec-ops-walkthrough.html](mtl-dnssec-ops-walkthrough.html) | what an operator does to bring up a signed zone and add a record, for plain SLH-DSA and for MTL (byte figures are illustrative) |
+| [what-we-measure.html](what-we-measure.html) | the four PS-036 measurements, how the offline harness and the simulated lab each measure them, what each cannot tell you, and which claims the results support; it contains no results |
 
 ## The story in six steps
 
@@ -61,18 +60,6 @@ What this means:
   easy to see. The same trade-offs should apply to ML-DSA-MTL with smaller numbers; measuring it is a follow-up.
 - The strategy draft asks for exactly this kind of testing: truncation, TCP fallback and latency in BIND, NSD and
   CoreDNS.
-
-## Where each question is answered in this repository
-
-| If you want to know… | Read |
-|---|---|
-| What was built, what is **not** claimed, and which requirements are met | [README](../../README.md), [scope and limits](../scope-and-limits.md) |
-| How every number is measured, which are measured and which analytical, and how the statistics work | [methodology](../methodology.md) |
-| Why a choice was made (stack versions, the SLH-DSA form, the upstream mismatch) | [design decisions](../design-decisions.md) |
-| What each output file and column means | [outputs reference](../outputs-reference.md) |
-| How the code fits together, and the MTL formulas | [architecture](../architecture.md) |
-| A run's real numbers | `report.html` in `results/runs/<run>/` (run `bash scripts/run_benchmark.sh configs/quick.yaml`) |
-| To see it live, with real packets | the dashboard (`streamlit run dashboard/live_lab/app.py`), tiles **Live**, **Benchmark** and **Compare** |
 
 ## Honest limits of the explainer
 

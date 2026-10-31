@@ -1,4 +1,4 @@
-"""Learn tile: the two animated walkthroughs."""
+"""Learn tile: the three animated walkthroughs."""
 
 from __future__ import annotations
 
@@ -12,6 +12,9 @@ LEARN_PAGES = {
     "why": ("Why DNSSEC needs MTL", "why-dnssec-needs-mtl.html", 1180,
             "Six short animated scenes, from a poisoned cache to the packet-size problem. Click inside the animation "
             "first, then use → and ← to step and space to play."),
+    "measure": ("What we measure, and why two modes", "what-we-measure.html", 1300,
+                "The four PS-036 measurements and who pays for each, how the offline harness and the simulated lab "
+                "measure them, what each mode cannot tell you, and which claims the results support."),
     "ops": ("Operator walkthrough", "mtl-dnssec-ops-walkthrough.html", 1500,
             "What a DNS operator does, step by step, for SLH-DSA and for SLH-DSA with MTL: bring up a signed zone, then "
             "add a record. Switch the mode at any step to compare the work, the bytes and the resolver's job."),
@@ -47,5 +50,5 @@ def learn_page(h: driver.LabHandle, stt: dict) -> None:
     st.markdown(f"**{title}**")
     components.html(_learn_html(name, page.stat().st_mtime), height=height, scrolling=True)
     st.caption("A teaching aid, not a measurement: its sizes are illustrative or the draft's maximum-size formulas. "
-               "The measured results are in the Benchmark and Compare tiles and in each run's report.")
+               "The measured results are in the Offline benchmark and Simulated lab tracks, in Compare and in each run's report.")
     st.button("Back to Home", on_click=_go, args=("home",), key="learn_home")

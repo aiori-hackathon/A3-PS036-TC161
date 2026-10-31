@@ -1,9 +1,8 @@
 # Cipherops outputs reference
 
 Every file a run writes, every column in it, what unit it is in, how it is calculated and an
-example value. The examples are illustrative values from one earlier quick demo run
-(`configs/quick.yaml`: zones of 20 / 60 / 200 names, 3 trials) on one machine. They show the shape of the data
-and are **not results**; every run's own numbers are in its `report.html`.
+example value. The examples show the shape of the data for `configs/quick.yaml` (zones of 20 / 60 / 200 names,
+3 trials) and are **not results**; every run's own numbers are in its `report.html`.
 
 To watch these values being produced one by one, run `scripts/own.py` (see its header).
 
@@ -192,7 +191,7 @@ the extrapolated columns.
 | `failures_total` | count | sum of `res.failures` | 0 |
 | `tamper_all_rejected` | bool | all values of `res.tamper` true | True |
 | `public_key_bytes` | B | `res.public_key_bytes` | 32 |
-| `maxrss_bytes` | B | `res.memory.maxrss`: peak resident memory of `mtlbench` (`VmHWM`). Runs before Oct 8, 2026 used `getrusage`, whose peak survives `exec` and reported the Python parent (~136 MB) | ~7.7 MB (quick-demo run: 136,224,768) |
+| `maxrss_bytes` | B | `res.memory.maxrss`: peak resident memory of `mtlbench` (`VmHWM`). | ~7.7 MB |
 | `sign_total_ns` | ns | MTL: Σ`append_ns` + `ladder_sign_ns` + Σ`condensed_ns`; others: Σ`sign_ns` | 436,544,224 (0.437 s) |
 | `sign_append_total_ns` | ns | MTL: Σ`append_ns` | 164,657 |
 | `ladder_sign_ns` | ns | MTL: one SLH-DSA signature over the ladder | 436,368,764 |
@@ -329,7 +328,7 @@ from wire into dnspython's `LRUCache` and measured with `tracemalloc`.
 | `signature_material_bytes` | signatures + ladder | 25,030 | 26,646 |
 | `python_heap_bytes`, `python_heap_peak_bytes` | heap the cache objects occupy (tracemalloc) | 484,575, 488,455 | |
 | `node_set_rss_growth_bytes` | signer scope, measured: median of the trials column | 114,688 | |
-| `maxrss_bytes` | signer scope: median `maxrss_bytes` of the trials (see `trials.csv`) | ~7.7 MB (quick-demo run: ~138 MB) | |
+| `maxrss_bytes` | signer scope: median `maxrss_bytes` of the trials (see `trials.csv`) | ~7.7 MB | |
 | `node_set_hash_bytes` | signer scope, analytical: (2N − 1) × 16 + N × 16 | | 2,144 |
 
 Large zone, resolver measured: Ed25519 11,968 B, MTL 36,175 + 8,056 = 44,231 B, SLH-DSA 1,469,072 B.
@@ -381,19 +380,3 @@ config, environment and preflight). Figures:
 | `responses.png` | answer sizes by record class | `responses` |
 | `workload.png` | total DNS bytes of the lookup stream at 1232 | `workload` |
 | `cache.png` | resolver signature material, measured vs analytical | `cache` |
-
----
-
-## Headline numbers and where they come from (large zone, quick demo)
-
-| Statement | SLH-DSA direct | SLH-DSA + MTL | Ed25519 | Source |
-|---|---|---|---|---|
-| Signature in each RRSIG | 7,856 B | ≤ 204 B + one 8,056 B ladder | 64 B | `sizes.csv`, `trials.signature_bytes_max` |
-| Sign the whole zone | ≈ 209 s (extrapolated) | 0.52 s | 0.014 s | median `sign_total_extrapolated_ns` / `sign_total_ns` |
-| Verify one answer, ladder cached | 588 µs | 5.3 µs | 111 µs | median `verify_per_rrset_ns` (MTL includes the one ladder check spread over 405) |
-| Verify the first answer, nothing cached | 511 µs | 513 µs | 103 µs | median `verify_full_median_ns` |
-| Signature storage for the zone | 3.18 MB | 0.087 MB (36× less) | 0.026 MB | `sizes.csv` storage, `trials.signature_material_bytes` |
-| Small answers that fit 1232-byte UDP | 0% (median 7,970 B) | 100% (319 B) | 100% (178 B) | `summary.response_fit` |
-| Bytes on the wire, 301 lookups at 1232 | 1,522,371 B, 106 TCP | 88,895 B (17× less), 33 TCP | 53,292 B, 7 TCP | `workload.csv` |
-
-Ratios: 3,181,680 / 87,092 = 36.5; 1,522,371 / 88,895 = 17.1.

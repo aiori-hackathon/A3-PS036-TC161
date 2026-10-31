@@ -19,6 +19,11 @@ What each stack does in the simulated lab. Read from the built binaries and from
 | Offline harness go/no-go gate | **NO-GO** (needs `SLH_DSA_PURE_SHA2_128S`) | passes |
 | Used here for | the simulated lab | the offline harness |
 
+**There is no single end-to-end FIPS 205 result.** The offline harness runs the FIPS 205 build (`latest`); the simulated
+lab runs the pre-standard `draft06` build, because the `latest` lab's resolver answers SERVFAIL for plain SLH-DSA (finding
+1). Offline and lab numbers are therefore never drawn on one chart, and a FIPS 205 end-to-end run waits for a resolver
+that validates it (follow-up 4). We present this as a finding, not a footnote.
+
 Results (sizes, times, cache) are in each run's report; the frozen one is in [results/](results/README.md). Sizes in the
 draft's formulas are maxima; the benchmark measures the real values.
 
@@ -42,7 +47,7 @@ the `ldns-verify-zone` result. Finding 1 should first be checked against the Unb
 
 ## Follow-ups
 
-1. Run the full benchmark on a fixed machine and freeze it under [results/](results/README.md).
+1. Run the full benchmark on the reference machine and freeze it under [results/](results/README.md).
 2. File findings 1 and 2 with the Verisign repositories; raise finding 3 with the draft authors if they agree it is
    worth specifying.
 3. Measure ML-DSA-MTL (draft-kaizer-dnsop-ml-dsa-mtl-dnssec), which the newest drafts centre on, and the always-full

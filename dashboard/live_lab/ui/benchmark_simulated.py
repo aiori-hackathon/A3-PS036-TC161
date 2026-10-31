@@ -1,4 +1,4 @@
-"""Benchmark tile, Simulated mode: the zone-size suite on the Verisign stack (plan, progress, settings, results)."""
+"""Simulated lab, Benchmark step: the zone-size suite on the Verisign stack (plan, progress, settings, results)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from live_lab import compare, driver, image_job, offline_job
+from live_lab import compare, driver, image_job, minimal, offline_job
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
 from live_lab.ui.common import (
@@ -308,7 +308,8 @@ RESULT_COLUMNS = {
 def benchmark_results(h: driver.LabHandle) -> None:
     suites = [s for s in suite_mod.list_suites() if s["complete"]]
     if not suites:
-        st.info("No finished benchmark yet. Choose the options in the sidebar and press **Run benchmark**.")
+        st.info("No finished benchmark on this node yet." if minimal.enabled() else
+                "No finished benchmark yet. Choose the options in the sidebar and press **Run benchmark**.")
         return
     by = {s["id"]: s for s in suites}
     if st.session_state.get("bench_suite_pick") not in by:

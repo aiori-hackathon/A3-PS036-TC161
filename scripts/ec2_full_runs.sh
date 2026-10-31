@@ -24,6 +24,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# The suite's report needs pandas and matplotlib, which live in the repository's virtualenv (deploy/aws/bootstrap.sh
+# creates it); the system python3 does not have them, and the report step then fails after a finished run.
+if [ -x "$ROOT/.venv/bin/python" ]; then PY="$ROOT/.venv/bin/python"; else PY=python3; fi
+
 # ── identity ──────────────────────────────────────────────────────────────
 OFFLINE_NAME="ec2-ps036-offline-full10"
 SIM_BASE="ec2-ps036-sim-50-500-5000"
@@ -81,16 +85,16 @@ run_offline() {
 # ── simulated lab helpers ──────────────────────────────────────────────────
 ensure_sim_images() {
   need_cmd docker
-  need_cmd python3
+  need_cmd "$PY"
   log "Building simulated lab images (stack=${SIM_STACK}) if needed…"
-  python3 scripts/images.py build --stack "$SIM_STACK" --mode simulated \
+  "$PY" scripts/images.py build --stack "$SIM_STACK" --mode simulated \
     2>&1 | tee "${LOG_DIR}/sim-images-build.log"
 }
 
 suite_cmd() {
   # PYTHONPATH so `live_lab` imports from dashboard/
   PYTHONPATH="${ROOT}/dashboard${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 "${ROOT}/dashboard/live_lab/suite.py" "$@"
+    "$PY" "${ROOT}/dashboard/live_lab/suite.py" "$@"
 }
 
 latest_suite_by_label() {

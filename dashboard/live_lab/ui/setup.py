@@ -1,4 +1,4 @@
-"""Setup tile: put the pinned images on this node, then prove they match the stack profile.
+"""Node images page (opened from Home's "Manage images"): put the pinned images on this node, then prove they match the stack profile.
 
 Two independent image sets, each with its own card, version, status and button:
 
@@ -6,8 +6,8 @@ Two independent image sets, each with its own card, version, status and button:
     Simulated lab       cipherops-eco-{nsd,unbound,tools}:<stack>   (the stack chosen in the sidebar)
 
 Either set is built here from docker/Dockerfile or pulled from a registry. Afterwards it is checked against the stack
-profile (ecosystem/stacks/<stack>.env); Benchmark and Lab only use images that pass. Signing zones and starting a lab are
-the Lab tile; measuring is the Benchmark tile."""
+profile (ecosystem/stacks/<stack>.env); the two tracks only use images that pass. Signing zones and starting a lab are
+Simulated lab → Prepare; measuring is Offline benchmark → Run and Simulated lab → Benchmark."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-from live_lab import driver, image_job, images
+from live_lab import driver, image_job, images, minimal
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
@@ -114,6 +114,14 @@ def prerequisite(h: driver.LabHandle, track: str) -> bool:
     While a build or pull runs, its progress replaces the panel. Returns whether the track can run.
     """
     mode = "offline" if track == "offline" else "simulated"
+    if minimal.enabled():  # read-only: what this node has, no version choice and no build or pull
+        stack = images.OFFLINE_STACK if track == "offline" else h.stack
+        rows = images.status(stack, mode)
+        ok = images.ready(rows)
+        with st.container(border=True):
+            st.markdown(("✅ **Node ready** · " if ok else "⛔ **Not available on this node** · ")
+                        + " · ".join(f"`{s.ref}`" for s in rows))
+        return ok
     if image_job.is_running():
         with st.container(border=True):
             _job_body()

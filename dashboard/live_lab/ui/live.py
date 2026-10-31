@@ -1,4 +1,4 @@
-"""Live tile: query, dig and cold/warm cache panels, and the packet views."""
+"""Simulated lab, Query step: query, dig and cold/warm cache panels, and the packet views."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from live_lab import decode, driver
+from live_lab import decode, driver, minimal
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import _activity_expander
@@ -41,6 +41,17 @@ def sidebar_live(h: driver.LabHandle, stt: dict) -> None:
     except Exception:  # noqa: BLE001
         scenarios = []
     active = r["active"]
+    if minimal.enabled():
+        st.sidebar.markdown(f"Active algorithm: **{active or 'none'}**")
+        _hint(SCENARIO_BLURB.get(active, "") + " Switching algorithms restarts the shared servers, so it is "
+              "turned off in minimal mode.")
+        st.sidebar.markdown(_step_label(2, "Query", "done" if st.session_state.get("last_query") else "none"))
+        _hint("Send a lookup from the Query tab or the dig terminal; Results shows the team's saved queries and "
+              "packet captures.")
+        st.sidebar.markdown("---")
+        if st.sidebar.button("Refresh", width="stretch", key="sb_refresh_live"):
+            st.rerun()
+        return
     if scenarios:
         default = active if active in scenarios else scenarios[0]
         scenario = sb(st.sidebar.selectbox, "live_scenario", default, "Active algorithm", options=scenarios,
@@ -205,12 +216,18 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
     c1, c2, c3 = st.columns(3)
     dnssec = c1.checkbox("DO (DNSSEC RRs)", value=True)
     mtl_full = c2.checkbox("MTL-FULL", value=False)
-    capture = c3.checkbox("Capture", value=True)
+    capture = c3.checkbox("Capture", value=not minimal.enabled(), disabled=minimal.enabled(),
+                          help="Turned off in minimal mode: captures run inside the shared lab. Saved captures are "
+                               "under Results." if minimal.enabled() else None)
     if capture:
         sniffer = "unbound (full chain)" if recurse else "client (direct to auth — no Unbound hops)"
         st.caption(f"Recording packets on **{sniffer}**")
 
-    if st.button("Run query", type="primary"):
+    run_query = st.button("Run query", type="primary")
+    wait = minimal.cooldown(st.session_state) if run_query else 0.0
+    if wait:
+        st.warning(f"One lookup every {minimal.COOLDOWN_S:.0f} seconds in minimal mode. Try again in {wait:.0f} s.")
+    if run_query and not wait:
         pcap_path = None
         activity("step", f"Query {qname} {qtype}", path, phase="probe", source="probe", h=h)
         t_start = time.perf_counter()
@@ -229,6 +246,7 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
                 box.update(label=text)
 
         try:
+            driver.check_probe_args(qname, qtype, server)  # before the capture starts, so a bad lookup leaves nothing behind
             if recurse:
                 try:
                     step("1 · Reading the resolver's counters before the lookup")
@@ -293,7 +311,7 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
             box.update(label="Query failed", state="error", expanded=True)
             st.error(str(e)[:800])
             activity("err", "Query failed", str(e)[:2000], phase="probe", source="probe", h=h)
-            if capture:
+            if capture and (h.capture_dir / ".current").exists():  # a capture was actually started
                 try:
                     driver.stop_capture(h)
                 except Exception:  # noqa: BLE001
@@ -319,7 +337,9 @@ def query_panel(h: driver.LabHandle, stt: dict) -> None:
 
 
 def dig_panel(h: driver.LabHandle, stt: dict) -> None:
-    st.caption("Run dig from the client container. Without an @server it asks Unbound (10.53.0.53).")
+    st.caption("Run dig from the client container. Without an @server it asks Unbound (10.53.0.53)."
+               + (f" Restricted terminal: dig only, lab servers ({minimal.LAB_NETWORK}) only, one command every "
+                  f"{minimal.COOLDOWN_S:.0f} s." if minimal.enabled() else ""))
     if not _gate(stt, "dig"):
         return
 
@@ -333,10 +353,14 @@ def dig_panel(h: driver.LabHandle, stt: dict) -> None:
     with st.form("dig_form", border=False):
         line = st.text_input("$", key="dig_cmd")
         c1, c2 = st.columns([1, 3])
-        capture = c2.checkbox("Capture packets (shows up in Results)", value=True, key="dig_capture")
+        capture = c2.checkbox("Capture packets (shows up in Results)", value=not minimal.enabled(), key="dig_capture",
+                              disabled=minimal.enabled())
         run = c1.form_submit_button("Run dig", type="primary")
 
-    if run:
+    wait = minimal.cooldown(st.session_state) if run else 0.0
+    if wait:
+        st.warning(f"One command every {minimal.COOLDOWN_S:.0f} seconds in minimal mode. Try again in {wait:.0f} s.")
+    if run and not wait:
         pcap_path = None
         try:
             argv = driver.dig_argv(line)
@@ -646,12 +670,15 @@ def live_results(h: driver.LabHandle) -> None:
 
 def live_body(h: driver.LabHandle, stt: dict) -> None:
     """Step 3 of the simulated lab: query the running lab and inspect the packets."""
-    query, dig_tab, cache, results = st.tabs(["Query", "dig terminal", "Cold vs warm cache", "Results"])
+    if minimal.enabled():  # Cold vs warm flushes the shared resolver, so it is left out
+        query, dig_tab, results = st.tabs(["Query", "dig terminal", "Results"])
+    else:
+        query, dig_tab, cache, results = st.tabs(["Query", "dig terminal", "Cold vs warm cache", "Results"])
+        with cache:
+            cache_panel(h, stt)
     with query:
         query_panel(h, stt)
     with dig_tab:
         dig_panel(h, stt)
-    with cache:
-        cache_panel(h, stt)
     with results:
         live_results(h)

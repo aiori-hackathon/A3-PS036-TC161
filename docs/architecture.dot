@@ -1,0 +1,71 @@
+// Source of docs/architecture.png. Rebuild: dot -Tpng -Gdpi=150 docs/architecture.dot -o docs/architecture.png
+digraph cipherops {
+  graph [rankdir=TB, fontname="Carlito", fontsize=15, nodesep=0.3, ranksep=0.45, compound=true, pad=0.25, splines=spline,
+         labelloc=t, label="CipherOps: two measurement tracks, one stack profile, three unmodified crypto libraries"];
+  node  [shape=box, style="filled", fillcolor="#eef0ff", color="#1a1ad6", fontname="Carlito", fontsize=11, margin="0.12,0.06"];
+  edge  [fontname="Carlito", fontsize=10, color="#1a1ad6", arrowsize=0.7];
+
+  operator [label=<<b>Operator</b><br/><font point-size="9" color="#555555">browser · or CLI scripts</font>>, fillcolor=white, penwidth=2];
+
+  subgraph cluster_dash {
+    label=<«component» <b>Streamlit dashboard</b>  <font color="#555555">dashboard/live_lab/app.py</font>>;
+    style="rounded,dashed"; color="#1a1ad6"; fontsize=11;
+    home [label=<<b>Home</b><br/><font point-size="9" color="#555555">"This node" strip + Manage images</font>>];
+    track_a [label=<<b>Offline benchmark</b><br/><font point-size="9" color="#555555">① Run → ② Results</font>>];
+    track_b [label=<<b>Simulated lab</b><br/><font point-size="9" color="#555555">① Prepare → ② Query → ③ Benchmark</font>>];
+    other [label=<<b>Compare</b> · Learn · Reset<br/><font point-size="9" color="#555555">Compare reads A and B, never mixes them</font>>];
+  }
+
+  subgraph cluster_images {
+    label=<«images» <b>Pinned images</b>  <font color="#555555">verified against the stack profile</font>>;
+    style="rounded,dashed"; color="#555555"; fontsize=11;
+    registry [label=<<b>Team registry</b><br/>ghcr.io/hackchamp25<br/><font point-size="9" color="#555555">pull (default) or build from docker/Dockerfile</font>>, fillcolor=white, color="#555555"];
+    img_a [label=<<b>cipherops-bench:latest</b><br/><font point-size="9" color="#555555">Fedora 42 · FIPS 205 SLH-DSA</font>>];
+    img_b [label=<<b>cipherops-eco-{nsd,unbound,tools}:&lt;stack&gt;</b><br/><font point-size="9" color="#555555">draft06 by default; latest also builds</font>>];
+  }
+
+  profile [label=<«artifact» <b>ecosystem/stacks/&lt;profile&gt;.env</b><br/><font point-size="9" color="#555555">OpenSSL · liboqs · MTL pins · latest | draft06</font>>, fillcolor=white, color="#555555"];
+  cfg [label=<«artifact» <b>configs/*.yaml</b><br/><font point-size="9" color="#555555">seed · trials · modes · sizes</font>>, fillcolor=white, color="#555555"];
+
+  subgraph cluster_a {
+    label=<«node» <b>Track A · Offline benchmark</b>  <font color="#555555">cipherops-bench · one pinned core · no network</font>>;
+    style="rounded,dashed"; color="#1a1ad6"; fontsize=11;
+    runner [label=<<b>runner.py</b><br/><font point-size="9" color="#d5d8ff">python -m cipherops.runner run</font>>, fillcolor="#1a1ad6", fontcolor=white];
+    stages [label=<<font point-size="10">1 Config &amp; environment → 2 Go / No-Go gate → 3 Zones &amp; signing inputs →<br/>4 Sign / verify trials → 5 DNS answers, bytes &amp; cache → 6 Statistics → 7 Report</font>>];
+    libs [label=<«library» <b>Verisign MTL · liboqs · OpenSSL</b><br/><font point-size="9" color="#555555">unmodified, pinned by the profile</font>>, fillcolor="#f7f7f7", color="#555555"];
+  }
+
+  subgraph cluster_b {
+    label=<«node» <b>Track B · Simulated lab</b>  <font color="#555555">ecosystem/ · internal Docker network, no Internet · not core-pinned</font>>;
+    style="rounded,dashed"; color="#1a1ad6"; fontsize=11;
+    suite [label=<<b>suite.py</b><br/><font point-size="9" color="#d5d8ff">zone sizes × algorithms × cold/warm trials</font>>, fillcolor="#1a1ad6", fontcolor=white];
+    signer [label=<<b>ldns signer</b><br/><font point-size="9" color="#555555">leaf → TLD → root</font>>];
+    nsd [label=<<b>NSD × 3</b><br/><font point-size="9" color="#555555">root · TLD · leaf</font>>];
+    unbound [label=<<b>Unbound</b><br/><font point-size="9" color="#555555">validating resolver</font>>];
+    client [label=<<b>eco-client</b><br/><font point-size="9" color="#555555">queries · tcpdump</font>>];
+  }
+
+  res_a [label=<«artifact» <b>results/runs/&lt;run_id&gt;/</b><br/><font point-size="9" color="#555555">report.html · summary.json · CSV tables · environment.json</font>>, fillcolor=white, color="#555555"];
+  res_b [label=<«artifact» <b>ecosystem/results/suites/&lt;id&gt;/</b><br/><font point-size="9" color="#555555">suite.json · report · captures · Unbound counters</font>>, fillcolor=white, color="#555555"];
+
+  home -> track_a; home -> track_b; home -> other;
+  registry -> img_a [label="pull / build", color="#555555", style=dashed];
+  registry -> img_b [color="#555555", style=dashed];
+  profile -> img_a [style=dashed, color="#555555", label="pins"]; profile -> img_b [style=dashed, color="#555555"];
+  cfg -> runner [style=dashed, color="#555555"];
+  home -> registry [label="Manage images", style=dashed, color="#555555"];
+  operator -> home [weight=10];
+
+  track_a -> runner [label="starts"];
+  img_a -> runner [style=dashed, color="#555555", label="runs in"];
+  runner -> stages; stages -> libs [style=dashed, color="#555555", label="uses"];
+  stages -> res_a;
+
+  track_b -> suite [label="starts"];
+  img_b -> suite [style=dashed, color="#555555", label="runs in"];
+  suite -> signer [label="signs"]; signer -> nsd [label="serves"]; nsd -> unbound [dir=back, label="resolves"]; unbound -> client [dir=back, label="asks"];
+  client -> res_b;
+
+  res_a -> other [style=dashed, color="#555555", label="reads", constraint=false];
+  res_b -> other [style=dashed, color="#555555", label="reads", constraint=false];
+}

@@ -1,0 +1,4 @@
+dataset,n_names,rrsets,signing_input_bytes,nsec3,small,medium,large,apex
+small,50,105,20045,51,35,10,5,4
+medium,500,1005,207016,501,303,147,50,4
+large,5000,10005,1935003,5001,3042,1504,454,4

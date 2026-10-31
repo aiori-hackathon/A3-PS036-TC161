@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
+import os
 import re
 import shlex
 import time
@@ -13,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from live_lab import images
+from live_lab import minimal as _minimal
 from live_lab.driver import (
     DASHBOARD_CONFIG, DEFAULT_CONFIG, DEFAULT_STACK, ECO, REPO, UNBOUND_IP, _run,
     require_no_build, require_no_offline, require_no_suite, require_not_signing,
@@ -175,6 +178,7 @@ def write_ui_config(
     ``profiles`` override WORKLOAD_DEFAULTS / PROFILE_DEFAULTS. A ready-made ``shape`` (the benchmark's
     own dataset sizes) replaces the zone-size choice.
     """
+    _minimal.refuse('Writing the lab configuration')
     import yaml
 
     if shape is not None:
@@ -267,12 +271,14 @@ def prepare_command(h: LabHandle, jobs: int = 2, scenarios: list[str] | None = N
 
 
 def prepare(h: LabHandle, jobs: int = 2, scenarios: list[str] | None = None) -> str:
+    _minimal.refuse('Signing zones')
     cp = _run(prepare_command(h, jobs, scenarios), timeout=None)
     return cp.stdout + cp.stderr
 
 
 def sign_trials(h: LabHandle, scenarios: list[str], trials: int, names: list[int], out_container_path: str) -> str:
     """Repeat sign + verify of sample leaf zones in the tools image; CSV goes to ``out_container_path``."""
+    _minimal.refuse('Signing trials')
     require_no_suite()
     img = f"cipherops-eco-tools:{h.stack}"
     cp = _run([
@@ -296,6 +302,7 @@ def run_benchmark(
     run_label: str = "",
 ) -> str:
     """Full ecolab run inside the client (lab must be up). Can take a long time."""
+    _minimal.refuse('Running a benchmark')
     flags = [f"--stamp {time.strftime('%Y%m%d-%H%M%S')}"]
     label = sanitize_label(run_label)
     if label:
@@ -326,6 +333,7 @@ def stop_other_labs(h: LabHandle) -> list[str]:
     containers are already stopped — otherwise the old bridge network and name reservations
     block starting another stack (e.g. draft06 leftovers vs latest).
     """
+    _minimal.refuse('Stopping labs')
     stopped: list[str] = []
     work_root = ECO / "work"
     if not work_root.is_dir():
@@ -367,7 +375,21 @@ def _reclaim_fixed_lab_names() -> str:
     return extra
 
 
+RESTART_ENV = "CIPHEROPS_LAB_RESTART"   # set to "unless-stopped" on a node that should bring its lab back after a reboot
+RESTART_POLICIES = ("unless-stopped", "always")
+
+
+def _set_restart_policy(h: LabHandle, policy: str) -> str:
+    """Ask Docker to restart this lab's containers after a daemon restart or reboot (a Stop still stops them)."""
+    ids = _run(compose_cmd(h, "ps", "-q"), check=False, timeout=30).stdout.split()
+    if not ids:
+        return ""
+    _run(["docker", "update", "--restart", policy, *ids], check=False, timeout=60)
+    return f"Restart policy {policy} set on {len(ids)} lab containers\n"
+
+
 def up(h: LabHandle) -> str:
+    _minimal.refuse('Starting the lab')
     require_no_suite()
     require_no_offline()
     require_no_build(h.stack)
@@ -378,6 +400,9 @@ def up(h: LabHandle) -> str:
     reclaim = _reclaim_fixed_lab_names()
     cp = _run(compose_cmd(h, "up", "-d"), timeout=180)
     note = ""
+    policy = os.environ.get(RESTART_ENV, "")
+    if policy in RESTART_POLICIES:
+        note += _set_restart_policy(h, policy)
     if stopped:
         note += f"Stopped other lab(s) first: {', '.join(stopped)}\n"
     if reclaim.strip():
@@ -386,6 +411,7 @@ def up(h: LabHandle) -> str:
 
 
 def down(h: LabHandle, *, force: bool = False) -> str:
+    _minimal.refuse('Stopping the lab')
     require_no_suite(force=force)
     cp = _run(compose_cmd(h, "down"), timeout=120, check=False)
     return cp.stdout + cp.stderr
@@ -398,32 +424,60 @@ def client_exec(h: LabHandle, inner: str, timeout: int | None = 120) -> str:
 
 
 def activate(h: LabHandle, scenario: str, udp: int = 1232) -> str:
+    _minimal.refuse('Switching the active algorithm')
     require_not_signing(h)
     return client_exec(h, f"python3 -m ecolab activate {h.config} --scenario {scenario} --udp {udp}", timeout=180)
 
 
 def flush(h: LabHandle) -> str:
+    _minimal.refuse('Flushing the resolver cache')
     return client_exec(h, "python3 -m ecolab flush", timeout=60)
 
 
 def probe(h: LabHandle, qname: str, qtype: str = "A", *, server: str = "10.53.0.53",
           mtl_full: bool = False, dnssec: bool = True, recurse: bool = True,
           udp: int = 1232) -> dict:
-    flags = [f"--server {server}", f"--udp {udp}"]
+    qname, qtype, server = _probe_args(qname, qtype, server)
+    flags = [f"--server {shlex.quote(server)}", f"--udp {int(udp)}"]
     if not dnssec:
         flags.append("--no-dnssec")
     if not recurse:
         flags.append("--norecurse --no-ad")
     if mtl_full:
         flags.append("--mtl-full")
-    out = client_exec(
-        h, f"python3 -m ecolab probe {qname} {qtype} {' '.join(flags)}", timeout=30
-    ).strip()
+    with _minimal.lookup_slot():
+        out = client_exec(
+            h, f"python3 -m ecolab probe {shlex.quote(qname)} {shlex.quote(qtype)} {' '.join(flags)}", timeout=30
+        ).strip()
     for line in reversed(out.splitlines()):
         line = line.strip()
         if line.startswith("{"):
             return json.loads(line)
     raise RuntimeError(f"no JSON from probe:\n{out[-2000:]}")
+
+
+# What a lookup may contain. These reach a shell inside the client container (which can drive Docker), so they are
+# validated here and quoted where they are used, whatever the UI already checked.
+_QNAME_RE = re.compile(r"^(\.|[A-Za-z0-9_*][A-Za-z0-9_.*-]{0,252})$")
+_QTYPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,15}$")
+
+
+def check_probe_args(qname: str, qtype: str, server: str) -> tuple[str, str, str]:
+    """Validate and normalise a lookup before anything is started for it (a capture, say)."""
+    return _probe_args(qname, qtype, server)
+
+
+def _probe_args(qname: str, qtype: str, server: str) -> tuple[str, str, str]:
+    qname, qtype, server = (qname or "").strip(), (qtype or "").strip().upper(), (server or "").strip()
+    if not _QNAME_RE.match(qname):
+        raise ValueError("QNAME must be a DNS name: letters, digits, '-', '_', '*' and dots (or '.' for the root).")
+    if not _QTYPE_RE.match(qtype):
+        raise ValueError("QTYPE must be a record type such as A, AAAA, DNSKEY or TYPE65.")
+    try:
+        server = str(ipaddress.ip_address(server))
+    except ValueError:
+        raise ValueError(f"Server must be an IP address, not {server!r}.") from None
+    return qname, qtype, _minimal.check_lab_server(server)
 
 
 DIG_PLAIN_FLAGS = frozenset({"-4", "-6", "-x"})
@@ -462,7 +516,13 @@ def dig(h: LabHandle, line: str, timeout: int = 30) -> dict:
     """Run dig inside the client container (no shell); returns the command, exit code and output."""
     argv = dig_argv(line)
     require_no_suite()
-    cp = _run(compose_cmd(h, "exec", "-T", "client", "dig", *argv), timeout=timeout, check=False)
+    if _minimal.enabled():
+        for p in argv:
+            if p.startswith("@"):
+                _minimal.check_lab_server(p[1:])
+        timeout = min(timeout, _minimal.DIG_TIMEOUT_S)
+    with _minimal.lookup_slot():
+        cp = _run(compose_cmd(h, "exec", "-T", "client", "dig", *argv), timeout=timeout, check=False)
     out = (cp.stdout + cp.stderr).rstrip()
     if cp.returncode in (126, 127) and "executable file not found" in out:
         out = ("dig is not installed in the client image. Rebuild the tools image "
@@ -495,6 +555,7 @@ def capture_target(server: str) -> tuple[str, str]:
 
 def start_capture(h: LabHandle, name: str | None = None, *, server: str = "10.53.0.53",
                   label: str = "") -> Path:
+    _minimal.refuse('Packet capture')
     if not name:
         tag = sanitize_label(label)
         name = time.strftime(f"live-{tag}-%Y%m%d-%H%M%S.pcap" if tag else "live-%Y%m%d-%H%M%S.pcap")
@@ -514,6 +575,7 @@ def start_capture(h: LabHandle, name: str | None = None, *, server: str = "10.53
 
 
 def stop_capture(h: LabHandle) -> tuple[Path | None, int]:
+    _minimal.refuse('Packet capture')
     cur = h.capture_dir / ".current"
     host = "unbound"
     path: Path | None = None
