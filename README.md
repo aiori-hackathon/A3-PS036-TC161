@@ -30,9 +30,10 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 | | |
 | :--- | :--- |
 | **Solution proposed** | [Revised, 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
-| **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8) |
+| **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8) [Hackathon Deliverables](https://youtu.be/Vj-sbfWenNY) |
 | **Try it now (read-only)** | **[eval.cipherops.stream](https://eval.cipherops.stream)**: the saved benchmark results, Compare, Learn, and DNS lookups against the live lab. Nothing there can change the lab ([how it works](deploy/aws/MINIMAL.md)). Reachable while the team's AWS node is running. |
 | **Submission** | [Deliverables](DELIVERABLES.md) · [readout](hackathon/readout.md) · [findings](hackathon/feedback.md) · [frozen results](hackathon/results/README.md) |
+| **Knowledge Article** | [PQC Algorithms - quick overview](https://youtu.be/JHi0ZwhpMB4) |
 
 Numbers live in each run's `report.html` (frozen runs are in [hackathon/results](hackathon/results/README.md)), not in
 the documentation, so they cannot go stale.
