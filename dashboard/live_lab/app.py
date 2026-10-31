@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "dashboard"))
 
 from live_lab import compare, compare_hub, decode, driver  # noqa: E402
-from live_lab import artifacts, lab, shapes  # noqa: E402
+from live_lab import artifacts, lab, minimal, shapes  # noqa: E402
 from live_lab import glossary as gl, image_job, images, jobs, offline_job, prepare_job, prepare_story  # noqa: E402
 from live_lab import suite as suite_mod  # noqa: E402
 
@@ -217,8 +217,29 @@ PAGES = {
 }
 
 
+def _minimal_gate() -> bool:
+    """In minimal mode with CIPHEROPS_MINIMAL_PASSWORD set, ask for it once per browser session."""
+    secret = minimal.password()
+    if not minimal.enabled() or not secret or st.session_state.get("minimal_ok"):
+        return True
+    import hmac
+    st.markdown("## 🛰️ Cipherops · MTL DNSSEC Lab")
+    st.info(minimal.NOTICE)
+    with st.form("minimal_login"):
+        typed = st.text_input("Access code", type="password", help="Shared with the evaluators by the team.")
+        if st.form_submit_button("Enter", type="primary"):
+            if hmac.compare_digest(typed.encode(), secret.encode()):
+                st.session_state.minimal_ok = True
+                st.rerun()
+            st.error("That code is not right.")
+    st.caption(minimal.FULL_EXPERIENCE)
+    return False
+
+
 def main() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
+    if not _minimal_gate():
+        return
     _chrome_bar()  # About + full screen, top-right; no layout cost on the sidebar or page body
     symbol, _full = common._brand()
     if symbol is not None:
@@ -227,6 +248,11 @@ def main() -> None:
     common._bootstrap_cfg_from_disk()
     h = common._handle()
     mode = st.session_state.nav
+    if not minimal.mode_allowed(mode):  # checked on every run, not only when the page is opened
+        common._go("home")
+        mode = st.session_state.nav
+    if minimal.enabled():
+        st.info(minimal.NOTICE + "  \n" + minimal.FULL_EXPERIENCE)
 
     err = common._apply_ui_config(h)
     tag_before = h.tag

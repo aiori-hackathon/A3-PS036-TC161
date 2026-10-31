@@ -22,6 +22,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from live_lab import minimal as _minimal
+
 ACTIVE_STATES = ("starting", "running")
 DASHBOARD_DIR = Path(__file__).resolve().parents[1]
 
@@ -53,6 +55,8 @@ def write_status(directory: Path, st: dict) -> None:
 
 def mark_handled(directory: Path) -> None:
     """Record that a page has taken over the finished job, so later sessions don't do it again."""
+    if _minimal.enabled():  # a visitor must not take over the team's job notices
+        return
     st = read_json(directory / "status.json")
     if st:
         st["handled"] = True

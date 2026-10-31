@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from live_lab import compare_hub, driver, images, offline_job
+from live_lab import compare_hub, driver, images, minimal, offline_job
 from live_lab import suite as suite_mod
 from live_lab.ui.common import (
-    ROOT, TILES, TRACKS, _brand, _chip, _go, _sidebar_brand, readiness,
+    ROOT, TILES, _brand, _chip, _go, _sidebar_brand, readiness, track_steps,
 )
 
 APP_NAME = "Cipherops · MTL DNSSEC Lab"
@@ -52,7 +52,7 @@ def _tile_chip(mode: str, stt: dict) -> str:
 def _steps_line(track: str) -> str:
     """Numbered path as small badges, so the step order matches the buttons instead of circled digits."""
     bits = []
-    for i, (_key, label) in enumerate(TRACKS[track]["steps"], 1):
+    for i, (_key, label) in enumerate(track_steps(track), 1):
         name = label.split(" ", 1)[-1]
         bits.append(f'<span class="co-step"><span class="co-n">{i}</span>{name}</span>')
     joined = '<span class="co-arr">→</span>'.join(bits)
@@ -78,7 +78,8 @@ def _node_strip(h: driver.LabHandle, stt: dict) -> None:
             "</div>",
             unsafe_allow_html=True,
         )
-        manage.button("Manage images", on_click=_go, args=("setup",), key="home_node_images", width="stretch")
+        if not minimal.enabled():
+            manage.button("Manage images", on_click=_go, args=("setup",), key="home_node_images", width="stretch")
 
 
 def _track_card(mode: str, stt: dict) -> None:
@@ -122,6 +123,7 @@ def home_page(h: driver.LabHandle, stt: dict) -> None:
         _track_card("offline", stt)
     with right:
         _track_card("simulated", stt)
-    for col, mode in zip(st.columns(3), ("compare", "learn", "reset")):
+    tiles = [m for m in ("compare", "learn", "reset") if minimal.mode_allowed(m)]
+    for col, mode in zip(st.columns(3), tiles):
         with col:
             _tile_card(mode, stt)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from live_lab import driver
+from live_lab import driver, minimal
 from live_lab.ui import setup
 from live_lab.ui.activity import _activity_expander
 from live_lab.ui.benchmark_simulated import (
@@ -27,7 +27,13 @@ def sidebar_simulated(h: driver.LabHandle, stt: dict) -> None:
         sidebar_live(h, stt)
     else:
         _sidebar_brand("simulated")
-        _sidebar_bench_simulated(h, stt)
+        if minimal.enabled():
+            st.sidebar.markdown("### Benchmark")
+            st.sidebar.caption("Saved benchmarks of this node, read-only. Running a new one needs your own deployment.")
+            if st.sidebar.button("Refresh", width="stretch", key="sb_refresh_bench_minimal"):
+                st.rerun()
+        else:
+            _sidebar_bench_simulated(h, stt)
 
 
 def page_simulated(h: driver.LabHandle, stt: dict) -> None:
@@ -38,6 +44,8 @@ def page_simulated(h: driver.LabHandle, stt: dict) -> None:
         lab_body(h, stt)
     elif step == "query":
         live_body(h, stt)
+    elif minimal.enabled():
+        benchmark_results(h)
     else:
         run_tab, results = st.tabs(["Run", "Results"])
         with run_tab:

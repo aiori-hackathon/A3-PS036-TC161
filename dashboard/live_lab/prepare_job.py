@@ -23,6 +23,7 @@ import sys
 import time
 from pathlib import Path
 
+from live_lab import minimal as _minimal
 from live_lab import driver
 from live_lab import jobs as jb
 
@@ -82,6 +83,7 @@ def mark_handled(h: driver.LabHandle) -> None:
 
 def start(h: driver.LabHandle, *, jobs: int, scenarios: list[str]) -> None:
     """Launch Prepare as a detached worker. Returns at once."""
+    _minimal.refuse('Signing zones')
     if is_running(h):
         raise RuntimeError("Signing is already running for this lab.")
     driver.require_no_suite()
@@ -105,6 +107,7 @@ def start(h: driver.LabHandle, *, jobs: int, scenarios: list[str]) -> None:
 
 def cancel(h: driver.LabHandle) -> None:
     """Stop the worker and the signing container."""
+    _minimal.refuse('Cancelling signing')
     st = jb.read_json(job_dir(h) / "status.json")
     jb.stop_worker(st.get("pid"), alive=driver.pid_alive)
     subprocess.run(["docker", "rm", "-f", driver.prepare_container_name(h)], capture_output=True,

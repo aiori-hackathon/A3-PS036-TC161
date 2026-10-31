@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+from live_lab import minimal as _minimal
 from live_lab import driver, images
 from live_lab import jobs as jb
 
@@ -166,6 +167,7 @@ def run_ids() -> set[str]:
 
 def start(preset: str, *, trials: int | None = None, stack: str = OFFLINE_STACK) -> None:
     """Launch the harness as a detached worker. Returns at once."""
+    _minimal.refuse('Starting an offline benchmark')
     if preset not in PRESETS:
         raise RuntimeError(f"unknown preset {preset!r}")
     if is_running():
@@ -196,6 +198,7 @@ def _remove_container() -> None:
 
 def cancel() -> None:
     """Stop the worker and the container it started."""
+    _minimal.refuse('Cancelling an offline benchmark')
     st = jb.read_json(job_dir() / "status.json")
     jb.stop_worker(st.get("pid"), wait_s=10, alive=driver.pid_alive)
     _remove_container()

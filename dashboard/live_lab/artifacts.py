@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from live_lab import minimal as _minimal
 from live_lab.driver import ECO, _run, jobs_dir, list_stacks, require_no_suite, require_not_signing
 from live_lab.lab import LabHandle, compose_cmd
 from live_lab.shapes import ZONE_SIZE_PRESETS
@@ -20,6 +21,7 @@ def remove_tree(path: Path, stack: str = "draft06") -> bool:
     A plain delete fails silently on those, so the folder would look removed while its contents stayed.
     Falls back to ``rm`` inside the tools image, which runs as root. Returns True if the folder is gone.
     """
+    _minimal.refuse('Deleting lab files')
     import shutil
 
     path = Path(path)
@@ -214,6 +216,8 @@ def load_session(h: LabHandle) -> dict:
 
 
 def save_session(h: LabHandle, session: dict) -> Path:
+    if _minimal.enabled():  # a visitor's actions are not written to the team's files
+        return session_path(h)
     h.ensure_capture_dir()
     p = session_path(h)
     p.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
@@ -221,12 +225,16 @@ def save_session(h: LabHandle, session: dict) -> Path:
 
 
 def append_session_query(h: LabHandle, row: dict) -> None:
+    if _minimal.enabled():  # a visitor's actions are not written to the team's files
+        return
     sess = load_session(h)
     sess.setdefault("queries", []).append({**row, "ts": datetime.now(timezone.utc).isoformat()})
     save_session(h, sess)
 
 
 def append_activity_file(h: LabHandle, line: str) -> None:
+    if _minimal.enabled():  # a visitor's actions are not written to the team's files
+        return
     path = h.ensure_capture_dir() / "activity.log"
     with path.open("a", encoding="utf-8") as f:
         f.write(line.rstrip() + "\n")
@@ -270,6 +278,7 @@ def clear_demo_data(
     (the live-dashboard folder is handled by the other scopes).
     Does not remove Docker images.
     """
+    _minimal.refuse('Reset')
     if work or benchmarks or suites:
         require_no_suite()
     if work:
@@ -339,6 +348,7 @@ def suite_footprint() -> dict:
 
 def clear_suites() -> int:
     """Delete benchmark suites, their per-size runs and signed zones; returns the number of suites removed."""
+    _minimal.refuse('Deleting benchmarks')
     require_no_suite()
     for compose in (ECO / "work").glob("eco-bench-*/compose.yml"):
         _run(["docker", "compose", "-f", str(compose), "down"], check=False, timeout=120)
@@ -413,6 +423,8 @@ def load_ui_prefs() -> dict:
 
 
 def save_ui_prefs(prefs: dict) -> None:
+    if _minimal.enabled():  # a visitor's actions are not written to the team's files
+        return
     UI_PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
     cur = load_ui_prefs()
     cur.update({k: v for k, v in prefs.items() if v is not None})

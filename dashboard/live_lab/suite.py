@@ -29,6 +29,7 @@ from pathlib import Path
 if __package__ in (None, ""):          # `python dashboard/live_lab/suite.py ...` from any folder
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from live_lab import minimal as _minimal
 from live_lab import driver, jobs
 
 SUITES = driver.SUITES_DIR
@@ -160,6 +161,7 @@ def create(params: dict) -> tuple[str, Path]:
 
 def start(params: dict) -> str:
     """Write the parameters and launch the suite as a detached process. Returns the suite id."""
+    _minimal.refuse('Starting a benchmark')
     with _start_lock():
         driver.require_no_offline()
         live = running_suite()
@@ -187,6 +189,7 @@ def start(params: dict) -> str:
 
 def cancel(suite_id: str) -> str:
     """Stop the suite process and take down the lab it was running."""
+    _minimal.refuse('Cancelling a benchmark')
     st = _read(SUITES / suite_id / "status.json")
     jobs.stop_worker(st.get("pid"), wait_s=10, alive=_pid_alive)
     st = _read(SUITES / suite_id / "status.json") or st

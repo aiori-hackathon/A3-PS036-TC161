@@ -40,7 +40,8 @@ aws cloudformation describe-stacks --region ap-south-1 --stack-name cipherops \
 
 Run the command it prints and leave it running, then open <http://localhost:8501>. Both **Node ready** panels should
 be green already, so go straight to **Offline benchmark → ① Run**, or **Simulated lab → ① Prepare**. To let a teammate
-in with their own AWS login, give them [ACCESS.md](ACCESS.md).
+in with their own AWS login, give them [ACCESS.md](ACCESS.md). To let evaluators explore the running node without changing it, see
+[MINIMAL.md](MINIMAL.md): one command gives them a public HTTPS link to a minimal-mode dashboard.
 
 **4. Get your results out, then delete the stack**
 

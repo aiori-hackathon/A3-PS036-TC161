@@ -16,7 +16,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-from live_lab import driver, image_job, images
+from live_lab import driver, image_job, images, minimal
 from live_lab import suite as suite_mod
 from live_lab.ui.activity import activity_tab
 from live_lab.ui.common import (
@@ -114,6 +114,14 @@ def prerequisite(h: driver.LabHandle, track: str) -> bool:
     While a build or pull runs, its progress replaces the panel. Returns whether the track can run.
     """
     mode = "offline" if track == "offline" else "simulated"
+    if minimal.enabled():  # read-only: what this node has, no version choice and no build or pull
+        stack = images.OFFLINE_STACK if track == "offline" else h.stack
+        rows = images.status(stack, mode)
+        ok = images.ready(rows)
+        with st.container(border=True):
+            st.markdown(("✅ **Node ready** · " if ok else "⛔ **Not available on this node** · ")
+                        + " · ".join(f"`{s.ref}`" for s in rows))
+        return ok
     if image_job.is_running():
         with st.container(border=True):
             _job_body()

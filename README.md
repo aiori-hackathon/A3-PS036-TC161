@@ -31,6 +31,7 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 | :--- | :--- |
 | **Solution proposed** | [Revised, 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
 | **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8) |
+| **Explore a running node** | [Minimal mode](deploy/aws/MINIMAL.md): saved results, Compare, Learn and live DNS lookups, with every lab-changing action turned off |
 | **Submission** | [Deliverables and open items](DELIVERABLES.md) · [readout](hackathon/readout.md) · [findings](hackathon/feedback.md) · [frozen results](hackathon/results/README.md) |
 
 Numbers live in each run's `report.html` (frozen runs are in [hackathon/results](hackathon/results/README.md)), not in
@@ -85,6 +86,9 @@ pip install -r requirements-dashboard.txt                 # Python 3.11+
 streamlit run dashboard/live_lab/app.py                   # the dashboard
 bash scripts/run_benchmark.sh configs/quick.yaml          # or a short offline run from the shell
 ```
+
+**Minimal mode** (`CIPHEROPS_MINIMAL=1`) is a read-mostly copy for evaluators on a shared node: results, Compare,
+Learn and lookups against the live lab, nothing that changes it. See [deploy/aws/MINIMAL.md](deploy/aws/MINIMAL.md).
 
 [Dashboard guide](dashboard/live_lab/README.md) · [Scope and limits](docs/scope-and-limits.md) · all documents:
 [docs/README.md](docs/README.md)

@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+from live_lab import minimal as _minimal
 from live_lab import driver, images
 from live_lab import jobs as jb
 
@@ -51,6 +52,7 @@ def mark_handled() -> None:
 
 def start(action: str, stack: str, *, mode: str = "all", registry: str | None = None) -> None:
     """Launch the job as a detached worker. Returns at once."""
+    _minimal.refuse('Building or pulling images')
     if action not in ACTIONS:
         raise RuntimeError(f"unknown action {action!r}")
     images.roles_for(mode, stack)
@@ -78,6 +80,7 @@ def start(action: str, stack: str, *, mode: str = "all", registry: str | None = 
 
 def cancel() -> None:
     """Stop the worker and the docker command it started."""
+    _minimal.refuse('Cancelling an image job')
     st = jb.read_json(job_dir() / "status.json")
     jb.stop_worker(st.get("pid"), wait_s=10, alive=driver.pid_alive)
     jb.mark_cancelled(job_dir(), st)

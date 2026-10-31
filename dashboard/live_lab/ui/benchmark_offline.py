@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from live_lab import compare_hub, driver, image_job, images, offline_job
+from live_lab import compare_hub, driver, image_job, images, offline_job, minimal
 from live_lab import glossary as gl
 from live_lab import suite as suite_mod
 from live_lab.ui.common import ROOT, _go, _store, activity, cfg, sb
@@ -171,7 +171,8 @@ def _offline_downloads(path: Path, rid: str, ds: str, table: pd.DataFrame | None
 def benchmark_offline_results() -> None:
     cat = compare_hub.offline_catalogue(ROOT / "results")
     if not cat:
-        st.info("No offline run yet. Press **Run offline benchmark** in the sidebar.")
+        st.info("No offline run on this node yet." if minimal.enabled() else
+                "No offline run yet. Press **Run offline benchmark** in the sidebar.")
         return
     by = {e["id"]: e for e in cat}
     rid = st.selectbox("Run", list(by), key="bench_offline_pick", format_func=lambda i: by[i]["title"])
