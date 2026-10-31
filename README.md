@@ -31,7 +31,7 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 | :--- | :--- |
 | **Solution proposed** | [Revised, 31 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-31.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
 | **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8) |
-| **Explore a running node** | [Minimal mode](https://products-fellow-ideas-physically.trycloudflare.com/): saved results, Compare, Learn and live DNS lookups, with every lab-changing action turned off |
+| **Explore a running node** | [Minimal mode](https://products-fellow-ideas-physically.trycloudflare.com/): saved results, Compare, Learn and live DNS lookups, with every lab-changing action turned off, for more details refer [here](deploy/aws/MINIMAL.md) |
 | **Submission** | [Deliverables and open items](DELIVERABLES.md) · [readout](hackathon/readout.md) · [findings](hackathon/feedback.md) · [frozen results](hackathon/results/README.md) |
 
 Numbers live in each run's `report.html` (frozen runs are in [hackathon/results](hackathon/results/README.md)), not in
