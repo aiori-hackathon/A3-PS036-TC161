@@ -90,6 +90,18 @@ bash scripts/run_benchmark.sh configs/quick.yaml          # or a short offline r
 **Minimal mode** (`CIPHEROPS_MINIMAL=1`) is a read-mostly copy for evaluators on a shared node: results, Compare,
 Learn and lookups against the live lab, nothing that changes it. See [deploy/aws/MINIMAL.md](deploy/aws/MINIMAL.md).
 
+```bash
+# Linux / macOS / Git Bash
+CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+```powershell
+# Windows PowerShell — use $env:… so the child process inherits it.
+# `$CIPHEROPS_MINIMAL=1` only sets a PowerShell variable; Streamlit never sees it and both ports look the same.
+$env:CIPHEROPS_MINIMAL = "1"
+python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
 [Dashboard guide](dashboard/live_lab/README.md) · [Scope and limits](docs/scope-and-limits.md) · all documents:
 [docs/README.md](docs/README.md)
 

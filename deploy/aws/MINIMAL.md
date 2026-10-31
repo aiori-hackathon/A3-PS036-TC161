@@ -27,6 +27,42 @@ calls them (`dashboard/live_lab/minimal.py`, tested in `tests/test_minimal.py`).
 written to the team's files: the lab config, saved preferences, query session, activity log and job notices stay as
 the team left them.
 
+## Run it locally (second dashboard)
+
+The same app as the full dashboard, with `CIPHEROPS_MINIMAL=1` in the **process environment**. Use another port so the
+team's full dashboard can stay on 8501. You know it worked when every page shows the **Minimal mode** notice and lab
+controls (build, sign, start/stop, Run benchmark, Reset) are refused.
+
+```bash
+# Linux / macOS / Git Bash
+CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+```powershell
+# Windows PowerShell
+# Must be $env:CIPHEROPS_MINIMAL — not $CIPHEROPS_MINIMAL.
+# `$CIPHEROPS_MINIMAL=1` is only a PowerShell variable; it is not exported to Streamlit, so port 8502 looks identical
+# to the full dashboard.
+$env:CIPHEROPS_MINIMAL = "1"
+python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+Optional access code (prompted once per browser session):
+
+```bash
+CIPHEROPS_MINIMAL=1 CIPHEROPS_MINIMAL_PASSWORD='choose-a-code' \
+  streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+```powershell
+$env:CIPHEROPS_MINIMAL = "1"
+$env:CIPHEROPS_MINIMAL_PASSWORD = "choose-a-code"
+python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+To go back to a full session in that same PowerShell window: `Remove-Item Env:CIPHEROPS_MINIMAL -ErrorAction SilentlyContinue`
+(and the same for `CIPHEROPS_MINIMAL_PASSWORD` if you set it).
+
 ## Run it on the node
 
 Open a shell on the node (Session Manager, see [ACCESS.md](ACCESS.md)), then:

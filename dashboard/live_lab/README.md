@@ -12,6 +12,19 @@ Needs Docker (except for **Learn** and for viewing saved results). On AWS or in 
 For a first visit use the **Small** zone size, and use the **`draft06`** image version for any MTL-versus-plain
 comparison: on `latest` the lab's Unbound answers SERVFAIL for plain SLH-DSA (the dashboard warns about it).
 
+**Minimal mode** (`CIPHEROPS_MINIMAL=1`) is a read-mostly second instance for evaluators: results, Compare, Learn, and
+lookups against a running lab; nothing that changes the lab. Full detail: [MINIMAL.md](../../deploy/aws/MINIMAL.md).
+
+```bash
+CIPHEROPS_MINIMAL=1 streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
+```powershell
+# Windows: set the process environment with $env:…  (`$CIPHEROPS_MINIMAL=1` is not inherited by Streamlit)
+$env:CIPHEROPS_MINIMAL = "1"
+python -m streamlit run dashboard/live_lab/app.py --server.address 127.0.0.1 --server.port 8502
+```
+
 ## Tracks and pages
 
 The home page shows this node's prerequisites and offers the two ways of benchmarking as tracks. A track is one page:
