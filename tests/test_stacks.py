@@ -31,19 +31,29 @@ def test_profile_is_complete_and_named_after_its_file(path):
     assert re.fullmatch(r"[0-9a-f]{40}", pins["MTL_COMMIT"])
 
 
-def test_offline_dockerfile_has_no_pins_of_its_own():
-    """A default here would let the offline image drift from the profile the lab is built from."""
+def test_dockerfile_has_no_pins_of_its_own():
+    """A default here would let an image drift from the profile every image is built from."""
     text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
-    for name in ("OPENSSL_TAG", "LIBOQS_TAG", "MTL_COMMIT"):
+    for name in ("OPENSSL_TAG", "LIBOQS_TAG", "MTL_COMMIT", "LDNS_COMMIT", "NSD_COMMIT", "UNBOUND_COMMIT"):
         assert re.search(rf"^ARG {name}\s*$", text, re.M), f"{name} must be declared without a default"
 
 
-def test_compose_takes_every_pin_from_the_profile():
-    text = (ROOT / "docker" / "compose.yml").read_text(encoding="utf-8")
-    for name in ("STACK", "OPENSSL_TAG", "LIBOQS_TAG", "MTL_COMMIT"):
+def test_build_file_takes_every_pin_from_the_profile():
+    text = (ROOT / "docker" / "build.yml").read_text(encoding="utf-8")
+    for name in REQUIRED:
         assert "${" + name in text
+    for role in ("bench", "nsd", "unbound", "tools"):
+        assert f"target: {role}" in text
+
+
+def test_compose_runs_the_prebuilt_bench_image_of_the_profile():
+    text = (ROOT / "docker" / "compose.yml").read_text(encoding="utf-8")
+    assert "${STACK" in text and "build:" not in text
     assert "bench:pinned" not in text
 
 
-def test_lab_build_uses_the_same_openssl_pin():
-    assert "OPENSSL_TAG: ${OPENSSL_TAG}" in (ROOT / "ecosystem" / "docker" / "build.yml").read_text(encoding="utf-8")
+def test_every_image_records_the_pins_it_was_built_from():
+    """Setup verifies images against the profile through these labels."""
+    text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
+    for key in ("openssl-tag", "liboqs-tag", "mtl-commit", "ldns-commit", "nsd-commit", "unbound-commit", "stack"):
+        assert f"io.cipherops.{key}=" in text

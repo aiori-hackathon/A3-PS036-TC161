@@ -31,7 +31,7 @@ function Need-Compose {
 
 switch ($Command) {
     "build" {
-        docker compose -f "$Eco/docker/build.yml" --env-file "$Eco/stacks/$Stack.env" build
+        docker compose -f "$Repo/docker/build.yml" --env-file "$Eco/stacks/$Stack.env" build nsd unbound tools
     }
     "prepare" {
         docker run --rm --network none -v "${Eco}:/eco:z" -v "${Repo}/src:/work/src:ro,z" "cipherops-eco-tools:$Stack" `

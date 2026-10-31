@@ -1,7 +1,8 @@
 """Run the offline harness (``scripts/run_benchmark.sh``) as a background job, so the dashboard stays usable.
 
-The harness builds one pinned image and times every library call on one dedicated core with no network. The job
-does the same steps as the script, in a detached worker that outlives the page:
+The harness times every library call on one dedicated core with no network, inside the pinned ``cipherops-bench``
+image. The job does the same steps as the script, in a detached worker that outlives the page. It does not build the
+image: Setup puts it on the node (built here or pulled) and ``start`` refuses to run without a verified one.
 
     ecosystem/jobs/_offline/
         params.json    preset, stack, trials
@@ -15,19 +16,19 @@ from __future__ import annotations
 import json
 import os
 import re
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-from live_lab import driver
+from live_lab import driver, images
+from live_lab import jobs as jb
 
-ACTIVE_STATES = driver.ACTIVE_STATES
+ACTIVE_STATES = jb.ACTIVE_STATES
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "results"
-# The harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh).
-OFFLINE_STACK = "latest"
+# The offline harness needs the stack whose liboqs has the FIPS 205 SLH-DSA names (see scripts/run_benchmark.sh).
+OFFLINE_STACK = images.OFFLINE_STACK
 CONTAINER = "cipherops-offline-run"
 PRESETS = {
     "quick": {"config": "configs/quick.yaml", "title": "Quick check", "note": "sizes 20, 60, 200 names · 3 trials"},
@@ -35,26 +36,15 @@ PRESETS = {
              "note": "sizes 50, 500, 5,000 names · repeated trials (long)"},
 }
 STEP_RE = re.compile(r"STEP\s+(\d+)/(\d+)\s+(.*)")
-BUILD_SEEN_RE = re.compile(r"#(\d+)\s+\[")
-BUILD_DONE_RE = re.compile(r"#(\d+)\s+DONE\b")
 # Written inside the container (results is a bind mount) so the page can see the stage
 # without waiting for Docker to flush the container's stdout.
 CONTAINER_PROGRESS = "/work/results/.cipherops-progress.json"
 PROGRESS_NAME = ".cipherops-progress.json"
-# Image build is the first slice of the bar; harness stages fill the rest, so the bar
-# never jumps backwards when the build ends and timing starts.
-BUILD_SHARE = 0.35
+HARNESS_STAGES = 7
 
 
 def job_dir() -> Path:
     return driver.jobs_dir() / "_offline"
-
-
-def _write_status(st: dict) -> None:
-    d = job_dir()
-    tmp = d / f"status.json.{os.getpid()}.tmp"
-    tmp.write_text(json.dumps(st), encoding="utf-8")
-    os.replace(tmp, d / "status.json")  # the page polls this file, so never leave it half-written
 
 
 def status() -> dict:
@@ -106,11 +96,6 @@ def read_harness_progress(started: float) -> dict | None:
     return {"step": step, "total": total, "title": str(data.get("title") or ""), "updated": updated}
 
 
-def _harness_fraction(current: int, total: int) -> float:
-    span = 1.0 - BUILD_SHARE
-    return min(1.0, BUILD_SHARE + span * (current / max(1, total)))
-
-
 def display_progress(status: dict) -> tuple[float, str]:
     """Bar fraction and label for a running offline job.
 
@@ -120,27 +105,18 @@ def display_progress(status: dict) -> tuple[float, str]:
     stdout until the container exits, which left the bar empty for the whole run.
     """
     snap = read_harness_progress(float(status.get("started") or 0))
-    current = None
-    total = 7
+    total = HARNESS_STAGES
     title = status.get("step") or "running"
     if snap is not None:
         total = max(1, snap["total"])
         current = min(max(snap["step"], 1), total)
         title = snap["title"] or title
-    elif status.get("phase") == "harness" or (
-            "done" in status and status.get("total") and status.get("phase") != "build"):
+    elif "done" in status and status.get("total"):
         total = max(1, int(status.get("total") or 1))
         current = min(max(0, int(status.get("done") or 0)) + 1, total)
-
-    if current is None:
-        # Docker names layers as it discovers them, so "5 of 8" then "10 of 12" is not a real
-        # plan. Keep the label steady and only move the bar.
-        frac = min(1.0, max(0.0, float(status.get("build_fraction") or 0)))
-        label = status.get("step") or "Building the pinned image"
-        if frac > 0 or int(status.get("build_total") or 0) > 0:
-            return frac * BUILD_SHARE, label
-        return 0.0, label
-    return _harness_fraction(current, total), f"Step {current} of {total} · {title}"
+    else:
+        return 0.0, str(title)
+    return min(1.0, current / total), f"Step {current} of {total} · {title}"
 
 
 def _output_lines(stdout):
@@ -180,10 +156,7 @@ def _output_lines(stdout):
 
 
 def mark_handled() -> None:
-    st = driver._read_json(job_dir() / "status.json")
-    if st:
-        st["handled"] = True
-        _write_status(st)
+    jb.mark_handled(job_dir())
 
 
 def run_ids() -> set[str]:
@@ -204,18 +177,17 @@ def start(preset: str, *, trials: int | None = None, stack: str = OFFLINE_STACK)
                              "share the CPU and distort the timings.")
     if not (driver.ECO / "stacks" / f"{stack}.env").is_file():
         raise RuntimeError(f"missing stack env for {stack}")
+    rows = images.status(stack, "offline")
+    if not images.ready(rows):
+        raise images.ImagesNotReady(images.explain(rows, "offline"))
     d = job_dir()
     d.mkdir(parents=True, exist_ok=True)
     (d / "progress.log").write_text("", encoding="utf-8")
     clear_progress()
     params = {"preset": preset, "stack": stack, "trials": trials, "started": time.time()}
-    (d / "params.json").write_text(json.dumps(params), encoding="utf-8")
-    _write_status({"state": "starting", "preset": preset, "stack": stack, "started": params["started"],
-                   "phase": "build", "step": "Building the pinned image"})
-    subprocess.Popen([sys.executable, "-m", "live_lab.offline_job", str(d / "params.json")],
-                     cwd=Path(__file__).resolve().parents[1], stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                     env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **driver.background_process_kwargs())
+    jb.write_status(d, {"state": "starting", "preset": preset, "stack": stack, "started": params["started"],
+                        "phase": "harness", "step": "Starting the harness", "done": 0, "total": HARNESS_STAGES})
+    jb.spawn_worker("live_lab.offline_job", d, params)
 
 
 def _remove_container() -> None:
@@ -224,21 +196,12 @@ def _remove_container() -> None:
 
 def cancel() -> None:
     """Stop the worker and the container it started."""
-    st = driver._read_json(job_dir() / "status.json")
-    pid = st.get("pid")
-    if driver.pid_alive(pid):
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"], capture_output=True,
-                           creationflags=driver.NO_WINDOW)
-        else:
-            os.kill(int(pid), signal.SIGTERM)
-            deadline = time.time() + 10
-            while driver.pid_alive(pid) and time.time() < deadline:
-                time.sleep(0.1)
+    st = jb.read_json(job_dir() / "status.json")
+    jb.stop_worker(st.get("pid"), wait_s=10, alive=driver.pid_alive)
     _remove_container()
-    st = driver._read_json(job_dir() / "status.json") or st
+    st = jb.read_json(job_dir() / "status.json") or st
     st.update(state="cancelled", finished=time.time(), handled=True)
-    _write_status(st)
+    jb.write_status(job_dir(), st)
 
 
 # ───────────────────────────── worker ─────────────────────────────
@@ -279,20 +242,16 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     before = run_ids()
     clear_progress()
     st = {"state": "running", "pid": os.getpid(), "preset": preset, "stack": stack, "started": params["started"],
-          "phase": "build", "step": "Building the pinned image"}
-    _write_status(st)
+          "phase": "harness", "step": "Starting the harness", "done": 0, "total": HARNESS_STAGES}
+    jb.write_status(d, st)
     proc = None
-    build_seen: set[int] = set()
-    build_done: set[int] = set()
 
-    def stop(*_):
+    def stop() -> None:
         if proc is not None and proc.poll() is None:
             proc.terminate()
         _remove_container()
-        raise SystemExit(143)
 
-    if os.name != "nt":
-        signal.signal(signal.SIGTERM, stop)
+    jb.install_sigterm(stop)
     tail: list[str] = []
 
     def note(line: str) -> None:
@@ -300,27 +259,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
         if m:
             st.update(phase="harness", step=m.group(3).strip(),
                       done=int(m.group(1)) - 1, total=int(m.group(2)))
-            _write_status(st)
-            return
-        if st.get("phase") == "harness":
-            return
-        changed = False
-        seen_m = BUILD_SEEN_RE.search(line)
-        if seen_m and int(seen_m.group(1)) not in build_seen:
-            build_seen.add(int(seen_m.group(1)))
-            changed = True
-        done_m = BUILD_DONE_RE.search(line)
-        if done_m and int(done_m.group(1)) not in build_done:
-            build_done.add(int(done_m.group(1)))
-            changed = True
-        if not changed:
-            return
-        seen, built = len(build_seen), len(build_done)
-        ratio = min(0.08, 1 / seen) if built == 0 else built / max(seen, built)
-        st.update(phase="build", step="Building the pinned image",
-                  build_done=built, build_total=max(seen, built),
-                  build_fraction=max(float(st.get("build_fraction") or 0), min(0.98, ratio)))
-        _write_status(st)
+            jb.write_status(d, st)
 
     def stream(cmd: list[str], env: dict) -> int:
         nonlocal proc, tail
@@ -339,24 +278,18 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     code = 1
     try:
         with open(d / "progress.log", "a", encoding="utf-8", errors="replace") as log:
-            env = {**os.environ, "BUILDKIT_PROGRESS": "plain"}
-            code = stream(compose_base(stack) + ["build"], env)
-            if code == 0:
-                # Stage 1 has started even before its banner is visible: show that slice, not an empty bar.
-                st.update(phase="harness", step="Starting the harness", done=0, total=7)
-                _write_status(st)
-                env = {**os.environ, **run_environment(stack)}
-                code = stream(compose_base(stack) + [
-                    "run", "--rm", "-T", "--name", CONTAINER,
-                    "-e", "PYTHONUNBUFFERED=1",
-                    "-e", f"CIPHEROPS_PROGRESS_FILE={CONTAINER_PROGRESS}",
-                    "bench", harness_command(preset, params.get("trials")),
-                ], env)
+            env = {**os.environ, **run_environment(stack)}
+            code = stream(compose_base(stack) + [
+                "run", "--rm", "-T", "--name", CONTAINER,
+                "-e", "PYTHONUNBUFFERED=1",
+                "-e", f"CIPHEROPS_PROGRESS_FILE={CONTAINER_PROGRESS}",
+                "bench", harness_command(preset, params.get("trials")),
+            ], env)
     except SystemExit:
         raise
     except Exception as e:  # noqa: BLE001
         st.update(state="failed", error=str(e)[-1500:], finished=time.time())
-        _write_status(st)
+        jb.write_status(d, st)
         return 1
     new = sorted(run_ids() - before)
     if code == 0:
@@ -364,7 +297,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     else:
         st.update(state="failed", finished=time.time(), returncode=code,
                   error=f"The harness exited with {code}\n{''.join(tail)[-1500:]}")
-    _write_status(st)
+    jb.write_status(d, st)
     return 0 if code == 0 else 1
 
 

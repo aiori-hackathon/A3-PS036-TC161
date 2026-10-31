@@ -2,17 +2,10 @@ name: cipherops
 
 services:
   bench: &bench
-    # The version of everything inside comes from one stack profile (ecosystem/stacks/<profile>.env), passed with
-    # --env-file by scripts/run_benchmark.sh; the same file builds the live-lab images.
+    # The image is built or pulled beforehand (dashboard Setup, or `docker compose -f docker/build.yml build bench`
+    # with the same --env-file). The version of everything inside comes from one stack profile
+    # (ecosystem/stacks/<profile>.env), passed with --env-file by scripts/run_benchmark.sh.
     image: cipherops-bench:${STACK:?pass --env-file ecosystem/stacks/<profile>.env (see scripts/run_benchmark.sh)}
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      args:
-        STACK: ${STACK}
-        OPENSSL_TAG: ${OPENSSL_TAG:?missing OPENSSL_TAG in the stack profile}
-        LIBOQS_TAG: ${LIBOQS_TAG:?missing LIBOQS_TAG in the stack profile}
-        MTL_COMMIT: ${MTL_COMMIT:?missing MTL_COMMIT in the stack profile}
     # Every trial runs on one dedicated core so single-thread timings are comparable.
     cpuset: "${CIPHEROPS_CPUSET:-2}"
     mem_limit: 4g

@@ -24,12 +24,12 @@ import time
 from pathlib import Path
 
 from live_lab import driver
-from live_lab import suite as _suite
+from live_lab import jobs as jb
 
 EVENT_PREFIX = "@@EVENT "
 TIER_ORDER = ("sld", "tld", "root")
 TIER_LABEL = {"sld": "Leaf zones", "tld": "TLD zones", "root": "Root"}
-ACTIVE_STATES = ("starting", "running")
+ACTIVE_STATES = jb.ACTIVE_STATES
 
 
 # ───────────────────────────── files ─────────────────────────────
@@ -38,25 +38,12 @@ def job_dir(h: driver.LabHandle) -> Path:
     return driver.jobs_dir() / h.tag / "prepare-live"
 
 
-def _read_json(path: Path) -> dict:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def _write_status(d: Path, st: dict) -> None:
-    tmp = d / "status.json.tmp"
-    tmp.write_text(json.dumps(st), encoding="utf-8")
-    os.replace(tmp, d / "status.json")  # the page polls this file, so never leave it half-written
-
-
 def status(h: driver.LabHandle) -> dict:
     """Current job status ({} if none). A worker that vanished without finishing reads as 'stopped'."""
-    st = _read_json(job_dir(h) / "status.json")
+    st = jb.read_json(job_dir(h) / "status.json")
     if st.get("state") in ACTIVE_STATES:
         # 'starting' has no worker pid of its own for a moment: allow a short grace period.
-        if st.get("pid") and not _suite._pid_alive(st["pid"]):
+        if st.get("pid") and not driver.pid_alive(st["pid"]):
             st["state"] = "stopped"
             st["error"] = st.get("error") or "The signing process ended before finishing."
         elif not st.get("pid") and time.time() - float(st.get("started") or 0) > 60:
@@ -84,18 +71,11 @@ def events(h: driver.LabHandle) -> list[dict]:
 
 
 def log_text(h: driver.LabHandle, tail: int = 12000) -> str:
-    try:
-        return (job_dir(h) / "progress.log").read_text(encoding="utf-8", errors="replace")[-tail:]
-    except OSError:
-        return ""
+    return jb.log_tail(job_dir(h), tail)
 
 
 def mark_handled(h: driver.LabHandle) -> None:
-    """Record that a page has taken over the finished job, so later sessions don't do it again."""
-    st = _read_json(job_dir(h) / "status.json")
-    if st:
-        st["handled"] = True
-        _write_status(job_dir(h), st)
+    jb.mark_handled(job_dir(h))
 
 
 # ───────────────────────────── control ─────────────────────────────
@@ -118,29 +98,18 @@ def start(h: driver.LabHandle, *, jobs: int, scenarios: list[str]) -> None:
     pinned = (d / "config.yaml").relative_to(driver.ECO).as_posix()
     params = {"config": pinned, "lab_config": h.config, "stack": h.stack, "jobs": int(jobs),
               "scenarios": list(scenarios), "started": time.time()}
-    (d / "params.json").write_text(json.dumps(params, indent=2), encoding="utf-8")
-    _write_status(d, {"state": "starting", "started": params["started"], "jobs": params["jobs"],
-                      "scenarios": params["scenarios"], "updated": params["started"]})
-    subprocess.Popen([sys.executable, "-m", "live_lab.prepare_job", str(d / "params.json")],
-                     cwd=Path(__file__).resolve().parents[1], stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                     env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **driver.background_process_kwargs())
+    jb.write_status(d, {"state": "starting", "started": params["started"], "jobs": params["jobs"],
+                          "scenarios": params["scenarios"], "updated": params["started"]})
+    jb.spawn_worker("live_lab.prepare_job", d, params)
 
 
 def cancel(h: driver.LabHandle) -> None:
     """Stop the worker and the signing container."""
-    st = _read_json(job_dir(h) / "status.json")
-    pid = st.get("pid")
-    if _suite._pid_alive(pid):
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"], capture_output=True,
-                           creationflags=driver.NO_WINDOW)
-        else:
-            os.kill(int(pid), 15)
+    st = jb.read_json(job_dir(h) / "status.json")
+    jb.stop_worker(st.get("pid"), alive=driver.pid_alive)
     subprocess.run(["docker", "rm", "-f", driver.prepare_container_name(h)], capture_output=True,
                    creationflags=driver.NO_WINDOW)
-    st.update(state="cancelled", updated=time.time(), finished=time.time(), handled=True)
-    _write_status(job_dir(h), st)
+    jb.mark_cancelled(job_dir(h), st)
 
 
 # ───────────────────────────── worker ─────────────────────────────
@@ -152,7 +121,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
     scenarios = list(params["scenarios"])
     st = {"state": "running", "pid": os.getpid(), "started": params["started"], "jobs": params["jobs"],
           "scenarios": scenarios, "updated": time.time()}
-    _write_status(d, st)
+    jb.write_status(d, st)
     subprocess.run(["docker", "rm", "-f", driver.prepare_container_name(h)], capture_output=True,
                    creationflags=driver.NO_WINDOW)  # a stale one
 
@@ -179,7 +148,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
             lg.write(f"\n{type(e).__name__}: {e}\n")
     wall = time.perf_counter() - t0
 
-    if _read_json(d / "status.json").get("state") == "cancelled":
+    if jb.read_json(d / "status.json").get("state") == "cancelled":
         return rc
     st.update(updated=time.time(), finished=time.time(), wall_s=wall)
     if rc == 0:
@@ -194,7 +163,7 @@ def run(params: dict, *, popen=subprocess.Popen) -> int:
             st.update(state="failed", error=f"Signed, but the summary failed: {e}")
     else:
         st.update(state="failed", error=log_text(h, 3000) or f"The signing container exited with code {rc}.")
-    _write_status(d, st)
+    jb.write_status(d, st)
     return rc
 
 

@@ -29,10 +29,10 @@ CipherOps measures what that changes, against classical DNSSEC and against plain
 
 | | |
 | :--- | :--- |
+| **Solution proposed** | [Revised, 30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf) · [Level 1, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
+| **Project video** | [Team Intro - level 1](https://youtu.be/FaVfeO5WTV8). [Solution Demo]() |
+| **Working demo** | [Run it in your browser with Codespaces](docs/codespaces.md), [locally](docs/getting-started.md), or [on an AWS instance](deploy/aws/README.md) |
 | **Submission** | [Deliverables](DELIVERABLES.md) · [project page and readout](hackathon/README.md) · [frozen results](hackathon/results/README.md) |
-| **Presentation** | [revised, 30 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-30.pdf) · [original, 13 Oct 2026](hackathon/presentation/A3-PS036-TC161_2026-10-13.pdf) |
-| **Project video** | [YouTube](https://youtu.be/FaVfeO5WTV8) |
-| **Working demo** | [Run it in your browser with Codespaces](docs/codespaces.md), or [locally](docs/getting-started.md) |
 | **How we measure** | [Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) |
 
 Numbers live in each run's `report.html` (a frozen run is in [hackathon/results](hackathon/results/README.md)), not in the documentation, so they cannot go stale.
@@ -49,11 +49,11 @@ On zones of 50, 500 and 5,000 names: signing time, verification time, signature 
 use, and the cost of updating a zone. Two paths answer different questions: an **offline harness** (one pinned core,
 no network) and a **simulated lab** (root, TLD and leaf NSD servers behind a validating Unbound, with packet capture).
 
-![CipherOps architecture](docs/architecture-slide1.png)
+![CipherOps architecture](docs/architecture_itr2.png)
 
 ## Quick start
 
-You need Docker, git and Python 3.11+, or just a browser with [Codespaces](docs/codespaces.md).
+**Locally** you need Docker, git and Python 3.11+:
 
 ```bash
 git clone https://github.com/aiori-hackathon/A3-PS036-TC161.git && cd A3-PS036-TC161
@@ -62,23 +62,37 @@ streamlit run dashboard/live_lab/app.py          # the dashboard
 bash scripts/run_benchmark.sh configs/quick.yaml  # or: a short offline run from the shell
 ```
 
+**In Codespaces** the repository is already cloned and the dashboard requirements are installed by the dev container,
+so just run:
+
+```bash
+python -m streamlit run dashboard/live_lab/app.py --server.port 8501   # then open the forwarded port 8501
+bash scripts/run_benchmark.sh configs/quick.yaml                       # or: a short offline run from the shell
+```
+
+**Codespaces machine size.** Observed: the free 4-core / 16 GB / 32 GB machine runs the **offline harness**
+but not the **simulated lab** (about 7 containers on cores 2-5); the lab needs the paid 8-core / 32 GB / 64 GB machine.
+See [Codespaces](docs/codespaces.md#which-machine-for-what).
+
 The first image build compiles OpenSSL, liboqs and MTL from source and takes a while; later runs reuse it. Full
 instructions, Windows commands, tests and troubleshooting: [Getting started](docs/getting-started.md).
 
 ## The dashboard
 
-| Tile | Use |
-| --- | --- |
-| **Setup** | build the images, sign the zones, start the lab |
-| **Live** | send queries, flush the cache, inspect the captured packets |
-| **Benchmark** | *Offline (harness)* or *Simulated (Verisign stack)*, run from the browser |
-| **Compare** | algorithms side by side, run against run, and the cost of zone updates |
-| **Learn** | why DNSSEC needs MTL, and an operator walkthrough |
-| **Reset** | clear only what you choose |
+The dashboard opens on this node's prerequisites and the two ways of benchmarking:
+
+| Track | Measures | Steps |
+| --- | --- | --- |
+| **Offline benchmark** | signing, verification and message sizes on one pinned core, no network | ① Run → ② Results |
+| **Simulated lab** | a containerised root → TLD → leaf hierarchy with a validating resolver: packets, truncation, cache | ① Prepare → ② Query → ③ Benchmark |
+
+Each track starts with a **prerequisite panel**: its container images are on this node and match the stack profile.
+Ready shows one line; if something is missing, build it or pull it from a registry right there. **Compare**, **Learn**
+and **Reset** are below, and **Manage images** opens the page for both image sets.
 
 Details: [dashboard guide](dashboard/live_lab/README.md).
 
-## Scope, honestly
+## Scope
 
 Empirical timings and wire sizes on pinned stacks; not a security proof and not a production DNSSEC product. Offline
 and simulated results use different library versions and are never mixed; simulated timings are indicative, not

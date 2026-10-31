@@ -14,18 +14,22 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dashboard"))
 sys.path.insert(0, str(ROOT / "ecosystem" / "src"))
 
-from live_lab import build_job, driver, prepare_job as pj, suite  # noqa: E402
+from live_lab import driver, image_job, images, jobs, prepare_job as pj, suite  # noqa: E402
+from live_lab import artifacts, lab  # noqa: E402
 
 
 @pytest.fixture
 def eco(tmp_path, monkeypatch):
     """Point the driver and suite at an empty ecosystem folder and record docker calls."""
-    monkeypatch.setattr(driver, "ECO", tmp_path)
+    calls = []
+    run = lambda cmd, **kw: calls.append(cmd) or _Done()  # noqa: E731
+    for mod in (driver, lab, artifacts):  # each module looks up its own ECO and _run
+        monkeypatch.setattr(mod, "ECO", tmp_path)
+        monkeypatch.setattr(mod, "_run", run)
+    monkeypatch.setattr(images, "ECO", tmp_path)
     monkeypatch.setattr(driver, "SUITES_DIR", tmp_path / "results" / "suites")
     monkeypatch.setattr(suite, "SUITES", tmp_path / "results" / "suites")
     monkeypatch.delenv(driver.SUITE_OWNER_ENV, raising=False)
-    calls = []
-    monkeypatch.setattr(driver, "_run", lambda cmd, **kw: calls.append(cmd) or _Done())
     return tmp_path, calls
 
 
@@ -132,8 +136,8 @@ def test_stale_start_lock_is_reclaimed(eco):
     lambda h: driver.activate(h, "mtl"),
     lambda h: driver.probe(h, "a.test"),
     lambda h: driver.dig(h, "dig a.test"),
-    lambda h: build_job.start("draft06"),
-    lambda h: driver.pull_images(h, "reg.example"),
+    lambda h: image_job.start("build", "draft06"),
+    lambda h: image_job.start("pull", "draft06", registry="reg.example"),
     lambda h: driver.clear_demo_data(h, work=True),
     lambda h: driver.clear_demo_data(h, suites=True),
     lambda h: driver.clear_suites(),
@@ -250,25 +254,25 @@ def test_remove_tree_refuses_paths_outside_ecosystem(eco, tmp_path_factory, monk
 # ───────────── image build runs as a background job ─────────────
 
 def _build_status(root, **st):
-    d = root / "jobs" / "_build"
+    d = root / "jobs" / "_images"
     d.mkdir(parents=True, exist_ok=True)
     (d / "status.json").write_text(json.dumps(st), encoding="utf-8")
 
 
-def test_a_second_build_cannot_start_while_one_runs(eco):
+def test_a_second_image_job_cannot_start_while_one_runs(eco):
     root, _ = eco
     _build_status(root, state="starting", stack="latest", started=time.time())
-    assert build_job.is_running()
+    assert image_job.is_running()
     with pytest.raises(driver.LabBusy):
-        build_job.start("draft06")
+        image_job.start("build", "draft06")
 
 
-def test_a_build_that_vanished_is_not_running(eco, monkeypatch):
+def test_an_image_job_that_vanished_is_not_running(eco, monkeypatch):
     root, _ = eco
     _build_status(root, state="running", stack="latest", pid=4242, started=time.time())
     monkeypatch.setattr(driver, "pid_alive", lambda pid: False)
-    assert not build_job.is_running()
-    assert build_job.status()["state"] == "stopped"
+    assert not image_job.is_running()
+    assert image_job.status()["state"] == "stopped"
 
 
 def test_start_launches_a_detached_worker_and_returns(eco, monkeypatch):
@@ -276,9 +280,9 @@ def test_start_launches_a_detached_worker_and_returns(eco, monkeypatch):
     (root / "stacks").mkdir()
     (root / "stacks" / "draft06.env").write_text("STACK=draft06\n", encoding="utf-8")
     launched = []
-    monkeypatch.setattr(build_job.subprocess, "Popen", lambda *a, **k: launched.append(a))
-    build_job.start("draft06")
-    assert launched and build_job.status()["state"] == "starting" and build_job.is_running()
+    monkeypatch.setattr(jobs.subprocess, "Popen", lambda *a, **k: launched.append(a))
+    image_job.start("build", "draft06")
+    assert launched and image_job.status()["state"] == "starting" and image_job.is_running()
 
 
 def test_up_and_signing_wait_for_a_build_of_the_same_stack(eco):
@@ -299,34 +303,6 @@ def test_suite_cannot_start_while_images_build(eco):
     _build_status(root, state="starting", stack="latest", started=time.time())
     with pytest.raises(driver.LabBusy):
         suite.start({"sizes": [20], "label": "x"})
-
-
-class _FakeProc:
-    def __init__(self, lines, code):
-        self.stdout, self._code = iter(lines), code
-
-    def poll(self):
-        return self._code
-
-    def wait(self):
-        return self._code
-
-
-@pytest.mark.parametrize("code,state", [(0, "done"), (1, "failed")])
-def test_worker_streams_the_log_and_records_the_result(eco, monkeypatch, code, state):
-    root, _ = eco
-    (root / "stacks").mkdir()
-    (root / "docker").mkdir()
-    (root / "stacks" / "draft06.env").write_text("STACK=draft06\n", encoding="utf-8")
-    (root / "docker" / "build.yml").write_text("services: {}\n", encoding="utf-8")
-    (root / "jobs" / "_build").mkdir(parents=True)
-    rc = build_job.run({"stack": "draft06", "started": time.time()},
-                       popen=lambda *a, **k: _FakeProc(["#1 step one\n", "#2 step two\n"], code))
-    st = build_job.status()
-    assert st["state"] == state and st["returncode"] == code and rc == (0 if code == 0 else 1)
-    assert "#2 step two" in build_job.log_text() and build_job.log_text().startswith("$ docker compose")
-    if code:
-        assert "exited with 1" in st["error"]
 
 
 def test_stacks_that_cannot_validate_a_scenario_are_flagged():

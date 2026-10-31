@@ -1,0 +1,29 @@
+# The lab is dark only. The light slot uses the same colors, so the menu cannot switch it to a light page.
+
+[theme]
+base = "dark"
+primaryColor = "#ff4b4b"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+
+[theme.sidebar]
+backgroundColor = "#262730"
+
+[theme.light]
+primaryColor = "#ff4b4b"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+
+[theme.light.sidebar]
+backgroundColor = "#262730"
+
+[theme.dark]
+primaryColor = "#ff4b4b"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+
+[theme.dark.sidebar]
+backgroundColor = "#262730"

@@ -1,0 +1,34 @@
+# Builds every image of one stack from the single docker/Dockerfile (they share one OpenSSL + liboqs + MTL toolchain):
+#   docker compose -f docker/build.yml --env-file ecosystem/stacks/latest.env build            # all four
+#   docker compose -f docker/build.yml --env-file ecosystem/stacks/latest.env build bench      # offline harness only
+# Image names match what the dashboard, docker/compose.yml and the lab expect. To publish the same images to a
+# registry, see scripts/publish_images.sh.
+name: cipherops-build
+
+x-build: &build
+  context: ..
+  dockerfile: docker/Dockerfile
+  args:
+    STACK: ${STACK:?pass --env-file ecosystem/stacks/<profile>.env}
+    OPENSSL_TAG: ${OPENSSL_TAG:?missing OPENSSL_TAG in the stack profile}
+    LIBOQS_TAG: ${LIBOQS_TAG:?missing LIBOQS_TAG in the stack profile}
+    MTL_COMMIT: ${MTL_COMMIT:?missing MTL_COMMIT in the stack profile}
+    LDNS_COMMIT: ${LDNS_COMMIT:?missing LDNS_COMMIT in the stack profile}
+    NSD_COMMIT: ${NSD_COMMIT:?missing NSD_COMMIT in the stack profile}
+    UNBOUND_COMMIT: ${UNBOUND_COMMIT:?missing UNBOUND_COMMIT in the stack profile}
+    VCS_REF: ${VCS_REF:-unknown}
+    VCS_URL: ${VCS_URL:-}   # optional: org.opencontainers.image.source, which links a GHCR package to a repository
+
+services:
+  bench:
+    image: cipherops-bench:${STACK}
+    build: { <<: *build, target: bench }
+  nsd:
+    image: cipherops-eco-nsd:${STACK}
+    build: { <<: *build, target: nsd }
+  unbound:
+    image: cipherops-eco-unbound:${STACK}
+    build: { <<: *build, target: unbound }
+  tools:
+    image: cipherops-eco-tools:${STACK}
+    build: { <<: *build, target: tools }
