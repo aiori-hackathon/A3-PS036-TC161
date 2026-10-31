@@ -366,3 +366,43 @@ def test_outside_minimal_mode_switching_has_no_guard(monkeypatch, signed_lab):
     driver.activate(h, "mtl")
     driver.activate(h, "ecdsa")
     assert len(sent) == 2
+
+
+def test_example_names_are_real_names_with_the_one_type_each_has(signed_lab):
+    import json
+    h, _ = signed_lab
+    zdir = h.work / "zones" / "ecdsa"
+    (zdir / "manifest.json").write_text(json.dumps({"zones": [
+        {"origin": "test.", "tier": "tld", "signed_file": "test.zone.signed"},
+        {"origin": "zone00.test.", "tier": "sld", "signed_file": "zone00.zone.signed"},
+        {"origin": "zone01.test.", "tier": "sld", "signed_file": "zone01.zone.signed"}]}))
+    (zdir / "zone00.zone.signed").write_text(
+        "zone00.test.\t3600\tIN\tSOA\tns1 h 1 2 3 4 5\n"
+        "host000000.zone00.test.\t3600\tIN\tA\t192.0.0.0\n"
+        "host000000.zone00.test.\t3600\tIN\tRRSIG\tA 13 3 3600 x y 1 zone00.test. sig\n"
+        "host000001.zone00.test.\t3600\tIN\tMX\t10 mail.zone00.test.\n"
+        "abcdefg.zone00.test.\t3600\tIN\tNSEC3\t1 0 0 - x\n"
+        "host000002.zone00.test.\t3600\tIN\tTXT\t\"hi\"\n")
+    (zdir / "zone01.zone.signed").write_text("host000000.zone01.test.\t3600\tIN\tAAAA\t::1\n")
+    assert driver.example_names(h, per_zone=2) == [
+        ("host000000.zone00.test.", "A"), ("host000001.zone00.test.", "MX"), ("host000000.zone01.test.", "AAAA")]
+    assert driver.example_names(h, zones=1, per_zone=9) == [
+        ("host000000.zone00.test.", "A"), ("host000001.zone00.test.", "MX"), ("host000002.zone00.test.", "TXT")]
+
+
+def test_example_names_are_empty_when_the_lab_is_not_signed(tmp_path, monkeypatch):
+    monkeypatch.setattr(lab, "ECO", tmp_path)
+    assert driver.example_names(driver.LabHandle(config="configs/x.yaml", stack="draft06")) == []
+
+
+@pytest.mark.parametrize("path,stats,expected", [
+    ("Through Unbound", {"total.num.cachehits": 1.0, "total.num.cachemiss": 0.0}, "hit"),
+    ("Through Unbound", {"total.num.cachehits": 0.0, "total.num.cachemiss": 1.0}, "miss"),
+    ("Through Unbound", {"total.num.cachehits": 1.0, "total.num.cachemiss": 1.0}, ""),   # someone else's lookup too
+    ("Through Unbound", {"total.num.cachehits": 0.0, "total.num.cachemiss": 0.0}, ""),
+    ("Through Unbound", {}, ""),
+    ("Direct to root", {"total.num.cachehits": 1.0, "total.num.cachemiss": 0.0}, ""),    # bypasses the resolver
+])
+def test_cache_state_comes_from_the_resolver_counters_and_says_nothing_when_unsure(path, stats, expected):
+    from live_lab.ui import live
+    assert live._cache_state({"path": path, "unbound_stats": stats}) == expected

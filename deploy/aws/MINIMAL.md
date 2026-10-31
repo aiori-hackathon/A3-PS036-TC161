@@ -37,6 +37,21 @@ reach only the lab's own servers (10.53.0.0/24), times out after 10 seconds, and
 are not written to the team's files: the lab config, saved preferences, query session, activity log and job notices
 stay as they were.
 
+## What to try
+
+On **Simulated lab → Query**:
+
+1. Pick a name from the **Preset** list (they are names that exist in this lab) and press **Run query**. Every host has exactly
+   one record type (A, AAAA, MX or TXT); the preset has the right one, and asking for another type returns an empty
+   NOERROR answer. A name that does not exist (for example `nx4e50797e7b57.zone00.test.`) returns NXDOMAIN with a proof.
+2. Press **Run query** again for the same name. The **Resolver cache** box shows **miss** for the first lookup, which the
+   resolver resolves from the root down, and **hit** for the repeat, answered from its cache. The box reads the
+   resolver's own counters, and stays empty when it cannot tell (another visitor's lookup landed in between, or the path
+   skips the resolver).
+3. **Switch to** another algorithm (for example `mtl`, then `slh-dsa`) and look up the same name. Compare **Bytes** and the
+   **Transport**: a plain SLH-DSA answer is about 8 KB, too large for one UDP packet, so the resolver retries over TCP
+   (shown as `udp+tcp`), while an MTL answer is a few hundred bytes and stays on UDP.
+
 ## Run it locally
 
 The same app as the full dashboard, with `CIPHEROPS_MINIMAL=1` in the **process environment**. Use another port so the full
