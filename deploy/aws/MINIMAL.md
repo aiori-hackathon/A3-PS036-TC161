@@ -33,7 +33,7 @@ Open a shell on the node (Session Manager, see [ACCESS.md](ACCESS.md)), then:
 
 ```bash
 cd /opt/cipherops
-sudo bash deploy/aws/minimal.sh start 'choose-an-access-code'   # omit the code to let anyone with the link in
+sudo bash deploy/aws/minimal.sh start 'choose-an-access-code'   # omit the code to let anyone with the link in; fixed address: see below
 ```
 
 It starts the minimal dashboard on `127.0.0.1:8502` and prints a public HTTPS link such as
@@ -51,7 +51,41 @@ Before sharing the link, make sure the lab is signed and running with the algori
 **How the link works.** It is a Cloudflare quick tunnel: the node makes an outbound connection, so no inbound port,
 security-group rule or domain is needed, and the team's dashboard on port 8501 is never exposed. The address is
 temporary and changes if the tunnel restarts (for example after the node is stopped and started); run `url` again and
-resend it. For a fixed address, use a named Cloudflare tunnel on your own domain instead.
+resend it. For an address that never changes, use a named tunnel, below.
+
+## A fixed address (named tunnel)
+
+Needs a domain whose DNS is on Cloudflare (a free Cloudflare account is enough; Zero Trust's free plan may ask for a
+payment card but does not charge). The address stays the same across restarts and reboots.
+
+1. In Cloudflare: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Name it (for example `cipherops`)
+   and copy the **token** from the install command it shows (the long string after `--token`).
+2. On the same page, under **Public Hostname**, add `eval.yourdomain.com` (your choice) with **Service type HTTP** and
+   **URL `localhost:8502`**.
+3. On the node:
+
+   ```bash
+   cd /opt/cipherops
+   sudo -E TUNNEL_TOKEN='<the token>' bash deploy/aws/minimal.sh start --domain eval.yourdomain.com 'optional-access-code'
+   ```
+
+   If you leave `TUNNEL_TOKEN` out, the script asks for it without echoing. The token is stored in
+   `/etc/cipherops/minimal-tunnel.env`, readable by root only. The script waits for the tunnel to connect and for the
+   address to answer, then prints it. `url` prints the same fixed address from then on. If you run `start` without
+   `--domain` later, it goes back to a temporary quick link.
+
+Treat the token like a password: anyone who has it can run a tunnel to your hostname. If it leaks, rotate it in the
+Cloudflare dashboard and run `start --domain` again.
+
+## Staying up across restarts
+
+`start` makes both services start at boot and restart if they fail, and asks Docker to bring the lab's containers back
+after a reboot (restart policy `unless-stopped`, also set for a lab the team's dashboard starts later). So after the
+node restarts, the dashboard, the link (fixed with a named tunnel) and the lab all return by themselves, and the lab's
+last signed algorithm is what evaluators see. `stop` takes the link down and turns the restart policy off again.
+
+The team's dashboard picks up the setting for new labs at its next restart; `start` does not restart it, because
+restarting a service ends any background job it launched.
 
 ## Message for the evaluators
 
@@ -68,6 +102,7 @@ resend it. For a fixed address, use a named Cloudflare tunnel on your own domain
   is root-equivalent on the node. That is why every lab-changing function refuses in code, lookup inputs are
   validated and quoted, and the terminal runs `dig` without a shell. Keep an access code on the link and stop it
   (`minimal.sh stop`) when evaluation is over.
-- Quick tunnels are meant for short-term sharing, with no uptime guarantee. If the link stops working, run `start`
-  again.
+- Quick tunnels are meant for short-term sharing, with no uptime guarantee. If the link stops working, run `url` for
+  the current address, or `start` again. A named tunnel does not have this problem.
+- The node bills while it runs. If it is stopped to save money, the link is down until it starts again.
 - Lookups from several evaluators share one resolver, so its cache is warm for whatever someone else just asked.

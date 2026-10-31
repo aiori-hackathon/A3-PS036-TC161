@@ -194,3 +194,34 @@ def test_node_script_serves_only_the_minimal_dashboard_on_localhost():
     assert "--url http://127.0.0.1:" in text  # the tunnel points at the minimal dashboard only
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
     assert ":8501" not in code  # the team's dashboard is never touched
+
+
+MINIMAL_SH = ROOT / "deploy" / "aws" / "minimal.sh"
+
+
+def _minimal_sh(tmp_path, *args, env=None):
+    """Run `minimal.sh start ...` as if root. Every case below must stop at input validation, before any change."""
+    fake = tmp_path / "bin"
+    fake.mkdir(exist_ok=True)
+    (fake / "id").write_text("#!/bin/sh\necho 0\n")
+    (fake / "id").chmod(0o755)
+    run_env = {"PATH": f"{fake}:/usr/bin:/bin", "HOME": str(tmp_path), **(env or {})}
+    return subprocess.run(["bash", str(MINIMAL_SH), "start", *args], capture_output=True, text=True, env=run_env,
+                          stdin=subprocess.DEVNULL, timeout=20)
+
+
+@pytest.mark.parametrize("args,env,message", [
+    (["--domain", "not a host"], {"TUNNEL_TOKEN": "x" * 60}, "not a host name"),
+    (["--domain", "-x.example.com"], {"TUNNEL_TOKEN": "x" * 60}, "not a host name"),
+    (["--domain", "eval.example.com"], {}, "tunnel token"),
+    (["--domain", "eval.example.com"], {"TUNNEL_TOKEN": "short"}, "tunnel token"),
+    (["--domain", "eval.example.com"], {"TUNNEL_TOKEN": "x" * 60 + "\nEVIL=1"}, "tunnel token"),
+    (["--nope"], {}, "unknown option"),
+])
+def test_named_tunnel_inputs_are_checked_before_anything_changes(tmp_path, args, env, message):
+    done = _minimal_sh(tmp_path, *args, env=env)
+    assert done.returncode == 2 and message in done.stderr
+
+
+def test_minimal_sh_is_valid_bash():
+    assert subprocess.run(["bash", "-n", str(MINIMAL_SH)]).returncode == 0

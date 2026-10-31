@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import os
 import re
 import shlex
 import time
@@ -374,6 +375,19 @@ def _reclaim_fixed_lab_names() -> str:
     return extra
 
 
+RESTART_ENV = "CIPHEROPS_LAB_RESTART"   # set to "unless-stopped" on a node that should bring its lab back after a reboot
+RESTART_POLICIES = ("unless-stopped", "always")
+
+
+def _set_restart_policy(h: LabHandle, policy: str) -> str:
+    """Ask Docker to restart this lab's containers after a daemon restart or reboot (a Stop still stops them)."""
+    ids = _run(compose_cmd(h, "ps", "-q"), check=False, timeout=30).stdout.split()
+    if not ids:
+        return ""
+    _run(["docker", "update", "--restart", policy, *ids], check=False, timeout=60)
+    return f"Restart policy {policy} set on {len(ids)} lab containers\n"
+
+
 def up(h: LabHandle) -> str:
     _minimal.refuse('Starting the lab')
     require_no_suite()
@@ -386,6 +400,9 @@ def up(h: LabHandle) -> str:
     reclaim = _reclaim_fixed_lab_names()
     cp = _run(compose_cmd(h, "up", "-d"), timeout=180)
     note = ""
+    policy = os.environ.get(RESTART_ENV, "")
+    if policy in RESTART_POLICIES:
+        note += _set_restart_policy(h, policy)
     if stopped:
         note += f"Stopped other lab(s) first: {', '.join(stopped)}\n"
     if reclaim.strip():
