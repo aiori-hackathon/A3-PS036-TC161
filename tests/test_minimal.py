@@ -225,3 +225,17 @@ def test_named_tunnel_inputs_are_checked_before_anything_changes(tmp_path, args,
 
 def test_minimal_sh_is_valid_bash():
     assert subprocess.run(["bash", "-n", str(MINIMAL_SH)]).returncode == 0
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("1", True), ("1 ", True), (' "1" ', True), ("'1'", True), ("true", True), ("ON", True), ("yes", True),
+    ("0", False), ("", False), ("no", False), ("false", False), ("11", False),
+])
+def test_minimal_mode_flag_survives_windows_quoting(monkeypatch, value, expected):
+    monkeypatch.setenv(minimal.ENV, value)
+    assert minimal.enabled() is expected
+
+
+def test_minimal_mode_is_off_when_the_variable_is_unset(monkeypatch):
+    monkeypatch.delenv(minimal.ENV, raising=False)
+    assert minimal.enabled() is False

@@ -48,7 +48,8 @@ class MinimalModeRefused(RuntimeError):
 
 
 def enabled() -> bool:
-    return os.environ.get(ENV) == "1"
+    """On for 1/true/yes/on. Quotes and spaces are ignored: Windows `set X=1 && ...` stores "1 " and `set X="1"` keeps the quotes."""
+    return os.environ.get(ENV, "").strip().strip("\"'").strip().lower() in ("1", "true", "yes", "on")
 
 
 def password() -> str:
