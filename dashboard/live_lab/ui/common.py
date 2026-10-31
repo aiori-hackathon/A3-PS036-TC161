@@ -56,7 +56,8 @@ TILES = {
     "learn": {
         "icon": "📖",
         "title": "Learn",
-        "pitch": "Why DNSSEC needs MTL.",
+        "pitch": "Why DNSSEC needs MTL, what the benchmark measures and why in two modes, and what an operator does "
+                 "differently.",
         "cta": "Open",
     },
     "setup": {

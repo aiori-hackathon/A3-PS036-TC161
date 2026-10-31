@@ -1,0 +1,609 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>What We Measure</title>
+<style>
+/* Same visual system as why-dnssec-needs-mtl.html: an SVG stage above a caption console. Self-contained, no network. */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --ink:#15203a; --muted:#56637d; --line:#cfd6e3;
+  --accent:#2457c5; --good:#1c8656; --bad:#c3362b; --warn:#a86a12; --quantum:#6a44b8;
+  --on-accent:#ffffff; --good-soft:#e2f3ea; --bad-soft:#fbe7e5; --accent-soft:#e4ebfa; --warn-soft:#f8eedb;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d131f; --surface:#151d2c; --ink:#e5eaf4; --muted:#95a2bb; --line:#2b3650;
+  --accent:#6f9bff; --good:#4cc68f; --bad:#ff6f62; --warn:#e3a646; --quantum:#ac8cff;
+  --on-accent:#0d131f; --good-soft:#15322a; --bad-soft:#3a1d1c; --accent-soft:#1b2a4a; --warn-soft:#3a2c12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d131f; --surface:#151d2c; --ink:#e5eaf4; --muted:#95a2bb; --line:#2b3650;
+  --accent:#6f9bff; --good:#4cc68f; --bad:#ff6f62; --warn:#e3a646; --quantum:#ac8cff;
+  --on-accent:#0d131f; --good-soft:#15322a; --bad-soft:#3a1d1c; --accent-soft:#1b2a4a; --warn-soft:#3a2c12; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:18px}
+header{display:grid;gap:6px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(28px,4.4vw,42px);line-height:1.08;margin:0;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:68ch}
+
+nav.scenes{display:flex;flex-wrap:wrap;gap:6px}
+nav.scenes button{font:500 13px/1.2 var(--f-body);color:var(--muted);background:transparent;border:1px solid var(--line);
+  border-radius:999px;padding:7px 12px;cursor:pointer;display:flex;gap:7px;align-items:center}
+nav.scenes button .n{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+nav.scenes button:hover{color:var(--ink);border-color:var(--muted)}
+nav.scenes button[aria-current="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+nav.scenes button[aria-current="true"] .n{color:var(--bg);opacity:.75}
+
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+.stage svg{display:block;width:100%;min-width:680px;height:auto}
+
+.console{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:start}
+.cap{min-width:0;display:grid;gap:6px}
+.cap .stepno{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.cap h2{font-family:var(--f-display);font-weight:600;font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+.cap p{margin:0;max-width:74ch}
+.cap code{display:block;font-family:var(--f-mono);font-size:13px;background:var(--surface);border:1px solid var(--line);
+  border-radius:8px;padding:8px 12px;overflow-x:auto;white-space:pre;color:var(--ink)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.controls button{font:500 14px/1 var(--f-body);border-radius:8px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink)}
+.controls button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.controls button:disabled{opacity:.4;cursor:default}
+.dots{display:flex;gap:5px;padding:0 4px}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.dots span.on{background:var(--accent)}
+.dots span.done{background:var(--muted)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:grid;gap:4px}
+.foot code{font-family:var(--f-mono);font-size:12px}
+@media (max-width:760px){.console{grid-template-columns:1fr}.controls{justify-content:flex-start}}
+
+/* ---------- SVG ---------- */
+svg text{font-family:var(--f-body);fill:var(--ink)}
+.node rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.5;transition:fill .4s,stroke .4s,stroke-width .4s}
+.node text{text-anchor:middle}
+.node .nl{font:600 15px var(--f-display);fill:var(--ink)}
+.node .ns{font:12px var(--f-mono);fill:var(--muted)}
+.node.hl rect{stroke:var(--accent);stroke-width:3;fill:var(--accent-soft)}
+.node.good rect{stroke:var(--good);fill:var(--good-soft)}
+.node.bad rect{stroke:var(--bad);fill:var(--bad-soft)}
+.node.dim,.dim{opacity:.28}
+.node,.grp{transition:opacity .4s}
+.link{stroke:var(--line);stroke-width:2;fill:none}
+.arr{stroke:var(--muted);stroke-width:1.6;fill:none;marker-end:url(#mk-line)}
+.box{fill:none;stroke:var(--muted);stroke-width:1.3;stroke-dasharray:6 5}
+.boxlabel{font:500 12px var(--f-mono);fill:var(--muted)}
+.pkt rect{fill:var(--surface);stroke:var(--accent);stroke-width:1.5}
+.pkt text{font:500 12px var(--f-mono);text-anchor:middle;fill:var(--accent)}
+.pkt.bad rect{stroke:var(--bad);fill:var(--bad-soft)}
+.pkt.bad text{fill:var(--bad)}
+.pkt.good rect{stroke:var(--good);fill:var(--good-soft)}
+.pkt.good text{fill:var(--good)}
+.pkt.warnp rect{stroke:var(--warn);fill:var(--warn-soft)}
+.pkt.warnp text{fill:var(--warn)}
+.fx{opacity:0;transition:opacity .35s}
+.fx.on{opacity:1}
+svg.instant *{transition:none!important}
+.mono{font-family:var(--f-mono)!important;font-size:12px}
+.small{font-size:12px}
+.b{font-weight:600}
+.muted{fill:var(--muted)!important}
+.t-good{fill:var(--good)!important}
+.t-bad{fill:var(--bad)!important}
+.t-warn{fill:var(--warn)!important}
+.t-acc{fill:var(--accent)!important}
+.mid{text-anchor:middle}
+.end{text-anchor:end}
+.halo{paint-order:stroke;stroke:var(--surface);stroke-width:6px;stroke-linejoin:round}
+.h3{font:600 17px var(--f-display)}
+.bar{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);transition:transform .9s cubic-bezier(.3,.7,.2,1)}
+.bar.on{transform:scaleX(1)}
+.bar.fit{fill:var(--accent)}
+.bar.over{fill:var(--bad)}
+.bar.mtl{fill:var(--good)}
+.bar.once{fill:var(--warn)}
+.thresh{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:4 4}
+.chip rect{fill:var(--surface);stroke:var(--line)}
+.chip text{font:500 12.5px var(--f-mono);text-anchor:middle}
+.chip.good rect{fill:var(--good-soft);stroke:var(--good)}
+.chip.good text{fill:var(--good)}
+.chip.bad rect{fill:var(--bad-soft);stroke:var(--bad)}
+.chip.bad text{fill:var(--bad)}
+.chip.warn rect{fill:var(--warn-soft);stroke:var(--warn)}
+.chip.warn text{fill:var(--warn)}
+.chip.acc rect{fill:var(--accent-soft);stroke:var(--accent)}
+.chip.acc text{fill:var(--accent)}
+.card rect.c{fill:var(--surface);stroke:var(--line);stroke-width:1.5;transition:stroke .3s,fill .3s}
+.card.hl rect.c{stroke:var(--accent);stroke-width:3}
+.card .ct{font:600 16px var(--f-display)}
+.card .cw{font:600 12.5px var(--f-body);fill:var(--muted)}
+.card .cl{font:13px var(--f-body)}
+.panel rect.p{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.panel.bad rect.p{stroke:var(--bad);stroke-width:2}
+.panel.good rect.p{stroke:var(--good);stroke-width:2}
+.panel.acc rect.p{stroke:var(--accent);stroke-width:2}
+.panel text{font:13.5px var(--f-body)}
+.panel .ph{font:600 16px var(--f-display)}
+.dot{fill:var(--accent)}
+.dot.b2{fill:var(--quantum)}
+.band{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:3 3}
+@media (prefers-reduced-motion: reduce){.fx,.bar,.node,.node rect,.grp{transition:none}}
+</style></head><body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">CipherOps · explainer</div>
+    <h1>What we measure, and why it takes two modes</h1>
+    <p class="lede">The four numbers PS-036 asks for, who pays for each, how the offline harness and the simulated lab measure them, what each mode cannot tell you, and which claims the results actually support.</p>
+  </header>
+
+  <nav class="scenes" id="scenes" aria-label="Scenes"></nav>
+
+  <div class="stage" id="stage">
+    <svg id="svg" viewBox="0 0 960 500" role="img" aria-labelledby="capH"></svg>
+  </div>
+
+  <div class="console">
+    <div class="cap" aria-live="polite">
+      <div class="stepno" id="capN"></div>
+      <h2 id="capH"></h2>
+      <p id="capP"></p>
+      <code id="capM"></code>
+    </div>
+    <div class="controls">
+      <button id="prev" type="button" aria-label="Previous step">← Back</button>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <button id="next" type="button" class="primary">Next →</button>
+      <button id="play" type="button" aria-pressed="false">Play all</button>
+    </div>
+  </div>
+  <div class="hint">Keys: → next · ← back · space play/pause</div>
+
+  <div class="foot">
+    <div>This page explains the method; it contains no benchmark results. The measured numbers are in each run's <code>report.html</code> and in the dashboard's Compare tile, labelled measured, estimated or analytical.</div>
+    <div>Sizes are approximate: one signed A answer ≈ 113 bytes of DNS plus the signature. MTL sizes are the maximum-size formulas of draft-harvey-cfrg-mtl-mode for a 10,005-RRset zone (condensed ≤ 284 B, full signature ≈ 8.7 KB). "About 0.6 s per SLH-DSA signature on one core" is the methodology's stated figure.</div>
+    <div>Stacks: the offline harness uses the <code>latest</code> profile (FIPS 205 SLH-DSA, liboqs 0.16); the simulated lab uses <code>draft06</code> (SPHINCS+-SHA2-128s-simple, liboqs 0.14, same sizes). Details: <code>docs/methodology.md</code> and <code>docs/scope-and-limits.md</code>.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const svg = document.getElementById('svg');
+const DEFS = `<defs>
+  <marker id="mk-line" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+</defs>`;
+
+/* ---------- drawing helpers ---------- */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function node(id,x,y,label,sub,cls='',w=170,h=64){
+  return `<g id="${id}" class="node ${cls}" transform="translate(${x} ${y})"><rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="10"/><text class="nl" y="${sub?-4:5}">${esc(label)}</text><text class="ns" y="16">${esc(sub)}</text></g>`;
+}
+function pkt(id,label,cls=''){
+  const w = Math.round(label.length*7.3+24);
+  return `<g id="${id}" class="pkt fx ${cls}" transform="translate(-300 -300)"><rect x="${-w/2}" y="-13" width="${w}" height="26" rx="13"/><text y="4.5">${esc(label)}</text></g>`;
+}
+function chip(id,x,y,txt,cls='',fx=true){
+  const w = Math.round(txt.length*7.6+26);
+  return `<g id="${id}" class="chip ${cls} ${fx?'fx':''}" transform="translate(${x} ${y})"><rect x="${-w/2}" y="-14" width="${w}" height="28" rx="14"/><text y="4.5">${esc(txt)}</text></g>`;
+}
+function lines(x,y,arr,cls='',lh=18,anchor=''){
+  return arr.map((t,i)=>`<text class="${cls} ${anchor}" x="${x}" y="${y+i*lh}">${t}</text>`).join('');
+}
+function arrow(d,id='',cls='arr'){ return `<path ${id?`id="${id}"`:''} class="${cls}" d="${d}"/>`; }
+/* A boxed panel; rows are [text, cls] pairs, already escaped or plain. */
+function panel(id,x,y,w,h,title,rows,cls='',lh=21){
+  if(h==null) h = 56 + (rows.length-1)*lh + 24;
+  return `<g id="${id}" class="panel fx ${cls}"><rect class="p" x="${x}" y="${y}" width="${w}" height="${h}" rx="12"/>`+
+    `<text class="ph" x="${x+18}" y="${y+28}">${title}</text>`+
+    rows.map((r,i)=>{ const ind=r[0].startsWith('    '); return `<text class="${r[1]||''}" x="${x+18+(ind?24:0)}" y="${y+56+i*lh}">${r[0].trim()}</text>`; }).join('')+`</g>`;
+}
+/* Focus helpers: every step sets the full focus state, so steps compose when replayed. */
+function focus(c, ids, on, dimRest=true){ ids.forEach(k=>{ c.cls(k,'hl',on.includes(k)); c.cls(k,'dim',dimRest && on.length>0 && !on.includes(k)); }); }
+
+/* ---------- step engine (same as the other Learn pages) ---------- */
+let runToken = 0;
+function ctx(instant, token){
+  const $ = id => svg.querySelector('#'+id);
+  const fast = instant || reduce;
+  const c = {
+    $, alive: () => token === runToken,
+    show(id,on=true){ const e=$(id); if(e) e.classList.toggle('on',on); },
+    showAll(ids,on=true){ ids.forEach(i=>c.show(i,on)); },
+    cls(id,k,on=true){ const e=$(id); if(e) e.classList.toggle(k,on); },
+    text(id,s){ const e=$(id); if(!e) return; const t=e.querySelector('.ns')||(e.tagName==='text'?e:e.querySelector('text')); t.textContent=s; },
+    place(id,x,y){ const e=$(id); e.dataset.x=x; e.dataset.y=y; e.setAttribute('transform',`translate(${x} ${y})`); },
+    move(id,x,y,ms=900){
+      const e=$(id); const fx=+e.dataset.x||0, fy=+e.dataset.y||0;
+      e.dataset.x=x; e.dataset.y=y; e.setAttribute('transform',`translate(${x} ${y})`);
+      if(fast || !c.alive() || !e.animate) return Promise.resolve();
+      return e.animate([{transform:`translate(${fx}px,${fy}px)`},{transform:`translate(${x}px,${y}px)`}],
+        {duration:ms,easing:'cubic-bezier(.45,0,.2,1)'}).finished.catch(()=>{});
+    },
+    async send(id,from,to,ms=900,keep=false){
+      c.place(id,from[0],from[1]); c.show(id); await c.move(id,to[0],to[1],ms);
+      if(!keep){ await c.wait(250); c.show(id,false); }
+    },
+    wait(ms){ return fast ? Promise.resolve() : new Promise(r=>setTimeout(r,ms)); }
+  };
+  return c;
+}
+
+/* ---------- scene 1: the question ---------- */
+const X0=200, PX=0.075, LIM=X0+1232*PX;
+const ROWS=[
+  ['ed','Ed25519','64 B signature',177,'fit',110],
+  ['rsa','RSA-2048','256 B signature',369,'fit',165],
+  ['slh','SLH-DSA-SHA2-128s','7,856 B signature',7969,'over',235],
+  ['mtl','SLH-DSA + MTL','condensed ≤ 284 B',397,'mtl',305],
+  ['full','MTL full signature','ladder, fetched once',8773,'once',372],
+];
+function questionStage(){
+  let s = DEFS + `<line class="thresh fx" id="lim" x1="${LIM}" y1="86" x2="${LIM}" y2="392"/>`+
+    `<text id="limt" class="fx mono halo" x="${LIM+8}" y="80">1,232 B: the safe UDP size</text>`;
+  for(const [id,label,sub,bytes,cls,y] of ROWS){
+    const w = Math.max(3, bytes*PX);
+    s += `<g id="g-${id}" class="grp fx"><text class="b end" x="${X0-12}" y="${y-2}">${label}</text><text class="mono muted end" x="${X0-12}" y="${y+15}">${sub}</text>`+
+         `<rect id="b-${id}" class="bar ${cls}" x="${X0}" y="${y-15}" width="${w}" height="30" rx="4"/>`+
+         `<text class="mono" x="${X0+w+8}" y="${y+5}">≈ ${bytes.toLocaleString('en-US')} B</text></g>`;
+  }
+  s += `<g id="slhnote" class="fx">${lines(X0,267,['≈ 6.5× the limit → truncated (TC=1) → asked again over TCP,','and ≈ 0.6 s to sign each one: ≈ 100 min for a 10,005-RRset zone.'],'t-bad small halo',15)}</g>`;
+  s += `<text id="fullnote" class="fx t-warn small halo" x="${X0}" y="406">Paid once per resolver per ladder. Every zone change needs a new ladder, so a busy zone pays it again.</text>`;
+  s += chip('q1',200,455,'zone size: 105 · 1,005 · 10,005 RRsets','acc')+chip('q2',520,455,'resolver: cold vs warm','acc')+chip('q3',780,455,'zone: static vs changing','acc');
+  return s;
+}
+
+/* ---------- scene 2: four measurements ---------- */
+function card(id,x,title,who,body,good,but){
+  const y=262, w=215, h=206;
+  return `<g id="${id}" class="card grp"><rect class="c" x="${x}" y="${y}" width="${w}" height="${h}" rx="12"/>`+
+    `<text class="ct" x="${x+14}" y="${y+28}">${title}</text>`+
+    `<text class="cw" x="${x+14}" y="${y+50}">${who}</text>`+
+    lines(x+14,y+76,body,'cl',18)+
+    `<line x1="${x+14}" y1="${y+150}" x2="${x+w-14}" y2="${y+150}" style="stroke:var(--line)"/>`+
+    `<text class="cl b t-good" x="${x+14}" y="${y+172}">${good}</text><text class="cl b t-warn" x="${x+14}" y="${y+191}">${but}</text></g>`;
+}
+function fourStage(){
+  return DEFS +
+    arrow('M216 110 L282 110') + arrow('M458 110 L628 110','wire') +
+    `<text class="mono muted mid" x="249" y="98">zone</text><text class="mono muted mid" x="543" y="98">answers</text>` +
+    node('signer',130,110,'Signer','zone operator','',170,60) +
+    node('auth',370,110,'Authoritative','serves the zone','',170,60) +
+    node('res',740,110,'Validating resolver','','',210,60) +
+    node('cpu',690,186,'CPU','','',96,34) + node('mem',792,186,'memory','','',96,34) +
+    pkt('pk','answer + RRSIG') +
+    card('c1',18,'① Signing time','Who pays: the zone operator',
+      ['Every re-sign, key roll and','zone change. SLH-DSA costs','≈ 0.6 s per signature, per','RRset.'],
+      'MTL: one ladder signature','but: one per zone change') +
+    card('c2',254,'② Transmitted bytes','Who pays: the network',
+      ['Over 1,232 B: TC=1 and a TCP','retry, or IP fragments that','firewalls drop. Big UDP','answers also amplify attacks.'],
+      'MTL: answers fit UDP','but: cold fetch ≈ 8.7 KB') +
+    card('c3',490,'③ Verification time','Who pays: every resolver',
+      ['Every answer it validates,','all day. Warm MTL: hashing','only. Cold MTL: the path','plus the ladder signature.'],
+      'MTL: hashing when warm','but: no gain when cold') +
+    card('c4',726,'④ Cache usage','Who pays: resolver memory',
+      ['Signatures are held for the','TTL of every cached RRset.','MTL keeps small paths, plus','one ladder per zone version.'],
+      'MTL: tiny per record','but: ladders add up') +
+    `<text id="but" class="fx h3 mid" x="480" y="240">Every metric has a “but”. Each is measured where the “but” bites.</text>`;
+}
+
+/* ---------- scene 3: offline harness ---------- */
+function offlineStage(){
+  return DEFS +
+    `<rect class="box" x="16" y="44" width="928" height="436" rx="14"/>`+
+    `<text class="boxlabel" x="32" y="66">OFFLINE HARNESS · one Docker image · 1 pinned CPU core · no network · seeded order</text>`+
+    arrow('M196 150 L228 150') + arrow('M412 150 L444 150') + arrow('M672 150 L712 150') +
+    arrow('M815 186 V246 H110 V292','snake') + arrow('M196 330 L228 330') + arrow('M412 330 L444 330') + arrow('M672 330 L712 330') +
+    `<g id="row1" class="grp">`+
+      node('n1',110,150,'Synthetic zones','105 · 1,005 · 10,005','',170,70)+
+      node('n2',320,150,'Signing inputs','identical bytes','',180,70)+
+      node('n3',560,150,'mtlbench (C)','stopwatch per call','',220,86)+
+      `<text class="mono muted mid" x="560" y="183">libmtl · liboqs · OpenSSL</text>`+
+      node('n4',815,150,'Trials × N','shuffled · A/A','',190,70)+
+    `</g><g id="row2" class="grp">`+
+      node('n5',110,330,'Real DNS answers','real signature bytes','',170,70)+
+      node('n6',320,330,'Bytes on the wire','fits 1,232? 4,096?','',180,70)+
+      node('n7',560,330,'Cache use','measured | analytical','',220,70)+
+      node('n8',815,330,'Report','median + interval','',190,70)+
+    `</g>`+
+    pkt('sig','7,856 B RRSIG','warnp') + pkt('sig2','≤ 284 B condensed','good') +
+    chip('fit1',320,384,'SLH-DSA: TC=1 → TCP','bad') + chip('fit2',320,416,'MTL: fits UDP','good') +
+    `<g id="noise" class="fx"><text class="small b" x="380" y="404">A/A control: the same mode measured twice</text>`+
+      `<rect class="band" x="700" y="414" width="96" height="44" rx="4"/>`+
+      [712,728,740,748,755,762,771,784].map((x,i)=>`<circle class="dot" cx="${x}" cy="${424+(i%3)*4}" r="4"/>`).join('')+
+      [706,722,737,746,759,768,776,790].map((x,i)=>`<circle class="dot b2" cx="${x}" cy="${446+(i%3)*4}" r="4"/>`).join('')+
+      `<text class="small" x="380" y="430">Its spread is the noise floor. A difference</text><text class="small" x="380" y="448">inside the band is not a difference.</text>`+
+      `<text class="mono muted" x="812" y="430">A</text><text class="mono muted" x="812" y="452">A′</text></g>`+
+    panel('lim',96,86,768,null,'What the offline harness cannot tell you',[
+      ['✗  No resolver ever runs. Bytes over a workload come from an accounting model with stated','t-bad'],
+      ['    rules: answers cached for their TTL, TC=1 means a TCP retry, one ladder fetch per resolver.',''],
+      ['✗  Its “measured” cache is a Python cache holding real answers: a proxy, not a resolver’s memory.','t-bad'],
+      ['✗  Plain SLH-DSA on the 10,005-RRset zone signs 1,000 RRsets; the zone total is extrapolated.','t-bad'],
+      ['✗  A condensed verify is cheap because the ladder was checked earlier. Never compare it with a','t-bad'],
+      ['    plain verify without adding the ladder cost (the report keeps warm and cold apart).',''],
+      ['✗  One machine, one core, reference code. Ratios travel to other hardware; milliseconds do not.','t-bad'],
+    ],'bad',26);
+}
+
+/* ---------- scene 4: simulated lab ---------- */
+const L = {cli:[100,250], res:[330,250], root:[640,110], tld:[640,250], leaf:[640,390]};
+function labStage(){
+  return DEFS +
+    `<rect class="box" x="16" y="44" width="928" height="436" rx="14"/>`+
+    `<text class="boxlabel" x="32" y="66">SIMULATED LAB · internal Docker network · no Internet · draft06 stack · CPUs shared</text>`+
+    `<line class="link" x1="${L.cli[0]}" y1="250" x2="${L.res[0]}" y2="250"/>`+
+    `<line class="link" x1="${L.res[0]}" y1="250" x2="${L.root[0]}" y2="${L.root[1]}"/>`+
+    `<line class="link" x1="${L.res[0]}" y1="250" x2="${L.tld[0]}" y2="${L.tld[1]}"/>`+
+    `<line class="link" x1="${L.res[0]}" y1="250" x2="${L.leaf[0]}" y2="${L.leaf[1]}"/>`+
+    `<text class="mono muted mid halo" x="485" y="170">pcap</text><text class="mono muted mid halo" x="485" y="244">pcap</text><text class="mono muted mid halo" x="485" y="330">pcap</text>`+
+    `<text class="mono muted mid halo" x="215" y="242">pcap</text>`+
+    `<text class="mono muted" x="32" y="468">netem delay per tier (wan: +20 / 35 / 50 ms), optional 1% loss</text>`+
+    node('cli',...L.cli,'Stub client','asks for AD','',150,60)+
+    node('res',...L.res,'Unbound','validating · cache','',170,60)+
+    node('root',...L.root,'root','NSD · MTL mode','',160,56)+
+    node('tld',...L.tld,'TLD','NSD · MTL mode','',160,56)+
+    node('leaf',...L.leaf,'leaf zone','NSD · MTL mode','',160,56)+
+    `<text id="signed" class="fx mono t-acc mid" x="640" y="440">signed bottom-up by Verisign MTL-mode ldns</text>`+
+    `<text id="rstate" class="fx mono mid halo" x="330" y="306"> </text>`+
+    pkt('p1','UDP query') + pkt('p2','TC=1 · too big','bad') + pkt('p3','TCP retry') +
+    pkt('p4','answer + 7,856 B RRSIG','bad') + pkt('p5','answer + condensed · fits','good') +
+    pkt('p6','TCP + mtl-mode-full') + pkt('p7','full signature ≈ 8–9 KB','warnp') +
+    pkt('p8','A? (cached)') + pkt('p9','answer · AD','good') +
+    `<text id="tiers" class="fx small t-bad" x="32" y="400">…and the same for DNSKEY and DS at every tier</text>`+
+    panel('rec',744,84,190,250,'Recorded',[
+      ['bytes per hop (pcap)',''],['truncations, TCP retries',''],['latency p50 / p95',''],['cold vs warm passes',''],
+      ['Unbound cache counters',''],['AD, or SERVFAIL:','b'],['a failed pass is invalid',''],['and shows no numbers',''],
+    ],'acc',22)+
+    panel('lim',96,86,768,null,'What the simulated lab cannot tell you',[
+      ['✗  Containers share all CPUs and are not pinned. Its milliseconds are indicative, never absolute.','t-bad'],
+      ['✗  It runs draft06: the pre-standard SPHINCS+ form (same sizes). On the FIPS 205 stack this','t-bad'],
+      ['    Unbound answers SERVFAIL for plain SLH-DSA, so the MTL vs plain comparison cannot run there.',''],
+      ['✗  The network is emulated: no Internet path, no middlebox dropping fragments, no anycast.','t-bad'],
+      ['✗  One resolver (Unbound) and one small synthetic hierarchy. Other resolvers may behave differently.','t-bad'],
+      ['✗  Its signing times are extrapolated from sample zones, and labelled as estimates.','t-bad'],
+      ['“Simulated” undersells it: the software is real. Only the network and the zones are synthetic.','muted'],
+    ],'bad',26);
+}
+
+/* ---------- scene 5: why both ---------- */
+function bothStage(){
+  const cardL = `<g id="cl" class="card grp"><rect class="c" x="24" y="40" width="290" height="236" rx="12"/>`+
+    `<text class="ct" x="42" y="70">Offline harness</text><text class="cw" x="42" y="92">CONTROL</text>`+
+    lines(42,120,['1 pinned core, no network','identical input for every','algorithm, seeded order','noise floor measured (A/A)'],'cl',20)+
+    `<text id="stL" class="mono t-acc" x="42" y="254">latest · FIPS 205 · liboqs 0.16</text></g>`;
+  const cardR = `<g id="cr" class="card grp"><rect class="c" x="646" y="40" width="290" height="236" rx="12"/>`+
+    `<text class="ct" x="664" y="70">Simulated lab</text><text class="cw" x="664" y="92">REALISM</text>`+
+    lines(664,120,['real signer, servers and','validating resolver','real packets on every hop','cold and warm caches'],'cl',20)+
+    `<text id="stR" class="mono t-acc" x="664" y="254">draft06 · SPHINCS+ · liboqs 0.14</text></g>`;
+  return DEFS + cardL + cardR +
+    `<g id="bridge" class="fx"><text class="h3 mid" x="480" y="70">One number, three witnesses</text>`+
+      chip('w1',480,108,'byte model (dnswire)','acc',false)+chip('w2',480,150,'real NSD answer (crosscheck)','acc',false)+
+      chip('w3',480,192,'packet capture (pcap)','acc',false)+
+      `<text id="agree" class="mid b t-good" x="480" y="236">must agree, byte for byte</text>`+
+      arrow('M316 150 L356 150')+arrow('M644 150 L604 150')+`</g>`+
+    `<g id="never" class="fx"><line x1="330" y1="268" x2="630" y2="268" style="stroke:var(--bad);stroke-width:2.5;stroke-dasharray:8 6"/>`+
+      `<text class="mid b t-bad halo" x="480" y="273">never on one chart</text></g>`+
+    panel('e1',24,300,912,176,'Offline alone: precise, and blind',[
+      ['It proves every answer’s exact size. It never asks a resolver whether it accepts that answer.',''],
+      ['Case in point: on the FIPS 205 stack, the lab’s Unbound answers SERVFAIL for plain SLH-DSA.','t-bad'],
+      ['No amount of offline timing could have found that. A resolver had to try.',''],
+      ['Without the lab, “it fits in UDP” would be presented as “it works”.','b'],
+    ],'bad',27)+
+    panel('e2',24,300,912,176,'The lab alone: real, and noisy',[
+      ['Suppose it shows MTL lookups finishing faster. Is that MTL, or Docker scheduling on shared CPUs?',''],
+      ['Without a pinned core and an A/A noise floor, nobody can say. Its signing times are estimates.','t-bad'],
+      ['It also runs a different code base (draft06), so its milliseconds cannot stand in for the harness’s.',''],
+      ['Without the harness, “faster in the lab” would be presented as “cheaper crypto”.','b'],
+    ],'bad',27)+
+    panel('e3',24,300,912,176,'Where they overlap, they must agree',[
+      ['Answer sizes are computed by the model, served by a real NSD and seen on the wire by tcpdump.',''],
+      ['Three independent witnesses of the same bytes. If one disagrees, one of them is wrong,','b'],
+      ['and the disagreement shows up in the report instead of going unnoticed. That is the point of two modes.',''],
+    ],'good',27)+
+    panel('e4',24,300,912,176,'Same sizes, different code: never mixed',[
+      ['The pre-standard SPHINCS+ form has the same sizes as FIPS 205 SLH-DSA, so bytes and cache',''],
+      ['figures carry over between modes. Timings do not: different library versions, different code.','t-bad'],
+      ['Compare bytes and ratios across modes. Never put a lab millisecond next to a harness one.','b'],
+    ],'acc',27)+
+    panel('e5',24,300,912,176,'Which mode answers which question',[
+      ['What does the cryptography cost per algorithm and zone size?  →  offline harness',''],
+      ['How big is every answer, and how many fit 1,232 B?  →  offline, checked by NSD and pcaps',''],
+      ['Does a real validating resolver accept it, end to end?  →  simulated lab',''],
+      ['What does a resolver really send, cold and warm, per tier?  →  simulated lab',''],
+      ['What does MTL cost when the zone keeps changing?  →  offline (Zone updates)',''],
+    ],'acc',24);
+}
+
+/* ---------- scene 6: verdict ---------- */
+function verdictStage(){
+  const ok=[
+    ['Signature and answer sizes, byte-exact,','checkable against a real server and captures'],
+    ['The share of answers that fit 1,232 B,','per algorithm and zone size'],
+    ['Relative signing and verification cost,','with intervals, above the noise floor'],
+    ['Verisign’s MTL-mode signer, servers and','resolver interoperate end to end (draft06)'],
+  ];
+  const no=[
+    ['Production or Internet latency, or any','lab millisecond as an absolute figure'],
+    ['“MTL is free”: cold resolvers and changing','zones pay more, and the report shows it'],
+    ['End-to-end FIPS 205 validation: the lab','validates the pre-standard form'],
+    ['Other resolvers (BIND, Knot, PowerDNS)','or ML-DSA-MTL: not measured here'],
+    ['Security or standards compliance: the drafts','are individual drafts, code points placeholders'],
+  ];
+  let s = DEFS + `<text class="h3 t-good" x="34" y="56">Defensible</text><text class="h3 t-bad" x="494" y="56">Not defensible</text>`;
+  ok.forEach((r,i)=>{ s+=`<g id="ok${i}" class="fx"><text class="t-good b" x="34" y="${96+i*62}">✓</text>`+lines(56,96+i*62,r,'',19)+`</g>`; });
+  no.forEach((r,i)=>{ s+=`<g id="no${i}" class="fx"><text class="t-bad b" x="494" y="${96+i*62}">✗</text>`+lines(516,96+i*62,r,'',19)+`</g>`; });
+  s += `<g id="quote" class="fx"><line x1="34" y1="414" x2="926" y2="414" style="stroke:var(--line)"/>`+
+       `<text class="b" x="34" y="446">Quote every number with:</text>`+
+       chip('k1',270,441,'run id','acc',false)+chip('k2',385,441,'stack profile','acc',false)+
+       chip('k3',555,441,'offline or simulated','acc',false)+chip('k4',800,441,'measured · estimated · analytical','acc',false)+`</g>`;
+  return s;
+}
+
+/* ---------- scenes ---------- */
+const scenes = [
+{ id:'question', name:'The question', build:questionStage, steps:[
+  { h:'Today’s signatures fit in one packet', p:'A signed DNS answer is roughly 113 bytes of DNS plus its signature. With Ed25519 or RSA-2048 it fits easily under 1,232 bytes, the UDP size that avoids fragmentation on almost every path.',
+    m:'Ed25519 64 B · RSA-2048 256 B · safe UDP size 1,232 B (DNS Flag Day 2020)',
+    run: async c => { c.showAll(['lim','limt','g-ed','g-rsa']); c.show('b-ed'); c.show('b-rsa'); } },
+  { h:'A post-quantum signature does not', p:'SLH-DSA-SHA2-128s, a NIST-standard post-quantum signature, is 7,856 bytes. Every signed answer overflows the limit, gets truncated and is asked again over TCP. It is also slow to make: about 0.6 s per signature on one core.',
+    m:'113 + 7,856 = 7,969 B per answer · ≈ 6.5 × 1,232 B',
+    run: async c => { c.show('g-slh'); c.show('b-slh'); await c.wait(500); c.show('slhnote'); } },
+  { h:'MTL’s promise: small answers', p:'MTL signs the whole zone’s Merkle tree once and gives each answer a short hash path instead. For a 10,005-RRset zone that path is at most 284 bytes, so the answer fits again.',
+    m:'113 + 284 = 397 B per answer (draft maximum, 10,005 RRsets)',
+    run: async c => { c.show('g-mtl'); c.show('b-mtl'); } },
+  { h:'…and its price', p:'A resolver can only check that path once it holds the signed ladder. It has to fetch the full signature, about 8.7 KB, once per ladder. A zone that changes signs new ladders, and resolvers fetch again.',
+    m:'full signature ≈ 8,660 B (condensed + signed ladder), once per resolver per ladder',
+    run: async c => { c.show('g-full'); c.show('b-full'); await c.wait(500); c.show('fullnote'); } },
+  { h:'So the real question is “when does it pay off?”', p:'MTL does not remove the cost, it moves it. Whether that is a win depends on how big the zone is, how often resolvers reuse a ladder and how often the zone changes. The benchmark is built around exactly those three variables, not around a single headline number.',
+    m:'variables: zone size · cold vs warm resolver · static vs changing zone',
+    run: async c => { c.showAll(['q1','q2','q3']); } },
+]},
+{ id:'what', name:'Four measurements', build:fourStage, steps:[
+  { h:'① Signing time: the operator’s bill', p:'Signing happens at every re-sign, key roll and zone change. Plain SLH-DSA signs every RRset separately; MTL signs one ladder and hashes the rest. Measured per library call and for the whole zone, plus what each zone update costs.',
+    m:'measured: per-call and whole-zone signing time · zone-update cost (offline)',
+    run: async c => { focus(c,['c1','c2','c3','c4'],['c1']); focus(c,['signer','cpu','mem'],['signer'],false); } },
+  { h:'② Transmitted bytes: the network’s bill', p:'Anything over 1,232 bytes means a TC=1 reply and a TCP retry (an extra round trip), or IP fragments that many firewalls silently drop. Large UDP answers also make DNS a better amplifier for attacks. Measured on real DNS messages, then on real packets.',
+    m:'measured: response size, fit at 1,232 / 4,096 B, truncations, TCP retries, bytes per hop',
+    run: async c => { focus(c,['c1','c2','c3','c4'],['c2']); focus(c,['signer','cpu','mem'],[],false);
+      await c.send('pk',[460,110],[625,110],1000); } },
+  { h:'③ Verification time: every resolver’s bill', p:'A validating resolver checks a signature on every answer it has not cached, all day. Warm MTL verifies with hashing alone; cold MTL also checks the ladder’s SLH-DSA signature. The report keeps warm and cold apart, because comparing the wrong pair flatters MTL.',
+    m:'measured: verify warm (whole zone) and cold (one full signature) · never mixed',
+    run: async c => { focus(c,['c1','c2','c3','c4'],['c3']); focus(c,['signer','cpu','mem'],['cpu'],false); } },
+  { h:'④ Cache usage: the resolver’s memory', p:'Every cached RRset keeps its signature for the TTL. MTL stores short paths, plus one ladder per zone version. PS-036 asks for measured and analytical cache figures kept apart, and they are: every row is labelled, and no chart mixes the two.',
+    m:'cache.csv: kind = measured | analytical · Unbound mem.cache counters in the lab',
+    run: async c => { focus(c,['c1','c2','c3','c4'],['c4']); focus(c,['signer','cpu','mem'],['mem'],false); } },
+  { h:'Every metric has a “but”', p:'MTL wins each metric in the easy case and gives some back in the hard one: changing zones, cold resolvers, ladders piling up. A benchmark that only measured the easy case would be advertising, not measuring.',
+    m:'easy case: static zone, warm resolver · hard case: changing zone, cold resolver',
+    run: async c => { focus(c,['c1','c2','c3','c4'],[]); focus(c,['signer','cpu','mem'],[],false); c.show('but'); } },
+]},
+{ id:'offline', name:'Offline harness', build:offlineStage, steps:[
+  { h:'Same input for every algorithm', p:'Three synthetic zones are generated from one seed. Every algorithm signs byte-identical inputs, built exactly as RFC 4034 specifies, so any difference in the results comes from the algorithm and not from the data.',
+    m:'zones: 105 · 1,005 · 10,005 RRsets · signing input per RFC 4034 §3.1.8.1',
+    run: async c => { c.cls('row2','dim'); focus(c,['n1','n2','n3','n4','n5','n6','n7','n8'],['n1'],false); await c.wait(400); c.cls('n2','hl'); } },
+  { h:'A stopwatch around each library call, nothing else', p:'A small C program calls Verisign’s MTL library, liboqs and OpenSSL, unmodified, and times each call on one dedicated core with no network. A trial counts only if every signature verifies and every tampered input is rejected.',
+    m:'CLOCK_MONOTONIC_RAW · 1 pinned core · tampered message, signature and ladder must fail',
+    run: async c => { c.cls('row2','dim'); focus(c,['n1','n2','n3','n4','n5','n6','n7','n8'],['n3'],false); } },
+  { h:'Repeat until the noise is known', p:'Trials repeat in a seeded random order after a discarded warm-up. One mode also runs twice in every trial (an A/A control): its spread is the measurement’s own noise. Results are medians with an interval, and a gap smaller than the noise is not reported as a gap.',
+    m:'median + distribution-free interval of the median · A/A noise floor',
+    run: async c => { c.cls('row2','dim'); focus(c,['n1','n2','n3','n4','n5','n6','n7','n8'],['n4'],false); c.show('noise'); } },
+  { h:'Real signatures into real DNS answers', p:'The signatures from the trials are put into real DNS answers and counted: does each fit 1,232 bytes, or 4,096? A query workload is then summed into bytes on the wire. Cache use is measured on a cache holding those answers and computed from the draft’s formulas, reported separately.',
+    m:'responses.csv · workload.csv · cache.csv (measured | analytical) · sizes.csv',
+    run: async c => { c.show('noise',false); c.cls('row2','dim',false); focus(c,['n1','n2','n3','n4','n5','n6','n7','n8'],['n5','n6','n7'],false);
+      await c.send('sig',[560,195],[110,292],1100); c.showAll(['fit1','fit2']); } },
+  { h:'What it cannot tell you', p:'The harness is a lab bench: it isolates the cryptography so well that nothing else is in the picture, including a real resolver. Every limit below is written in the methodology and labelled in the report. A result quoted without them overclaims.',
+    m:'docs/methodology.md §11 · docs/scope-and-limits.md',
+    run: async c => { focus(c,['n1','n2','n3','n4','n5','n6','n7','n8'],[],false); c.cls('row1','dim'); c.cls('row2','dim'); c.show('fit1',false); c.show('fit2',false); c.show('lim'); } },
+]},
+{ id:'lab', name:'Simulated lab', build:labStage, steps:[
+  { h:'A real hierarchy, running real software', p:'A root, a TLD and leaf zones, each served by NSD, signed bottom-up with Verisign’s MTL-mode ldns, behind a validating Unbound that trusts only the root. Delays and loss come from netem on an internal Docker network; nothing leaves the machine.',
+    m:'ldns → NSD (root · TLD · leaf) ← Unbound (validating) ← stub client · tcpdump on every hop',
+    run: async c => { c.show('signed'); c.cls('res','hl'); } },
+  { h:'Cold lookup, plain SLH-DSA', p:'The resolver asks over UDP. The answer with its 7,856-byte signature does not fit, so the server sends TC=1 and the resolver asks again over TCP: an extra round trip. The DNSKEY and DS records on the way down carry the same large signatures.',
+    m:'UDP → TC=1 → TCP → answer + RRSIG (7,856 B)',
+    run: async c => { const a=L.res, b=L.leaf;
+      await c.send('p1',a,b,800); await c.send('p2',b,a,800); await c.send('p3',a,b,800); await c.send('p4',b,a,900); c.show('tiers'); } },
+  { h:'Cold lookup, MTL', p:'The answer with its condensed signature fits in UDP. But this resolver has no ladder yet, so it asks again over TCP with the mtl-mode-full option and receives the full signature, about 8–9 KB. Cold, MTL can cost more than plain SLH-DSA. The lab measures that, not just the good case.',
+    m:'UDP → condensed answer (fits) → TCP + mtl-mode-full (EDNS 65050, lab code) → full signature → ladder cached',
+    run: async c => { const a=L.res, b=L.leaf; c.show('tiers',false); c.text('rstate',''); c.show('rstate');
+      await c.send('p1',a,b,800); await c.send('p5',b,a,800);
+      c.text('rstate','no ladder yet'); c.cls('rstate','t-warn'); await c.wait(350);
+      await c.send('p6',a,b,800); await c.send('p7',b,a,950);
+      c.text('rstate','ladder cached ✓'); c.cls('rstate','t-warn',false); c.cls('rstate','t-good'); } },
+  { h:'Warm lookups', p:'Later answers from the same zone carry only the condensed signature, fit in UDP and are verified by hashing against the cached ladder. Repeated questions are answered from the cache without leaving the resolver. Every trial flushes the cache and replays the same workload cold, then warm.',
+    m:'cold pass (flushed) → warm pass (same seeded workload) · repeated, warm-up discarded',
+    run: async c => { const a=L.res, b=L.leaf; c.text('rstate','ladder cached ✓'); c.cls('rstate','t-good'); c.show('rstate');
+      await c.send('p1',a,b,700); await c.send('p5',b,a,700);
+      await c.send('p8',L.cli,a,700); await c.send('p9',a,L.cli,700); c.cls('cli','good'); } },
+  { h:'What is recorded', p:'Bytes come from packet captures on each hop, not from a model. Truncations, TCP retries, latency (p50 and p95, cold and warm) and Unbound’s own cache counters are logged. A pass with any SERVFAIL or timeout is invalid and shows no numbers, so a resolver that cannot validate never looks fast.',
+    m:'ecosystem/results/suites/<id>/ · suite.json records commit, images, CPU, governor',
+    run: async c => { c.text('rstate','ladder cached ✓'); c.cls('rstate','t-good'); c.show('rstate'); c.show('rec'); } },
+  { h:'What it cannot tell you', p:'The lab is a test track: real cars, closed road. It shows what the software does, but its clocks are shared and its road is short. Each limit below is stated in the scope document.',
+    m:'docs/scope-and-limits.md · docs/design-decisions.md',
+    run: async c => { ['cli','res','root','tld','leaf'].forEach(k=>{c.cls(k,'hl',false); c.cls(k,'good',false); c.cls(k,'dim');}); c.show('rec',false); c.show('lim'); } },
+]},
+{ id:'both', name:'Why both', build:bothStage, steps:[
+  { h:'Offline alone is precise, and blind', p:'The harness controls everything, so its numbers are clean. But it never runs a resolver, so it cannot tell you whether anyone can actually validate what it measured.',
+    m:'control without realism',
+    run: async c => { c.cls('cl','hl'); c.cls('cr','dim'); c.show('e1'); } },
+  { h:'The lab alone is real, and noisy', p:'The lab runs the real software, so its behaviour is real. But its clocks are shared and its code differs, so it cannot tell you what the cryptography costs.',
+    m:'realism without control',
+    run: async c => { c.cls('cl','hl',false); c.cls('cl','dim'); c.cls('cr','dim',false); c.cls('cr','hl'); c.show('e1',false); c.show('e2'); } },
+  { h:'Where they overlap, they must agree', p:'Answer sizes are the one quantity both modes can see. The model computes them, a real NSD serves them and tcpdump captures them. Three witnesses for the same bytes turn two partial views into one checked result.',
+    m:'runner crosscheck (model vs NSD) · pcap_bytes.py (captures vs client log) · lab pcaps',
+    run: async c => { c.cls('cl','dim',false); c.cls('cr','hl',false); c.cls('cr','dim',false); c.show('e2',false);
+      c.show('bridge'); c.show('e3'); } },
+  { h:'Never on one chart', p:'The harness runs the FIPS 205 stack; the lab runs draft06, the only stack where the resolver validates both MTL and plain SLH-DSA. The sizes are identical, the code is not. The dashboard never draws the two together, and no summary of the results should either.',
+    m:'offline: latest (liboqs 0.16, FIPS 205) · lab: draft06 (liboqs 0.14, SPHINCS+) · same sizes',
+    run: async c => { c.show('bridge'); c.show('e3',false); c.show('never'); ['stL','stR'].forEach(k=>{c.cls(k,'t-acc',false); c.cls(k,'t-bad');}); c.show('e4'); } },
+  { h:'Each question has one right mode', p:'Ask each question of the mode that can answer it, and use the overlap to check them against each other. That is the whole design.',
+    m:'cost → offline · sizes → offline, checked live · acceptance → lab · resolver behaviour → lab · updates → offline',
+    run: async c => { c.show('bridge'); c.show('never'); c.show('e4',false); c.show('e5'); } },
+]},
+{ id:'verdict', name:'What you can claim', build:verdictStage, steps:[
+  { h:'Claims the results can carry', p:'These follow directly from what was measured, under conditions that were recorded, with the noise quantified.',
+    m:'each backed by a file in the run folder or suite folder',
+    run: async c => { for(let i=0;i<4;i++){ c.show('ok'+i); await c.wait(260); } } },
+  { h:'Claims they cannot carry', p:'Each of these would overstate what was measured. They are open questions, not results.',
+    m:'a summary that implies one of these overclaims',
+    run: async c => { for(let i=0;i<4;i++) c.show('ok'+i); for(let i=0;i<5;i++){ c.show('no'+i); await c.wait(260); } } },
+  { h:'How to quote a number', p:'A number without its run, stack and mode is an anecdote. With them, anyone can find the file it came from and rerun it.',
+    m:'e.g. “MTL vs plain, large zone · run 20261030T…-full · latest · offline · measured”',
+    run: async c => { for(let i=0;i<4;i++) c.show('ok'+i); for(let i=0;i<5;i++) c.show('no'+i); c.show('quote'); } },
+]},
+];
+
+/* ---------- UI wiring ---------- */
+const navEl=document.getElementById('scenes'), dotsEl=document.getElementById('dots');
+const capN=document.getElementById('capN'), capH=document.getElementById('capH'), capP=document.getElementById('capP'), capM=document.getElementById('capM');
+const prevB=document.getElementById('prev'), nextB=document.getElementById('next'), playB=document.getElementById('play');
+let si=0, st=0, playing=false;
+
+scenes.forEach((s,i)=>{ const b=document.createElement('button'); b.type='button';
+  b.innerHTML=`<span class="n">${i+1}</span>${s.name}`; b.addEventListener('click',()=>{stop(); go(i,0);}); navEl.appendChild(b); });
+
+async function go(sIdx, step){
+  si=sIdx; st=step; const token=++runToken; const sc=scenes[si];
+  [...navEl.children].forEach((b,i)=>b.setAttribute('aria-current', i===si?'true':'false'));
+  dotsEl.innerHTML = sc.steps.map((_,i)=>`<span class="${i===st?'on':(i<st?'done':'')}"></span>`).join('');
+  const s=sc.steps[st];
+  capN.textContent=`Scene ${si+1} of ${scenes.length} · step ${st+1} of ${sc.steps.length}`;
+  capH.textContent=s.h; capP.textContent=s.p; capM.textContent=s.m;
+  prevB.disabled = (si===0 && st===0);
+  nextB.disabled = (si===scenes.length-1 && st===sc.steps.length-1);
+  nextB.textContent = st===sc.steps.length-1 && si<scenes.length-1 ? 'Next scene →' : 'Next →';
+  try{ if(location.hash!=='#'+sc.id) history.replaceState(null,'','#'+sc.id); }catch(e){}
+  svg.innerHTML = sc.build();
+  svg.classList.add('instant');
+  const fast = ctx(true, token);
+  for(let i=0;i<st;i++){ await sc.steps[i].run(fast); if(token!==runToken) return; }
+  void svg.getBoundingClientRect();
+  svg.classList.remove('instant');
+  await s.run(ctx(false, token));
+  if(token!==runToken) return;
+  if(playing){ await new Promise(r=>setTimeout(r, reduce?5200:3400)); if(token===runToken && playing) next(); }
+}
+function next(){ const sc=scenes[si]; if(st<sc.steps.length-1) go(si,st+1); else if(si<scenes.length-1) go(si+1,0); else stop(); }
+function prev(){ if(st>0) go(si,st-1); else if(si>0) go(si-1,scenes[si-1].steps.length-1); }
+function stop(){ playing=false; playB.textContent='Play all'; playB.setAttribute('aria-pressed','false'); }
+function play(){ if(playing){ stop(); return; } playing=true; playB.textContent='Pause'; playB.setAttribute('aria-pressed','true'); next(); }
+
+nextB.addEventListener('click',()=>{stop(); next();});
+prevB.addEventListener('click',()=>{stop(); prev();});
+playB.addEventListener('click',play);
+document.addEventListener('keydown',e=>{
+  if(e.target.closest && e.target.closest('input,textarea')) return;
+  if(e.key==='ArrowRight'){e.preventDefault(); stop(); next();}
+  else if(e.key==='ArrowLeft'){e.preventDefault(); stop(); prev();}
+  else if(e.key===' '){e.preventDefault(); play();}
+});
+function fromHash(){ const id=(location.hash||'').slice(1); const i=scenes.findIndex(s=>s.id===id); return i<0?0:i; }
+window.addEventListener('hashchange',()=>{ const i=fromHash(); if(i!==si){ stop(); go(i,0); } });
+go(fromHash(),0);
+})();
+</script>
+</body></html>

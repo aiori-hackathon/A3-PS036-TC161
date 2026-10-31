@@ -209,7 +209,7 @@ Cipherops/
 │   ├── end-to-end-flow.md  what each of the 7 stages takes in and puts out
 │   ├── outputs-reference.md  every output file and column
 │   ├── getting-started.md, codespaces.md, scope-and-limits.md, README.md (index)
-│   └── learn/              background and two animated walkthroughs
+│   └── learn/              background and three animated walkthroughs
 └── results/runs/<run_id>/  every run's outputs (section 9)
 ```
 

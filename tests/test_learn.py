@@ -49,3 +49,32 @@ def test_explainer_has_the_ietf_status_scene_with_dated_drafts():
                   "draft-kaizer-dnsop-ml-dsa-mtl-dnssec-03", "draft-sheth-pqc-dnssec-strategy-02"):
         assert draft in html
     assert "30 October 2026" in html and "individual" in html.lower()
+
+
+MEASURE = PAGE.parent / "what-we-measure.html"
+
+
+def test_measure_page_is_self_contained():
+    html = MEASURE.read_text(encoding="utf-8")
+    assert not re.search(r"""(?:src|href)\s*=\s*["']?https?://""", html)
+    assert "@import" not in html and "fonts.googleapis" not in html
+
+
+def test_measure_page_sizes_match_the_formulas():
+    html = MEASURE.read_text(encoding="utf-8")
+    cond = analytical.max_condensed_signature(MTL_SECURITY_PARAMETER_N, N_RRSETS)
+    full = cond + analytical.max_signed_ladder(MTL_SECURITY_PARAMETER_N, N_RRSETS, SLH_DSA_SHA2_128S_SIG_BYTES)
+    rows = dict(re.findall(r"\['(\w+)','[^']*','[^']*',(\d+),", html))
+    assert int(rows["slh"]) == DNS_OVERHEAD + SLH_DSA_SHA2_128S_SIG_BYTES
+    assert int(rows["mtl"]) == DNS_OVERHEAD + cond
+    assert int(rows["full"]) == DNS_OVERHEAD + full
+    assert int(rows["ed"]) == DNS_OVERHEAD + 64 and int(rows["rsa"]) == DNS_OVERHEAD + 256
+    assert f"≤ {cond} B" in html and f"{full / 1000:.1f} KB" in html and f"{full:,} B" in html
+
+
+def test_measure_page_states_both_stacks_and_its_limits():
+    html = MEASURE.read_text(encoding="utf-8")
+    for needle in ("latest", "draft06", "FIPS 205", "SERVFAIL", "extrapolated", "never on one chart",
+                   "contains no benchmark results"):
+        assert needle in html, needle
+    assert "what-we-measure.html" in (PAGE.parent / "README.md").read_text(encoding="utf-8")

@@ -18,7 +18,7 @@ Start with the [README](../README.md). Then read in the order that matches what 
 
 | Document | Read it to |
 | --- | --- |
-| [Learn](learn/README.md) | get the background on DNSSEC, post-quantum signatures and MTL, with two animated walkthroughs and the IETF draft status |
+| [Learn](learn/README.md) | get the background on DNSSEC, post-quantum signatures and MTL, with three animated walkthroughs and the IETF draft status |
 | [Scope and limits](scope-and-limits.md) | see what is and is not claimed, the limits, and the software stacks |
 | [Design decisions](design-decisions.md) | see why the benchmark is built the way it is |
 

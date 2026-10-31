@@ -17,6 +17,20 @@ MTL at every step (commands, bytes on the wire and the resolver's work). It is a
 dashboard's second **Learn** view. Its byte figures are illustrative for a small zone; the measured ones are in the
 run reports.
 
+A third page, **[what-we-measure.html](what-we-measure.html)**, explains the benchmark itself in six scenes: the
+question (when does MTL pay off?), the four PS-036 measurements and who pays for each, how the offline harness and the
+simulated lab measure them, what each mode cannot tell you, why the project needs both, and which claims the results
+support. It contains no results; it says where each kind of number comes from and how to quote it.
+
+| Mode | Answers | Cannot tell you |
+|---|---|---|
+| Offline harness | what the cryptography costs; exact answer sizes; cache, measured and analytical | whether a real resolver accepts the answers; production or Internet timing |
+| Simulated lab | whether Verisign's MTL-mode signer, servers and resolver work end to end; bytes per hop, cold and warm | what the cryptography costs (CPUs are shared, the stack differs); behaviour of other resolvers |
+
+Where the two overlap (answer sizes), they are checked against each other: the byte model, a real NSD answer
+(`runner crosscheck`) and packet captures. They are never drawn on one chart, because they run different stacks
+(`latest` offline, `draft06` in the lab).
+
 ## The story in six steps
 
 | # | Scene | What to take away |
