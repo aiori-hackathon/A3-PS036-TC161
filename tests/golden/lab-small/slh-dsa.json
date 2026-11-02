@@ -1,0 +1,95 @@
+{
+  "scenario": "slh-dsa",
+  "algorithms": {
+    "root": "SLH-DSA-SHA2-128s",
+    "tld": "SLH-DSA-SHA2-128s",
+    "sld": "SLH-DSA-SHA2-128s"
+  },
+  "trust_anchor": [
+    ".\t3600\tIN\tDS\t2705 246 2 ba73fb5ae7caab10b496cb656678a809c85bda9b3a817978eda5f10bc73e2b37"
+  ],
+  "signing": {
+    "inception": "20260101000000",
+    "expiration": "20360101000000",
+    "nsec3_iterations": 0
+  },
+  "jobs": 2,
+  "zones": [
+    {
+      "origin": ".",
+      "tier": "root",
+      "server": "root",
+      "algorithm": "SLH-DSA-SHA2-128s",
+      "keys": [
+        "K.+246+02705"
+      ],
+      "ds": [
+        ".\t3600\tIN\tDS\t2705 246 2 ba73fb5ae7caab10b496cb656678a809c85bda9b3a817978eda5f10bc73e2b37"
+      ],
+      "n_names": 0,
+      "signed_file": "root.zone.signed",
+      "signed_bytes": 106463,
+      "signed_sha256": "04acd4058a8facdc8bb199f08944472e7bbf06c86ca82e65ebb9dd78ec883a76",
+      "rrsig_count": 10,
+      "sign_seconds": 2.583,
+      "verify_seconds": 0.017
+    },
+    {
+      "origin": "test.",
+      "tier": "tld",
+      "server": "tld-test",
+      "algorithm": "SLH-DSA-SHA2-128s",
+      "keys": [
+        "Ktest.+246+04532"
+      ],
+      "ds": [
+        "test.\t3600\tIN\tDS\t4532 246 2 d76babc73e03250d339a14271115be244fa0d567f2e3d5ffdbee22dff1a4f627"
+      ],
+      "n_names": 0,
+      "signed_file": "test.zone.signed",
+      "signed_bytes": 117328,
+      "signed_sha256": "4ee694d59563e383ea853c9215cf4a01484aeb44515b089c0adb36a40413dca8",
+      "rrsig_count": 11,
+      "sign_seconds": 2.846,
+      "verify_seconds": 0.017
+    },
+    {
+      "origin": "zone00.test.",
+      "tier": "sld",
+      "server": "sld1",
+      "algorithm": "SLH-DSA-SHA2-128s",
+      "keys": [
+        "Kzone00.test.+246+00000"
+      ],
+      "ds": [
+        "zone00.test.\t3600\tIN\tDS\t0 246 2 8d8abdb32dd78e46b2c62bbfcae34e569e21607bf9fbf5d8e7bbc475ed863519"
+      ],
+      "n_names": 5,
+      "signed_file": "zone00.test.zone.signed",
+      "signed_bytes": 183119,
+      "signed_sha256": "d364d19834a43eb6f3eebefe115ab87e602d248f11038b2085e9dcc55c996df8",
+      "rrsig_count": 17,
+      "sign_seconds": 4.485,
+      "verify_seconds": 0.028
+    },
+    {
+      "origin": "zone01.test.",
+      "tier": "sld",
+      "server": "sld1",
+      "algorithm": "SLH-DSA-SHA2-128s",
+      "keys": [
+        "Kzone01.test.+246+16522"
+      ],
+      "ds": [
+        "zone01.test.\t3600\tIN\tDS\t16522 246 2 edcd784b017206753a75f8a9b57c4dfd351f1f2979863f45b4e67863a152e2dd"
+      ],
+      "n_names": 5,
+      "signed_file": "zone01.test.zone.signed",
+      "signed_bytes": 182871,
+      "signed_sha256": "837919fd36000525639a5bf5fb80553d3de7d56ad9faa505c437f82029f7e3a4",
+      "rrsig_count": 17,
+      "sign_seconds": 4.433,
+      "verify_seconds": 0.024
+    }
+  ]
+}
