@@ -33,7 +33,7 @@ def activity_tab(h: driver.LabHandle) -> None:
         st.session_state.activity = []
         st.rerun()
     show_tech = top[1].checkbox("Technical details", value=False, key="act_tech",
-                                help="Docker and tool output for debugging. Leave off for a normal demo.")
+                                help="Docker and tool output for debugging. Leave off for normal use.")
     if not entries:
         st.caption("Nothing yet. Use the sidebar steps — this list fills in as you go.")
         return

@@ -1,7 +1,7 @@
 """Compose file for the hierarchy and the per-scenario server configurations.
 
 Containers (fixed names and addresses on one internal network, no Internet):
-  eco-root, eco-tld-<tld>, eco-sld<k>  Verisign MTL-mode NSD
+  eco-root, eco-tld-<tld>, eco-sld<k>  Verisign MTL-mode NSD (default) or PowerDNS Auth
   eco-unbound                          Verisign MTL-mode Unbound (validating)
   eco-client                           stub client + controller (tools image)
 The work directory is mounted read-only at /lab in every server; the
@@ -23,17 +23,41 @@ def container(service: str) -> str:
     return f"eco-{service}"
 
 
+def auth_backend(stack: str) -> str:
+    """``nsd`` (presentation default) or ``powerdns`` from ecosystem/stacks/<stack>.env."""
+    path = Path(__file__).resolve().parents[2] / "stacks" / f"{stack}.env"
+    if not path.is_file():
+        return "nsd"
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip().startswith("AUTH_BACKEND="):
+            return line.partition("=")[2].strip().lower() or "nsd"
+    return "nsd"
+
+
 def compose(lab: Lab, stack: str) -> dict:
     cpus = lab.cfg.get("cpusets", {})
+    backend = auth_backend(stack)
     net = {"dnsnet": {"driver": "bridge", "internal": True, "ipam": {"config": [{"subnet": SUBNET}]}}}
     services: dict[str, dict] = {}
     for s in lab.servers.values():
-        services[s.name] = {
-            "image": f"cipherops-eco-nsd:{stack}", "container_name": container(s.name), "hostname": s.name,
-            "networks": {"dnsnet": {"ipv4_address": s.ip}}, "volumes": ["./:/lab:ro,z"],
-            "command": [f"exec nsd -d -c /lab/active/nsd/{s.name}.conf"],
-            **({"cpuset": str(cpus["nsd"])} if cpus.get("nsd") else {}),
-        }
+        if backend == "powerdns":
+            # Entrypoint (docker/pdns-entrypoint.sh) creates bind-dnssec-db + PRESIGNED.
+            services[s.name] = {
+                "image": f"cipherops-eco-pdns:{stack}", "container_name": container(s.name), "hostname": s.name,
+                "networks": {"dnsnet": {"ipv4_address": s.ip}}, "volumes": ["./:/lab:ro,z"],
+                "environment": {
+                    "PDNS_CONFIG_DIR": f"/lab/active/pdns/{s.name}",
+                    "PDNS_DNSSEC_DB": f"/tmp/pdns-bind-dnssec-{s.name}.sqlite3",
+                },
+                **({"cpuset": str(cpus["nsd"])} if cpus.get("nsd") else {}),
+            }
+        else:
+            services[s.name] = {
+                "image": f"cipherops-eco-nsd:{stack}", "container_name": container(s.name), "hostname": s.name,
+                "networks": {"dnsnet": {"ipv4_address": s.ip}}, "volumes": ["./:/lab:ro,z"],
+                "command": [f"exec nsd -d -c /lab/active/nsd/{s.name}.conf"],
+                **({"cpuset": str(cpus["nsd"])} if cpus.get("nsd") else {}),
+            }
     services["unbound"] = {
         "image": f"cipherops-eco-unbound:{stack}", "container_name": container("unbound"), "hostname": "unbound",
         "networks": {"dnsnet": {"ipv4_address": UNBOUND_IP}}, "cap_add": ["NET_ADMIN"],
@@ -51,7 +75,11 @@ def compose(lab: Lab, stack: str) -> dict:
         "volumes": ["../../:/eco:z", "../../../src:/work/src:ro,z", "/var/run/docker.sock:/var/run/docker.sock"],
         # SELinux denies container_t access to docker.sock; the client drives the lab via the Docker API.
         "security_opt": ["label=disable"],
-        "environment": {"ECO_LAB": lab.name, "CIPHEROPS_GIT_SHA": "${CIPHEROPS_GIT_SHA:-unknown}"},
+        "environment": {
+            "ECO_LAB": lab.name,
+            "ECO_STACK": stack,
+            "CIPHEROPS_GIT_SHA": "${CIPHEROPS_GIT_SHA:-unknown}",
+        },
         "command": ["exec sleep infinity"],
         "depends_on": ["unbound"],
         **({"cpuset": str(cpus["client"])} if cpus.get("client") else {}),
@@ -135,11 +163,55 @@ def root_hints() -> str:
     return f". 3600000 IN NS {ROOT_NS}\n{ROOT_NS} 3600000 IN A {ROOT_IP}\n"
 
 
+def pdns_conf(lab: Lab, server: str, scenario: str, manifest: dict) -> tuple[str, str]:
+    """PowerDNS ``pdns.conf`` + BIND-backend zone list for one auth node."""
+    files = {z["origin"]: z["signed_file"] for z in manifest["zones"]}
+    bind_lines = []
+    for origin in lab.servers[server].zones:
+        zonefile = f"/lab/zones/{scenario}/{files[origin]}"
+        bind_lines += [
+            f'zone "{origin}" IN {{',
+            "  type master;",
+            f'  file "{zonefile}";',
+            "};",
+            "",
+        ]
+    # bind-config must be absolute; PowerDNS does not resolve it relative to --config-dir.
+    server_conf = "\n".join([
+        "daemon=no",
+        "guardian=no",
+        "write-pid=no",
+        "local-address=0.0.0.0",
+        "local-port=53",
+        "launch=bind",
+        f"bind-config=/lab/active/pdns/{server}/named.conf",
+        # Empty SQLite DNSSEC DB: required for BIND backend to treat zones as DNSSEC-aware
+        # and serve RRSIGs already present in the pre-signed zone files.
+        f"bind-dnssec-db=/tmp/pdns-bind-dnssec-{server}.sqlite3",
+        "loglevel=4",
+        "receiver-threads=1",
+        "distributor-threads=1",
+        "security-poll-suffix=",
+        "",
+    ])
+    return server_conf, "\n".join(bind_lines)
+
+
 def write_active(lab: Lab, scenario: str, manifest: dict, udp_limit: int) -> None:
     active = lab.work / "active"
-    (active / "nsd").mkdir(parents=True, exist_ok=True)
-    for name in lab.servers:
-        (active / "nsd" / f"{name}.conf").write_text(nsd_conf(lab, name, scenario, manifest))
+    backend = auth_backend(lab.stack)
+    if backend == "powerdns":
+        (active / "pdns").mkdir(parents=True, exist_ok=True)
+        for name in lab.servers:
+            conf, bind = pdns_conf(lab, name, scenario, manifest)
+            d = active / "pdns" / name
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "pdns.conf").write_text(conf)
+            (d / "named.conf").write_text(bind)
+    else:
+        (active / "nsd").mkdir(parents=True, exist_ok=True)
+        for name in lab.servers:
+            (active / "nsd" / f"{name}.conf").write_text(nsd_conf(lab, name, scenario, manifest))
     (active / "unbound.conf").write_text(unbound_conf(lab, manifest, udp_limit))
     (active / "root.hints").write_text(root_hints())
     (active / "scenario.txt").write_text(f"{scenario} {udp_limit}\n")

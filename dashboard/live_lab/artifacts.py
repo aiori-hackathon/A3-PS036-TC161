@@ -131,6 +131,87 @@ def prepare_summary(h: LabHandle, *, wall_s: float | None = None,
     }
 
 
+def _zone_stem(origin: str, signed_file: str = "") -> str:
+    """Match ecolab ZoneSpec.file_stem / signed_file naming."""
+    name = (signed_file or "").strip()
+    if name.endswith(".zone.signed"):
+        return name[: -len(".zone.signed")]
+    return "root" if origin == "." else origin.rstrip(".")
+
+
+def list_zone_artifacts(h: LabHandle, scenario: str) -> list[dict]:
+    """One row per zone in a signed scenario: paths to unsigned/signed files (no private keys)."""
+    man = load_manifest(h, scenario)
+    if not man:
+        return []
+    root = h.work / "zones" / scenario
+    rows: list[dict] = []
+    for z in man.get("zones") or []:
+        origin = z.get("origin") or ""
+        signed_name = str(z.get("signed_file") or "")
+        stem = _zone_stem(origin, signed_name)
+        signed_path = root / signed_name if signed_name else root / f"{stem}.zone.signed"
+        unsigned_path = root / "keys" / stem / f"{stem}.zone"
+        keys_dir = root / "keys" / stem
+        keys_present = False
+        if keys_dir.is_dir():
+            try:
+                keys_present = any(keys_dir.iterdir())
+            except OSError:
+                keys_present = False
+        rows.append({
+            "origin": origin,
+            "tier": z.get("tier") or "",
+            "algorithm": z.get("algorithm") or "",
+            "signed_bytes": z.get("signed_bytes"),
+            "rrsig_count": z.get("rrsig_count"),
+            "n_names": z.get("n_names"),
+            "stem": stem,
+            "signed_path": str(signed_path),
+            "unsigned_path": str(unsigned_path),
+            "signed_exists": signed_path.is_file(),
+            "unsigned_exists": unsigned_path.is_file(),
+            "keys_present": keys_present,
+        })
+    return rows
+
+
+def _is_private_key_path(path: Path) -> bool:
+    """ldns writes Kname.+alg+id.private next to the unsigned zone; never preview those."""
+    name = path.name.lower()
+    return name.endswith(".private") or ".private" in name
+
+
+def read_zone_preview(path: Path | str, *, max_bytes: int = 65536, max_lines: int = 200) -> dict:
+    """Read a zone/manifest text file for the Prepare browser. Never returns private key material."""
+    path = Path(path)
+    out: dict = {"path": str(path), "text": "", "truncated": False, "size": 0, "error": None}
+    if _is_private_key_path(path):
+        out["error"] = "Private key material is not shown in the dashboard."
+        return out
+    try:
+        if not path.is_file():
+            out["error"] = f"File not found: {path.name}"
+            return out
+        size = path.stat().st_size
+        out["size"] = size
+        raw = path.read_bytes()[: max(0, int(max_bytes)) + 1]
+        truncated_bytes = len(raw) > max_bytes
+        if truncated_bytes:
+            raw = raw[:max_bytes]
+        text = raw.decode("utf-8", errors="replace")
+        lines = text.splitlines(keepends=True)
+        truncated_lines = len(lines) > max_lines
+        if truncated_lines:
+            text = "".join(lines[:max_lines])
+        out["text"] = text
+        out["truncated"] = truncated_bytes or truncated_lines or size > max_bytes
+        return out
+    except OSError as e:
+        out["error"] = str(e)[:300]
+        return out
+
+
 def list_labs() -> list[dict]:
     """Every lab folder that has signing data and/or saved benchmark runs, newest activity first."""
     tags: dict[str, float] = {}

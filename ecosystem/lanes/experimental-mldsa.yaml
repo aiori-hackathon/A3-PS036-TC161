@@ -1,0 +1,15 @@
+# Active kaizer ML-DSA-MTL draft on the Condensed MTL Verisign images.
+id: experimental-mldsa
+title: Verisign · ML-DSA + ML-DSA-MTL (Condensed)
+status: ready
+presentation: false
+stack: draft06
+auth_backend: nsd
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [ml-dsa-mtl, ml-dsa, ecdsa]
+draft: draft-kaizer-dnsop-ml-dsa-mtl-dnssec-03
+peer: "Active kaizer ML-DSA-MTL draft on Verisign NSD + Unbound"
+blurb: >
+  ML-DSA-44 and ML-DSA-44-MTL-SHAKE-128 (DNSSEC alg 245 / 129) end-to-end on
+  Condensed MTL Verisign images.

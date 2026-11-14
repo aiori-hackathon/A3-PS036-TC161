@@ -23,6 +23,14 @@ DEFAULT_CONFIG = "configs/_dashboard.yaml"
 DEFAULT_STACK = "draft06"
 # Prefer this order in the UI; only stacks with ecosystem/stacks/<name>.env are shown.
 STACK_CHOICES = ("draft06", "latest")
+# Prepare key scheme (lives here so Streamlit reload of driver does not circular-import it from lab).
+KEY_SCHEMES = ("csk", "ksk-zsk")
+# Short panel-facing names. Backend ids (draft06 / latest / …) stay unchanged for images and compose.
+STACK_LABELS = {
+    "draft06": "Condensed MTL",
+    "latest": "Always-full MTL",
+    "powerdns-draft06": "PowerDNS · Condensed MTL",
+}
 STACK_BLURBS = {
     "draft06": "Condensed MTL by default; full ladder on EDNS 65050 (MTL v1.2 / liboqs 0.14). "
                "Signs with SPHINCS+-SHA2-128s-simple, the pre-standard form of SLH-DSA; all scenarios validate",
@@ -276,8 +284,8 @@ def list_stacks() -> list[str]:
 
 
 def stack_label(stack: str) -> str:
-    blur = STACK_BLURBS.get(stack)
-    return f"{stack} — {blur}" if blur else stack
+    """Human name for Lab version pickers and chips (ids stay draft06 / latest behind the scenes)."""
+    return STACK_LABELS.get(stack) or stack
 
 
 def stack_pins(stack: str) -> dict[str, str]:
@@ -346,7 +354,8 @@ from live_lab.lab import (  # noqa: E402,F401
 from live_lab.artifacts import (  # noqa: E402,F401
     UI_PREFS_PATH, _dir_size, _empty_session, _read_manifest, _suite_dirs, append_activity_file,
     append_session_query, chunk_log, clear_demo_data, clear_suites, infer_ui_from_disk, list_labs,
-    list_manifests, list_pcaps, list_run_dirs, list_runs, live_capture_inventory, load_manifest,
-    load_session, load_ui_prefs, manifest_rows, prepare_summary, remove_tree, reset_preview, save_session,
-    save_ui_prefs, session_path, session_queries, split_lab_tag, suite_footprint, zone_size_for_lab_name,
+    list_manifests, list_pcaps, list_run_dirs, list_runs, list_zone_artifacts, live_capture_inventory,
+    load_manifest, load_session, load_ui_prefs, manifest_rows, prepare_summary, read_zone_preview,
+    remove_tree, reset_preview, save_session, save_ui_prefs, session_path, session_queries,
+    split_lab_tag, suite_footprint, zone_size_for_lab_name,
 )

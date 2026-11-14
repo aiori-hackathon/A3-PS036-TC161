@@ -524,7 +524,7 @@ def _pcap_folder_banner(h: driver.LabHandle, options: list[str]) -> None:
     st.caption(
         f"Captures for lab **`{h.tag}`** · folder "
         f"`results/{h.tag}/live-dashboard` · **{len(options)}** file(s). "
-        f"Image version **{h.stack}** · zone **{cfg('zone_size', 'small')}**."
+        f"Image version **{driver.stack_label(h.stack)}** · zone **{cfg('zone_size', 'small')}**."
     )
     inv = driver.live_capture_inventory()
     others = [r for r in inv if r["tag"] != h.tag]

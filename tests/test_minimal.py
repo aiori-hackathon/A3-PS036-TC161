@@ -146,8 +146,8 @@ def test_steps_and_pages(on):
     assert common.resolve_tile("setup") == ("home", None)
     assert common.resolve_tile("reset") == ("home", None)
     assert common.resolve_tile("offline", "run") == ("offline", "results")
-    assert common.resolve_tile("simulated", "prepare") == ("simulated", "query")
-    assert common.resolve_tile("lab") == ("simulated", "query")  # an old bookmark to Prepare
+    assert common.resolve_tile("simulated", "prepare") == ("simulated", "live")
+    assert common.resolve_tile("lab") == ("simulated", "live")  # old Prepare bookmark → Live lab
     assert common.resolve_tile("simulated", "benchmark") == ("simulated", "benchmark")
     assert common.resolve_tile("compare") == ("compare", None)
 
@@ -163,9 +163,9 @@ def _app(tile=None, step=None):
     return at
 
 
-@pytest.mark.parametrize("tile,step", [(None, None), ("offline", None), ("simulated", "query"),
+@pytest.mark.parametrize("tile,step", [(None, None), ("offline", None), ("simulated", "live"),
                                        ("simulated", "benchmark"), ("compare", None), ("learn", None),
-                                       ("setup", None), ("reset", None), ("simulated", "prepare")])
+                                       ("adopt", None), ("setup", None), ("reset", None), ("simulated", "prepare")])
 def test_every_page_renders_in_minimal_mode_with_the_notice(on, tile, step):
     at = _app(tile, step)
     assert not at.exception, [e.message for e in at.exception]

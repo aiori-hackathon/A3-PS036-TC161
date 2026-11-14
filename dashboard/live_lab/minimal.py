@@ -21,8 +21,8 @@ ENV = "CIPHEROPS_MINIMAL"
 PASSWORD_ENV = "CIPHEROPS_MINIMAL_PASSWORD"
 
 # Pages a visitor may open, and the steps of each track they may see.
-ALLOWED_MODES = ("home", "offline", "simulated", "compare", "learn")
-ALLOWED_STEPS = {"offline": ("results",), "simulated": ("query", "benchmark")}
+ALLOWED_MODES = ("home", "offline", "simulated", "compare", "learn", "adopt")
+ALLOWED_STEPS = {"offline": ("results",), "simulated": ("live", "benchmark")}
 
 # The lab's private network (ecolab.config SUBNET). dig may only be pointed at it.
 LAB_NETWORK = ipaddress.ip_network("10.53.0.0/24")

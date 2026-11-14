@@ -1,0 +1,14 @@
+id: powerdns-slh-mtl
+title: PowerDNS · Condensed MTL (SLH-DSA)
+status: experimental
+presentation: false
+stack: powerdns-draft06
+auth_backend: powerdns
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [mtl, slh-dsa, ecdsa]
+draft: Condensed MTL crypto; PowerDNS Auth
+peer: "PowerDNS Auth; resolver stays Verisign Unbound for MTL validation"
+blurb: >
+  PowerDNS Auth (BIND backend) serves ldns-signed zones; Unbound validates.
+  Same Condensed MTL crypto as the Verisign NSD path, different authoritative server.

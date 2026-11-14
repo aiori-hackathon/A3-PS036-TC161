@@ -17,7 +17,7 @@ from pathlib import Path
 from live_lab import images
 from live_lab import minimal as _minimal
 from live_lab.driver import (
-    DASHBOARD_CONFIG, DEFAULT_CONFIG, DEFAULT_STACK, ECO, REPO, UNBOUND_IP, _run,
+    DASHBOARD_CONFIG, DEFAULT_CONFIG, DEFAULT_STACK, ECO, KEY_SCHEMES, REPO, UNBOUND_IP, _run,
     require_no_build, require_no_offline, require_no_suite, require_not_signing,
 )
 from live_lab.shapes import DEFAULT_SEED, PROFILE_DEFAULTS, WORKLOAD_DEFAULTS, shape_for
@@ -30,6 +30,8 @@ NAMES = {
 
 # ldns-keygen algorithm names (signer already supports RSASHA256 + -b 2048).
 # Classical trio matches main Cipherops: rsa-2048, ecdsa-p256, ed25519.
+# Plain SLH uses the config spelling; ecolab.sign.ldns_name remaps per stack (draft06 →
+# SLH_DSA_SHA2_128s). MTL / ML-DSA-MTL use Verisign MTL library scheme strings as-is.
 SCENARIO_ALGS: dict[str, dict[str, str]] = {
     "rsa": {"root": "RSASHA256", "tld": "RSASHA256", "sld": "RSASHA256"},
     "ecdsa": {"root": "ECDSAP256SHA256", "tld": "ECDSAP256SHA256", "sld": "ECDSAP256SHA256"},
@@ -44,6 +46,13 @@ SCENARIO_ALGS: dict[str, dict[str, str]] = {
         "root": "ECDSAP256SHA256",
         "tld": "ECDSAP256SHA256",
         "sld": "SLH-DSA-SHA2-128s-MTL-SHA2-128",
+    },
+    # draft-kaizer-dnsop-ml-dsa-mtl-dnssec (active): DNSSEC alg 245 / 129 on Verisign ldns.
+    "ml-dsa": {"root": "ML_DSA_44", "tld": "ML_DSA_44", "sld": "ML_DSA_44"},
+    "ml-dsa-mtl": {
+        "root": "ML-DSA-44-MTL-SHAKE-128",
+        "tld": "ML-DSA-44-MTL-SHAKE-128",
+        "sld": "ML-DSA-44-MTL-SHAKE-128",
     },
 }
 
@@ -129,6 +138,33 @@ def compose_cmd(h: LabHandle, *args: str) -> list[str]:
     return ["docker", "compose", "-f", str(h.compose), *args]
 
 
+def other_running_labs(h: LabHandle) -> list[str]:
+    """Work folders of a lab that is up, when it is not this zone size.
+
+    Container names are shared, so Docker can still be running the previous size after the
+    sidebar moves to one that has not been signed. One inspect is enough: every eco-* container
+    belongs to that single running project.
+    """
+    cp = _run(["docker", "ps", "-q", "--filter", "name=eco-"], check=False, timeout=30)
+    cid = next((x for x in cp.stdout.split() if x), "")
+    if not cid:
+        return []
+    shown = _run(
+        ["docker", "inspect", cid, "--format",
+         '{{index .Config.Labels "com.docker.compose.project.config_files"}}'],
+        check=False, timeout=30,
+    ).stdout.strip().split(",")[0].strip()
+    if not shown:
+        return []
+    path = Path(shown)
+    try:
+        if h.compose.exists() and path.resolve() == h.compose.resolve():
+            return []
+    except OSError:
+        return []
+    return [path.parent.name] if path.parent.name else []
+
+
 def status(h: LabHandle) -> dict:
     out = {"prepared": h.prepared(), "compose": str(h.compose), "active": h.active_scenario(),
            "containers": {}, "images": {}, "image_rows": []}
@@ -137,6 +173,7 @@ def status(h: LabHandle) -> dict:
     out["image_rows"] = [asdict(r) for r in rows]
     out["images"] = {r.ref: r.state == "ok" for r in rows if r.role in images.MODES["simulated"]}
     if not h.compose.exists():
+        out["other_running"] = other_running_labs(h)
         return out
     cp = _run([*compose_cmd(h, "ps", "--format", "json"), ], check=False, timeout=30)
     for line in cp.stdout.splitlines():
@@ -154,6 +191,7 @@ def status(h: LabHandle) -> dict:
         cp2 = _run(compose_cmd(h, "ps"), check=False, timeout=30)
         for svc in ("root", "unbound", "client", "tld-test", "sld1", "sld2", "tld-lab"):
             out["containers"][svc] = svc in cp2.stdout and "Up" in cp2.stdout
+    out["other_running"] = [] if any(out["containers"].values()) else other_running_labs(h)
     return out
 
 
@@ -170,6 +208,7 @@ def write_ui_config(
     workload: dict | None = None,
     profiles: dict | None = None,
     shape: dict | None = None,
+    key_scheme: str = "csk",
     out_config: str = DASHBOARD_CONFIG,
 ) -> str:
     """Write a lab config (``configs/_dashboard.yaml`` by default) from UI options; return its relative path.
@@ -201,6 +240,9 @@ def write_ui_config(
     if bad:
         raise ValueError(f"unknown scenarios: {bad}")
     profiles_run = network_run or ["lan"]
+    scheme = (key_scheme or "csk").strip().lower()
+    if scheme not in KEY_SCHEMES:
+        raise ValueError(f"key_scheme must be one of {KEY_SCHEMES}, got {key_scheme!r}")
     cfg = {
         "name": preset["name"],
         "seed": seed,
@@ -209,7 +251,7 @@ def write_ui_config(
             "sld_count": int(preset["sld_count"]),
             "sld_sizes": list(preset["sld_sizes"]),
             "sld_servers": int(preset["sld_servers"]),
-            "key_scheme": "csk",
+            "key_scheme": scheme,
         },
         "signing": {
             "inception": "20260101000000",
@@ -258,7 +300,7 @@ def prepare_command(h: LabHandle, jobs: int = 2, scenarios: list[str] | None = N
     gets a fixed name. The signing itself is identical either way.
     """
     extra = f" --scenarios {','.join(scenarios)}" if scenarios else ""
-    cmd = ["docker", "run", "--rm", "--network", "none"]
+    cmd = ["docker", "run", "--rm", "--network", "none", "-e", f"ECO_STACK={h.stack}"]
     if events:
         cmd += ["--name", prepare_container_name(h), "-e", "ECOLAB_EVENTS=1", "-e", "PYTHONUNBUFFERED=1"]
     cmd += [
@@ -282,7 +324,7 @@ def sign_trials(h: LabHandle, scenarios: list[str], trials: int, names: list[int
     require_no_suite()
     img = f"cipherops-eco-tools:{h.stack}"
     cp = _run([
-        "docker", "run", "--rm", "--network", "none",
+        "docker", "run", "--rm", "--network", "none", "-e", f"ECO_STACK={h.stack}",
         "-v", f"{ECO}:/eco:z",
         "-v", f"{REPO / 'src'}:/work/src:ro,z",
         img,
@@ -413,6 +455,15 @@ def up(h: LabHandle) -> str:
 def down(h: LabHandle, *, force: bool = False) -> str:
     _minimal.refuse('Stopping the lab')
     require_no_suite(force=force)
+    if not h.compose.exists():
+        # The sidebar can point at a zone size that was never signed while another size is still up.
+        running = other_running_labs(h)
+        stopped = stop_other_labs(h)
+        named = running or stopped
+        if named:
+            return (f"Stopped the running lab ({', '.join(named)}). "
+                    "This zone size has not been signed yet.\n")
+        raise RuntimeError(f"missing {h.compose}; run Prepare first")
     cp = _run(compose_cmd(h, "down"), timeout=120, check=False)
     return cp.stdout + cp.stderr
 
