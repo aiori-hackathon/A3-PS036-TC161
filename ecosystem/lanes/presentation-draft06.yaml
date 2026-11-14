@@ -1,0 +1,15 @@
+# Default lab path — do not break this. (presentation: true is an internal sort/expand flag only.)
+id: presentation-draft06
+title: Verisign · Condensed MTL (SLH-DSA)
+status: ready
+presentation: true
+stack: draft06
+auth_backend: nsd
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [mtl, slh-dsa, ecdsa, ed25519, rsa, mixed-mtl]
+draft: draft-fregly-dnsop-slh-dsa-mtl-dnssec-06
+peer: "Verisign mtl-mode NSD + Unbound + SLH/MTL"
+blurb: >
+  Condensed MTL signatures by default; full ladder on EDNS 65050.
+  Verisign ldns signer, NSD auth, Unbound validator.

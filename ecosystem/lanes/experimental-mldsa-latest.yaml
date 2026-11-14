@@ -1,0 +1,15 @@
+# Same ML-DSA ± MTL algorithms on Always-full MTL (KSK+ZSK-friendly path).
+id: experimental-mldsa-latest
+title: Verisign · ML-DSA-MTL (Always-full)
+status: ready
+presentation: false
+stack: latest
+auth_backend: nsd
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [ml-dsa-mtl, ml-dsa, ecdsa]
+draft: draft-kaizer-dnsop-ml-dsa-mtl-dnssec-02/03 on IETF-126-Interim pins
+peer: "kaizer ML-DSA-MTL on Always-full Verisign stack"
+blurb: >
+  ML-DSA-44 ± MTL on Always-full MTL. Prefer this lab version when testing
+  separate KSK + ZSK with MTL (Condensed MTL often SERVFAILs that path).

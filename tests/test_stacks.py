@@ -7,7 +7,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 STACKS = sorted((ROOT / "ecosystem" / "stacks").glob("*.env"))
-REQUIRED = ("STACK", "OPENSSL_TAG", "LIBOQS_TAG", "MTL_COMMIT", "LDNS_COMMIT", "NSD_COMMIT", "UNBOUND_COMMIT")
+REQUIRED = (
+    "STACK", "OPENSSL_TAG", "LIBOQS_TAG",
+    "MTL_REPO", "MTL_COMMIT",
+    "LDNS_REPO", "LDNS_COMMIT",
+    "NSD_REPO", "NSD_COMMIT",
+    "UNBOUND_REPO", "UNBOUND_COMMIT",
+)
 
 
 def _pins(path: Path) -> dict:

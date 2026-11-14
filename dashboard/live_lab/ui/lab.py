@@ -6,6 +6,7 @@ this: it signs, starts and stops its own lab for every dataset size."""
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -80,12 +81,12 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
 
     stack = h.stack
     building = image_job.is_running()
-    _hint(f"Lab version `{stack}`: change it above the steps.")
+    _hint(f"Lab version **{driver.stack_label(stack)}**: change it above the steps.")
 
     # —— Step 1: prepare (zone design, then sign) ——
     prep_state = "done" if prepared_session else ("partial" if r["prepared"] else "none")
     st.sidebar.markdown(_step_label(1, gl.label("sign_zones"), prep_state))
-    _hint("Design the zones, then sign them for each selected algorithm.")
+    _hint("Design the zones, sign them, then open the Zones tab to inspect unsigned and signed files.")
     size_keys = list(driver.ZONE_SIZE_PRESETS.keys())
     size = sb(
         st.sidebar.selectbox, "zone_size", "small", "Zone size", options=size_keys,
@@ -120,6 +121,17 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
         st.sidebar.multiselect, "scenarios", default_sc, "Algorithms", options=all_sc,
         help=gl.tip("algorithm") + " Change this, then sign the zones again.",
     )
+    sb(
+        st.sidebar.selectbox, "key_scheme", "csk", gl.label("key_scheme"),
+        options=list(driver.KEY_SCHEMES),
+        format_func=lambda k: {"csk": "CSK (one key)", "ksk-zsk": "KSK + ZSK"}.get(k, k),
+        help=gl.tip("key_scheme"),
+    )
+    if cfg("key_scheme", "csk") == "ksk-zsk" and stack == "draft06" and any(
+            s in (sc or []) for s in ("mtl", "ml-dsa-mtl", "mixed-mtl")):
+        st.sidebar.warning(
+            f"{driver.stack_label('draft06')} often SERVFAILs under KSK+ZSK (DS/ladder). "
+            f"Prefer Lab version **{driver.stack_label('latest')}** for this check.")
     sb(st.sidebar.number_input, "jobs", 2, "Sign jobs", min_value=1, max_value=8,
        help=gl.tip("parallel_jobs"))
     if not sc:
@@ -138,7 +150,9 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
         _apply_ui_config(h)
         jobs = int(cfg("jobs", 2))
         scen_txt = ", ".join(sc)
-        activity("step", "Signing zones", f"Size {size} · {scen_txt}", phase="prepare", source="prepare", h=h)
+        scheme = cfg("key_scheme", "csk")
+        activity("step", "Signing zones",
+                 f"Size {size} · {scen_txt} · keys {scheme}", phase="prepare", source="prepare", h=h)
         try:
             prepare_job.start(h, jobs=jobs, scenarios=list(sc))  # returns at once; Lab shows it live
             st.session_state.pop("replay_fresh", None)
@@ -152,7 +166,11 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
     _hint("Start root, TLD, leaf, and resolver containers. Only one lab runs at a time, "
           "so starting stops any other zone shape.")
     can_start = bool(r["prepared"])
-    if not can_start:
+    others = stt.get("other_running") or []
+    if others and not r["running"]:
+        _hint(f"Containers are still up for {', '.join(others)}. That is a different zone size. "
+              "Sign this size, then Start switches those containers to it. Stop stops them now.")
+    elif not can_start:
         _hint("Start stays off until the zones of this size are signed (compose + manifests on disk).")
     b3a, b3b = st.sidebar.columns(2)
     if b3a.button("Start", key="btn_up", width="stretch", disabled=not can_start or bool(bench_busy or signing or building or no_images)):
@@ -160,7 +178,8 @@ def sidebar_lab(h: driver.LabHandle, stt: dict) -> None:
             st.sidebar.error("Sign the zones first — there is nothing signed to start for this lab.")
             activity("err", "Start blocked", "Lab is not prepared", phase="compose", source="compose", h=h)
         else:
-            activity("step", "Starting the lab", f"Image set {h.stack}", phase="compose", source="compose", h=h)
+            activity("step", "Starting the lab", f"Image set {driver.stack_label(h.stack)}",
+                     phase="compose", source="compose", h=h)
             with st.spinner("Starting…"):
                 try:
                     log = driver.up(h)
@@ -411,14 +430,29 @@ def setup_overview(h: driver.LabHandle, stt: dict) -> None:
         with st.container(border=True):
             st.success("The lab is signed, running and ready.")
             a, b, _ = st.columns([1, 1, 2])
-            a.button("Continue: query the lab →", on_click=_go, args=("simulated", "query"), key="lab_to_live",
+            def _to_query() -> None:
+                from live_lab.ui.track_simulated import set_live_lab_focus
+                set_live_lab_focus("query")
+                _go("simulated", "live")
+
+            a.button("Continue: query the lab →", on_click=_to_query, key="lab_to_live",
                      type="primary", width="stretch")
-            b.button("Or run the benchmark →", on_click=_go, args=("simulated", "benchmark"),
+            b.button("Or run the suite benchmark →", on_click=_go, args=("simulated", "benchmark"),
                      key="lab_to_bench", width="stretch")
     else:
-        nxt = ("Get the lab images (panel above)" if not r["images"]
-               else "Sign the zones (Step 1)" if not r["prepared"]
-               else "Press Start to launch the containers (Step 2)")
+        others = r.get("other_running") or []
+        if not r["images"]:
+            nxt = "Get the lab images (panel above)"
+        elif not r["prepared"] and others:
+            nxt = (f"Sign this zone size (Step 1). Containers for {', '.join(others)} are still up; "
+                   "Start replaces them with this size")
+        elif not r["prepared"]:
+            nxt = "Sign the zones (Step 1)"
+        elif others:
+            nxt = (f"Press Start (Step 2) to switch the running containers from {', '.join(others)} "
+                   "to this zone size")
+        else:
+            nxt = "Press Start to launch the containers (Step 2)"
         st.info(f"**Next:** {nxt} — use the sidebar.")
 
     planned_lab(h)
@@ -467,8 +501,93 @@ def setup_results(h: driver.LabHandle) -> None:
                     width="stretch")
 
 
+def zones_browser(h: driver.LabHandle) -> None:
+    """Browse unsigned / signed zone files and the Prepare manifest after signing."""
+    st.markdown("### Zone files")
+    st.caption(
+        "After **Sign zones**, open what CipherOps wrote under the lab work folder: "
+        "unsigned zones, signed zones the servers serve, and the scenario manifest. "
+        "Private DNS keys are never shown."
+    )
+    manifests = driver.list_manifests(h) if h.prepared() else {}
+    if not manifests:
+        st.info("Sign zones in the sidebar (Step 1). The unsigned and signed zone files will appear here.")
+        return
+
+    names = compare.order_scenarios(manifests)
+    active = h.active_scenario()
+    default_i = names.index(active) if active in names else (names.index("mtl") if "mtl" in names else 0)
+    scenario = st.radio(
+        "Algorithm", names, horizontal=True, key="zones_browser_scenario", index=default_i,
+        help="Each algorithm has its own folder under work/zones/.",
+    )
+    rows = driver.list_zone_artifacts(h, scenario)
+    if not rows:
+        st.warning(f"No zone entries in the manifest for `{scenario}`.")
+        return
+
+    table = [{
+        "Origin": r["origin"],
+        "Tier": r["tier"],
+        "Signed bytes": r["signed_bytes"],
+        "RRSIGs": r["rrsig_count"],
+        "Signed on disk": "yes" if r["signed_exists"] else "missing",
+        "Unsigned on disk": "yes" if r["unsigned_exists"] else "missing",
+        "Keys dir": "present" if r["keys_present"] else "—",
+    } for r in rows]
+    st.dataframe(table, width="stretch", hide_index=True)
+
+    origins = [r["origin"] for r in rows]
+    pick_origin = st.selectbox("Zone", origins, key="zones_browser_origin")
+    row = next(r for r in rows if r["origin"] == pick_origin)
+
+    kind = st.radio(
+        "File",
+        ("Signed zone", "Unsigned zone", "Manifest"),
+        horizontal=True,
+        key="zones_browser_kind",
+        help="Signed = what NSD serves. Unsigned = before ldns-signzone. Manifest = JSON inventory.",
+    )
+    if kind == "Manifest":
+        path = h.work / "zones" / scenario / "manifest.json"
+        download_name = f"{scenario}-manifest.json"
+        lang = "json"
+    elif kind == "Unsigned zone":
+        path = Path(row["unsigned_path"])
+        download_name = path.name
+        lang = "text"
+    else:
+        path = Path(row["signed_path"])
+        download_name = path.name
+        lang = "text"
+
+    st.caption(f"`{path}`")
+    preview = driver.read_zone_preview(path)
+    if preview.get("error"):
+        st.warning(preview["error"])
+        return
+    if preview.get("truncated"):
+        st.caption(
+            f"Preview truncated (showing start of file · {preview.get('size', 0):,} bytes on disk). "
+            "Download for the full file."
+        )
+    st.code(preview.get("text") or "(empty)", language=lang)
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        st.error(str(e)[:300])
+        return
+    st.download_button(
+        "Download full file",
+        data=data,
+        file_name=download_name,
+        mime="application/json" if kind == "Manifest" else "text/plain",
+        key=f"zones_dl_{scenario}_{row['stem']}_{kind}",
+    )
+
+
 def lab_body(h: driver.LabHandle, stt: dict) -> None:
-    """Step 2 of the simulated lab: sign the zones and start the lab (the controls are in the sidebar)."""
+    """Prepare step: sign zones, inspect zone files, then start the lab (controls in the sidebar)."""
     if image_job.is_running():
         st.info("Images are being built or pulled. The lab buttons stay off until they are ready.")
     if prepare_job.is_running(h):
@@ -476,7 +595,13 @@ def lab_body(h: driver.LabHandle, stt: dict) -> None:
         # wait until it ends (the page reruns by itself and opens the replay).
         prepare_live_panel(h)
         return
-    overview, replay, results = st.tabs(["Overview", "Signing replay", "Results"])
+    # Zones first when signed so the artifact browser is the default tab; Overview first before sign.
+    if h.prepared():
+        zones, overview, replay, results = st.tabs(["Zones", "Overview", "Signing replay", "Results"])
+    else:
+        overview, zones, replay, results = st.tabs(["Overview", "Zones", "Signing replay", "Results"])
+    with zones:
+        zones_browser(h)
     with overview:
         setup_overview(h, stt)
     with replay:

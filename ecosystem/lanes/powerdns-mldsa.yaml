@@ -1,0 +1,14 @@
+id: powerdns-mldsa
+title: PowerDNS · ML-DSA / ML-DSA-MTL
+status: ready
+presentation: false
+stack: powerdns-draft06
+auth_backend: powerdns
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [ml-dsa-mtl, ml-dsa, ecdsa]
+draft: draft-kaizer-dnsop-ml-dsa-mtl-dnssec-03 + PowerDNS auth
+peer: "ML-DSA with PowerDNS Auth; resolver stays Verisign Unbound"
+blurb: >
+  PowerDNS Auth (BIND backend, PRESIGNED) serves ldns-signed
+  ML-DSA-44-MTL-SHAKE-128 / ML_DSA_44 zones; Unbound validates.

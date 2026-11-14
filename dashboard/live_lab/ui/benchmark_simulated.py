@@ -36,8 +36,8 @@ def _sidebar_bench_simulated(h: driver.LabHandle, stt: dict) -> None:
     else:
         st.sidebar.markdown(f"🟢  {len(done)} saved benchmark(s)" if done else "⚪  No benchmark yet")
     _hint(
-        "Runs on its own: for each zone size it signs the zones, repeats signing and verification, "
-        "starts the lab, measures, and stops it. It only needs the lab images."
+        "Independent of Live lab: for each zone size it signs, measures, starts and stops its own lab. "
+        "It only needs the lab images — not a prepared Live lab session."
     )
     bench_stack = cfg("stack", driver.DEFAULT_STACK)
     _hint(f"Uses the lab version `{bench_stack}`.")

@@ -1,0 +1,14 @@
+id: presentation-latest
+title: Verisign · Always-full MTL
+status: ready
+presentation: true
+stack: latest
+auth_backend: nsd
+resolver_backend: unbound
+signer_backend: ldns
+algorithms: [mtl, ml-dsa-mtl, ml-dsa, ecdsa, ed25519, rsa, mixed-mtl]
+draft: draft-kaizer-dnsop-ml-dsa-mtl-dnssec-02 (always-full wire) + ML-DSA on same pins
+peer: "Verisign mtl-mode spine on IETF-126-Interim pins"
+blurb: >
+  Every MTL RRSIG is a full signature (no condensed path). FIPS 205 SLH in ldns/MTL;
+  same images also sign and validate ML-DSA-44 ± MTL. Plain slh-dsa may SERVFAIL on this Unbound.
