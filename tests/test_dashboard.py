@@ -24,7 +24,7 @@ def _run(tile=None, step=None, cfg=None):
     return at
 
 
-@pytest.mark.parametrize("tile", [None, "offline", "simulated", "compare", "learn", "setup", "reset"])
+@pytest.mark.parametrize("tile", [None, "offline", "simulated", "compare", "learn", "adopt", "setup", "reset"])
 def test_page_renders_without_exceptions(tile):
     at = _run(tile)
     assert not at.exception, [e.message for e in at.exception]
@@ -32,7 +32,7 @@ def test_page_renders_without_exceptions(tile):
 
 @pytest.mark.parametrize("tile,step", [
     ("offline", "run"), ("offline", "results"),
-    ("simulated", "prepare"), ("simulated", "query"), ("simulated", "benchmark"),
+    ("simulated", "live"), ("simulated", "benchmark"),
 ])
 def test_every_step_of_a_track_renders_without_exceptions(tile, step):
     at = _run(tile, step)
@@ -40,7 +40,7 @@ def test_every_step_of_a_track_renders_without_exceptions(tile, step):
     assert at.session_state[f"step_{tile}"] == step
 
 
-@pytest.mark.parametrize("old,expected", [("lab", "prepare"), ("live", "query"), ("benchmark", "benchmark")])
+@pytest.mark.parametrize("old,expected", [("lab", "live"), ("live", "live"), ("benchmark", "benchmark")])
 def test_old_tile_names_open_the_matching_step(old, expected):
     at = _run(old)
     assert not at.exception, [e.message for e in at.exception]
@@ -59,14 +59,14 @@ def test_compare_views_render_without_exceptions(tile, cfg):
 def test_image_readiness_is_a_prerequisite_not_a_step():
     from live_lab.ui import common
     assert [k for k, _ in common.TRACKS["offline"]["steps"]] == ["run", "results"]
-    assert [k for k, _ in common.TRACKS["simulated"]["steps"]] == ["prepare", "query", "benchmark"]
+    assert [k for k, _ in common.TRACKS["simulated"]["steps"]] == ["live", "benchmark"]
     for track in ("offline", "simulated"):
         at = _run(track)
         labels = at.radio(key=f"step_{track}").options
         assert not any("mage" in label for label in labels)
         text = " ".join(m.value for m in at.markdown)
         assert "Node ready" in text or "Needed on this node" in text  # the prerequisite panel is on the page
-    assert at.radio(key="step_simulated").options[0].startswith("Prepare")
+    assert at.radio(key="step_simulated").options[0].startswith("Live lab")
     assert "①" not in " ".join(at.radio(key="step_simulated").options)
 
 
@@ -81,12 +81,14 @@ def test_help_text_is_on_by_default_and_toggles():
 
 def test_resolve_tile_maps_old_names_and_ignores_unknown_steps():
     from live_lab.ui import common
-    assert common.resolve_tile("lab") == ("simulated", "prepare")
-    assert common.resolve_tile("live") == ("simulated", "query")
+    assert common.resolve_tile("lab") == ("simulated", "live")
+    assert common.resolve_tile("live") == ("simulated", "live")
     assert common.resolve_tile("benchmark") == ("simulated", "benchmark")
     assert common.resolve_tile("offline") == ("offline", "run")
     assert common.resolve_tile("offline", "results") == ("offline", "results")
     assert common.resolve_tile("offline", "image") == ("offline", "run")      # the old image step is gone
-    assert common.resolve_tile("simulated", "images") == ("simulated", "prepare")
+    assert common.resolve_tile("simulated", "images") == ("simulated", "live")
+    assert common.resolve_tile("simulated", "prepare") == ("simulated", "live")
+    assert common.resolve_tile("simulated", "query") == ("simulated", "live")
     assert common.resolve_tile("setup") == ("setup", None)
     assert common.resolve_tile("does-not-exist") == ("home", None)

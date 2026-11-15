@@ -26,7 +26,8 @@ def labelled(role, **over):
 def test_modes_name_the_images_each_benchmark_needs():
     assert images.roles_for("offline") == ("bench",)
     assert images.roles_for("simulated") == ("nsd", "unbound", "tools")
-    assert set(images.roles_for("all")) == set(images.REPOS)
+    # ``pdns`` is only selected when AUTH_BACKEND=powerdns on a stack profile.
+    assert set(images.roles_for("all")) == set(images.REPOS) - {"pdns"}
     with pytest.raises(ValueError):
         images.roles_for("nope")
     assert images.ref("tools", "draft06") == "cipherops-eco-tools:draft06"
@@ -97,7 +98,7 @@ def test_build_command_builds_only_the_services_of_the_mode(tmp_path, monkeypatc
     monkeypatch.setattr(images, "ECO", tmp_path)
     cmd = images.build_command("latest", "offline")
     assert cmd[:2] == ["docker", "compose"] and cmd[-2:] == ["build", "bench"]
-    assert cmd[cmd.index("-f") + 1].endswith("docker/build.yml")
+    assert cmd[cmd.index("-f") + 1].replace("\\", "/").endswith("docker/build.yml")
     assert images.build_command("latest", "simulated")[-4:] == ["build", "nsd", "unbound", "tools"]
     with pytest.raises(RuntimeError, match="missing stack env"):
         images.build_command("nope")

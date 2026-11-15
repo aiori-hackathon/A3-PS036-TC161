@@ -120,9 +120,10 @@ CMD ["python3 -m cipherops.runner --help"]
 # Simulated lab: ldns signer, NSD and Unbound with MTL mode, on the same toolchain
 #######################################
 FROM toolchain AS ldns-build
+ARG LDNS_REPO=https://github.com/Verisign/mtl-mode-ldns.git
 ARG LDNS_COMMIT
 RUN test -n "${LDNS_COMMIT}" \
-    && git clone https://github.com/Verisign/mtl-mode-ldns.git ldns && cd ldns && git checkout ${LDNS_COMMIT} \
+    && git clone ${LDNS_REPO} ldns && cd ldns && git checkout ${LDNS_COMMIT} \
     && cd src && libtoolize -ci && autoreconf -fi \
     && ./configure --prefix=/usr/local --with-examples --with-ssl=/usr/local --libdir=/usr/local/lib64 \
                    --enable-pqc-algo-fl-dsa --enable-pqc-algo-ml-dsa --enable-pqc-algo-slh-dsa-sha2 \
@@ -131,9 +132,10 @@ RUN test -n "${LDNS_COMMIT}" \
     && make -j"$(nproc)" && make install DESTDIR=/out
 
 FROM toolchain AS nsd-build
+ARG NSD_REPO=https://github.com/verisign/mtl-mode-nsd.git
 ARG NSD_COMMIT
 RUN test -n "${NSD_COMMIT}" \
-    && git clone https://github.com/verisign/mtl-mode-nsd.git nsd && cd nsd && git checkout ${NSD_COMMIT} \
+    && git clone ${NSD_REPO} nsd && cd nsd && git checkout ${NSD_COMMIT} \
     && cd src && touch zparser.y \
     && (cd simdzone && autoreconf -fi) \
     && libtoolize -ci && aclocal && autoconf && autoheader \
@@ -143,9 +145,10 @@ RUN test -n "${NSD_COMMIT}" \
     && cp nsd nsd-checkconf nsd-checkzone nsd-control nsd-mem /out/usr/local/bin/
 
 FROM toolchain AS unbound-build
+ARG UNBOUND_REPO=https://github.com/Verisign/mtl-mode-unbound.git
 ARG UNBOUND_COMMIT
 RUN test -n "${UNBOUND_COMMIT}" \
-    && git clone https://github.com/Verisign/mtl-mode-unbound.git unbound && cd unbound && git checkout ${UNBOUND_COMMIT} \
+    && git clone ${UNBOUND_REPO} unbound && cd unbound && git checkout ${UNBOUND_COMMIT} \
     && cd src && libtoolize -ci && autoreconf -fi \
     && ./configure --prefix=/usr/local --sbindir=/usr/local/bin --with-ssl=/usr/local \
                    --enable-pqc-algo-fl-dsa --enable-pqc-algo-ml-dsa --enable-pqc-algo-slh-dsa-sha2 \

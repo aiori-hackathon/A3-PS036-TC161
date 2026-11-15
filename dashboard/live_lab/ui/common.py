@@ -16,7 +16,7 @@ SUITES_DIR = ECO_DIR / "results" / "suites"
 LEVEL_ICON = {"info": "ℹ️", "ok": "✅", "warn": "⚠️", "err": "❌", "step": "▶️"}
 ACTIVITY_CAP = 500
 
-NAV_MODES = ("home", "offline", "simulated", "compare", "learn", "setup", "reset")
+NAV_MODES = ("home", "offline", "simulated", "compare", "learn", "adopt", "setup", "reset")
 
 # What a person wants to do comes first: the two ways of benchmarking are tracks, each a short numbered path.
 # The node's images are a prerequisite shown on top of each track, not a step; "setup" is the Node images page for both.
@@ -26,13 +26,16 @@ TRACKS = {
         "default": "run",
     },
     "simulated": {
-        "steps": (("prepare", "Prepare"), ("query", "Query"), ("benchmark", "Benchmark")),
-        "default": "prepare",
+        # Live lab = Prepare + Query as one hands-on path; Benchmark runs independently.
+        "steps": (("live", "Live lab"), ("benchmark", "Benchmark")),
+        "default": "live",
     },
 }
 # Old tile names (bookmarks, links) land on the matching step of a track.
-LEGACY_TILES = {"lab": ("simulated", "prepare"), "live": ("simulated", "query"),
+LEGACY_TILES = {"lab": ("simulated", "live"), "live": ("simulated", "live"),
                 "benchmark": ("simulated", "benchmark")}
+# Old Simulated step names (Prepare / Query) → Live lab.
+_SIMULATED_STEP_ALIASES = {"prepare": "live", "query": "live", "images": "live"}
 
 TILES = {
     "offline": {
@@ -44,7 +47,7 @@ TILES = {
     "simulated": {
         "icon": "🧪",
         "title": "Simulated lab",
-        "pitch": "A containerised root → TLD → leaf hierarchy with a validating resolver: packets, truncation, cache.",
+        "pitch": "Live lab (sign, start, query, packets) plus an independent suite benchmark on the same images.",
         "cta": "Open",
     },
     "compare": {
@@ -58,6 +61,12 @@ TILES = {
         "title": "Learn",
         "pitch": "Why DNSSEC needs MTL, what the benchmark measures and why in two modes, and what an operator does "
                  "differently.",
+        "cta": "Open",
+    },
+    "adopt": {
+        "icon": "🔌",
+        "title": "Adoption",
+        "pitch": "Ready-made paths: Verisign MTL modes, PowerDNS auth, or custom pins — build images and run.",
         "cta": "Open",
     },
     "setup": {
@@ -235,6 +244,7 @@ def readiness(stt: dict) -> dict:
         "offline_images": images_ready(stt, "offline"),
         "prepared": bool(stt.get("prepared")),
         "running": any(containers.values()),
+        "other_running": list(stt.get("other_running") or []),
         "active": stt.get("active"),
     }
     r["ready"] = r["images"] and r["prepared"] and r["running"]
@@ -277,6 +287,8 @@ def resolve_tile(tile: str, step: str | None = None) -> tuple[str, str | None]:
     if tile in LEGACY_TILES:
         track, legacy_step = LEGACY_TILES[tile]
         tile, step = track, step if _is_step(track, step) else legacy_step
+    if tile == "simulated" and step in _SIMULATED_STEP_ALIASES:
+        step = _SIMULATED_STEP_ALIASES[step]
     if tile not in NAV_MODES or not minimal.mode_allowed(tile):
         return "home", None
     if tile in TRACKS:
@@ -440,6 +452,7 @@ def _apply_ui_config(h: driver.LabHandle) -> str | None:
             custom=_custom_inputs(),
             workload=_workload(),
             profiles=_profiles(),
+            key_scheme=str(cfg("key_scheme", "csk")),
         )
     except Exception as e:  # noqa: BLE001
         return str(e)[:400]
@@ -451,6 +464,7 @@ def _apply_ui_config(h: driver.LabHandle) -> str | None:
         "stack": h.stack,
         "zone_size": zone,
         "scenarios": sc,
+        "key_scheme": str(cfg("key_scheme", "csk")),
         "lab": h.lab,
         "tag": h.tag,
         "saved_at": datetime.now().isoformat(timespec="seconds"),
@@ -472,7 +486,7 @@ def _embed_html(html: str, height: int | str = "content") -> None:
 def _lab_strip(h: driver.LabHandle, stt: dict, *, mode: str = "setup") -> None:
     r = readiness(stt)
     sc = _scenario_list(h)
-    if mode == "simulated" and current_step("simulated") == "query" and r["active"]:
+    if mode == "simulated" and current_step("simulated") == "live" and r["active"]:
         scen_chip = _chip(f"Active · {r['active']}", "info")
     elif sc:
         label = "Algorithm" if len(sc) == 1 else "Algorithms"
@@ -481,8 +495,14 @@ def _lab_strip(h: driver.LabHandle, stt: dict, *, mode: str = "setup") -> None:
         scen_chip = _chip(f"Algorithm · {r['active']}", "info")
     else:
         scen_chip = ""
+    if r["running"]:
+        run_chip = _chip("Lab running", "ok")
+    elif r.get("other_running"):
+        run_chip = _chip("Other size running", "warn")
+    else:
+        run_chip = _chip("Lab stopped", "idle")
     chips = [
-        _chip("Lab running", "ok") if r["running"] else _chip("Lab stopped", "idle"),
+        run_chip,
         _chip("Zones signed", "ok") if r["prepared"] else _chip("Zones not signed", "warn"),
         scen_chip,
         _chip(f"Zone · {cfg('zone_size', 'small')}", "idle"),
@@ -514,7 +534,7 @@ def _gate(stt: dict, what: str) -> bool:
     if not r["images"]:
         st.caption("Get the lab images in the panel at the top of the page.")
     else:
-        st.button("Go to Prepare", on_click=_go, args=("simulated", "prepare"), key=f"gate_{what}", type="primary")
+        st.button("Go to Live lab", on_click=_go, args=("simulated", "live"), key=f"gate_{what}", type="primary")
     return False
 
 
@@ -539,5 +559,6 @@ def _warn_unvalidated(stack: str, scenarios) -> None:
     bad = driver.unvalidated_scenarios(stack, scenarios)
     if bad:
         st.sidebar.warning(
-            f"On **{stack}**, {', '.join(bad)} is not validated by the resolver (SERVFAIL), so it cannot be compared "
-            "with MTL here. Use **draft06** for the MTL vs non-MTL comparison, or untick it.")
+            f"On **{driver.stack_label(stack)}**, {', '.join(bad)} is not validated by the resolver "
+            f"(SERVFAIL), so it cannot be compared with MTL here. "
+            f"Use **{driver.stack_label('draft06')}** for the MTL vs non-MTL comparison, or untick it.")

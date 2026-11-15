@@ -2,9 +2,9 @@
 
     streamlit run dashboard/live_lab/app.py
 
-Layout: a home hub with two tracks, Offline benchmark (Run → Results) and Simulated lab (Prepare → Query →
-Benchmark), then Compare, Learn, Reset and the Node images page. Each track checks its own images first and
-keeps its controls in the sidebar and its results in the main area.
+Layout: a home hub with two tracks, Offline benchmark (Run → Results) and Simulated lab (Live lab =
+Prepare+Query, plus an independent Benchmark), then Compare, Learn, Reset and the Node images page. Each
+track checks its own images first and keeps its controls in the sidebar and its results in the main area.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "dashboard"))
 
 from live_lab import compare, compare_hub, decode, driver  # noqa: E402
-from live_lab import artifacts, lab, minimal, shapes  # noqa: E402
+from live_lab import artifacts, lab, lanes, minimal, plugins, shapes  # noqa: E402
 from live_lab import glossary as gl, image_job, images, jobs, offline_job, prepare_job, prepare_story  # noqa: E402
 from live_lab import suite as suite_mod  # noqa: E402
 
@@ -41,11 +41,13 @@ gl = importlib.reload(gl)
 prepare_story = importlib.reload(prepare_story)
 suite_mod = importlib.reload(suite_mod)
 prepare_job = importlib.reload(prepare_job)  # after suite_mod: it uses the suite's process helpers
+plugins = importlib.reload(plugins)  # before adopt UI: Adoption reads stack helpers from here
+lanes = importlib.reload(lanes)
 
 st.set_page_config(page_title="Cipherops · MTL DNSSEC Lab", layout="wide", page_icon="🛰️")
 
 from live_lab.ui import (  # noqa: E402
-    activity, benchmark_offline, benchmark_simulated, common, compare_page, home, lab as lab_tile,
+    activity, adopt, benchmark_offline, benchmark_simulated, common, compare_page, home, lab as lab_tile,
     learn, live, reset, setup, track_offline, track_simulated,
 )
 
@@ -61,6 +63,7 @@ track_offline = importlib.reload(track_offline)
 track_simulated = importlib.reload(track_simulated)
 reset = importlib.reload(reset)
 learn = importlib.reload(learn)
+adopt = importlib.reload(adopt)
 home = importlib.reload(home)
 
 _CSS = """
@@ -208,12 +211,13 @@ def _chrome_bar() -> None:
 SIDEBARS = {
     "home": home.sidebar_home, "offline": track_offline.sidebar_offline,
     "simulated": track_simulated.sidebar_simulated, "setup": setup.sidebar_setup,
-    "compare": compare_page.sidebar_compare, "learn": learn.sidebar_learn, "reset": reset.sidebar_reset,
+    "compare": compare_page.sidebar_compare, "learn": learn.sidebar_learn, "adopt": adopt.sidebar_adopt,
+    "reset": reset.sidebar_reset,
 }
 PAGES = {
     "offline": track_offline.page_offline, "simulated": track_simulated.page_simulated,
     "setup": setup.setup_page, "compare": compare_page.compare_page, "learn": learn.learn_page,
-    "reset": reset.reset_page,
+    "adopt": adopt.adopt_page, "reset": reset.reset_page,
 }
 
 
@@ -263,7 +267,7 @@ def main() -> None:
     err = common._apply_ui_config(h) or err
     if h.tag != tag_before:
         st.rerun()  # zone size changed → a different lab; re-read its status
-    if (err and mode == "simulated" and common.current_step("simulated") == "prepare"
+    if (err and mode == "simulated" and common.current_step("simulated") == "live"
             and not st.session_state.get("shape_errors")):
         st.sidebar.error(err)
 

@@ -49,7 +49,13 @@ LDNS_NAMES = {"SLH-DSA-SHA2-128s": {"draft06": "SLH_DSA_SHA2_128s", "latest": "S
 
 
 def ldns_name(alg: str, stack: str) -> str:
-    return LDNS_NAMES.get(alg, {}).get(stack, alg)
+    table = LDNS_NAMES.get(alg, {})
+    if stack in table:
+        return table[stack]
+    # PowerDNS auth lanes reuse the draft06 ldns signer pins (same algorithm spellings).
+    if stack.startswith("powerdns-") and "draft06" in table:
+        return table["draft06"]
+    return alg
 
 
 def _keygen(alg: str, origin: str, ksk: bool, cwd: Path, stack: str) -> str:

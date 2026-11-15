@@ -15,7 +15,12 @@ TERMS: dict[str, tuple[str, str]] = {
     "algorithm": ("Algorithm",
                   "The DNSSEC signing setup under test: RSA, ECDSA and Ed25519 (classical); SLH-DSA (post-quantum, "
                   "one large signature per RRset); MTL (SLH-DSA with Merkle Tree Ladder: one signed ladder plus a "
-                  "short path per RRset); mixed-mtl (ECDSA at root and TLD, MTL at the leaf zone)."),
+                  "short path per RRset); mixed-mtl (ECDSA at root and TLD, MTL at the leaf zone); "
+                  "ml-dsa / ml-dsa-mtl (ML-DSA-44 ± MTL, active kaizer draft)."),
+    "key_scheme": ("Key scheme",
+                   "CSK: one Combined Signing Key per zone (lab default). KSK+ZSK: separate key-signing and "
+                   "zone-signing keys. On Condensed MTL, KSK+ZSK often fails Unbound DS/ladder validation; "
+                   "Always-full MTL is the stack to re-check that path."),
     "sign_zones": ("Sign zones",
                    "Signs every zone of the hierarchy for each selected algorithm (what ldns-signzone or "
                    "dnssec-signzone do on a real zone) and writes the server configuration."),

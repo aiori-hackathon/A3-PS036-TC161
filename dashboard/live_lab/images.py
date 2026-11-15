@@ -41,12 +41,14 @@ OFFLINE_STACK = "latest"
 REPOS = {
     "bench": "cipherops-bench",
     "nsd": "cipherops-eco-nsd",
+    "pdns": "cipherops-eco-pdns",
     "unbound": "cipherops-eco-unbound",
     "tools": "cipherops-eco-tools",
 }
 ROLE_TITLE = {
     "bench": "Offline harness",
     "nsd": "Authoritative server (NSD)",
+    "pdns": "Authoritative server (PowerDNS)",
     "unbound": "Validating resolver (Unbound)",
     "tools": "Signer + client (ldns, dig, Python)",
 }
@@ -60,12 +62,16 @@ MODE_TITLE = {"offline": "Offline benchmark", "simulated": "Simulated lab", "all
 ROLE_PINS = {
     "bench": ("OPENSSL_TAG", "LIBOQS_TAG", "MTL_COMMIT"),
     "nsd": ("LIBOQS_TAG", "MTL_COMMIT", "NSD_COMMIT"),
+    "pdns": (),  # package image; verified by io.cipherops.stack only
     "unbound": ("LIBOQS_TAG", "MTL_COMMIT", "UNBOUND_COMMIT"),
     "tools": ("LIBOQS_TAG", "MTL_COMMIT", "LDNS_COMMIT", "NSD_COMMIT", "UNBOUND_COMMIT"),
 }
 # Images built before the labels existed carry the same pins as ENV variables.
-ENV_PREFIX = {"bench": "CIPHEROPS_", "nsd": "ECO_", "unbound": "ECO_", "tools": "ECO_"}
-ENV_STACK = {"bench": "CIPHEROPS_STACK", "nsd": "ECO_STACK", "unbound": "ECO_STACK", "tools": "ECO_STACK"}
+ENV_PREFIX = {"bench": "CIPHEROPS_", "nsd": "ECO_", "pdns": "ECO_", "unbound": "ECO_", "tools": "ECO_"}
+ENV_STACK = {
+    "bench": "CIPHEROPS_STACK", "nsd": "ECO_STACK", "pdns": "ECO_STACK",
+    "unbound": "ECO_STACK", "tools": "ECO_STACK",
+}
 
 
 class ImagesNotReady(RuntimeError):
@@ -89,6 +95,14 @@ class ImageStatus:
         return ROLE_TITLE[self.role]
 
 
+def auth_role(stack: str | None) -> str:
+    """Authoritative image role for this stack: ``nsd`` (default) or ``pdns`` when AUTH_BACKEND=powerdns."""
+    if not stack:
+        return "nsd"
+    be = (read_pins(stack).get("AUTH_BACKEND") or "nsd").strip().lower()
+    return "pdns" if be == "powerdns" else "nsd"
+
+
 def roles_for(mode: str, stack: str | None = None) -> tuple[str, ...]:
     """The images of ``mode``. With ``stack``, the offline harness image is left out of stacks it cannot run on."""
     if mode not in MODES:
@@ -96,7 +110,15 @@ def roles_for(mode: str, stack: str | None = None) -> tuple[str, ...]:
     roles = MODES[mode]
     if stack is not None and stack != OFFLINE_STACK:
         roles = tuple(r for r in roles if r != "bench")
-    return roles
+    # Swap NSD ↔ PowerDNS according to the stack profile (presentation stacks stay on nsd).
+    auth = auth_role(stack)
+    out: list[str] = []
+    for r in roles:
+        if r in ("nsd", "pdns"):
+            out.append(auth)
+        else:
+            out.append(r)
+    return tuple(out)
 
 
 def ref(role: str, stack: str) -> str:

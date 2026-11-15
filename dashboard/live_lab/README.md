@@ -27,11 +27,12 @@ marks a finished step. Explanations are hidden unless **Help text** (sidebar) is
 | **Offline benchmark** ① Run | the harness on one pinned core, no network; pick *Quick check* or *Full run* | the image |
 | ② Results | tables, charts and downloads of a saved run | a finished run |
 | **Prerequisite** (simulated) | the three lab images for the chosen version (`draft06` or `latest`) are on this node | Docker |
-| **Simulated lab** ① Prepare | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
-| ② Query | switch algorithm, send a query or `dig`, compare cold and warm cache, flush the cache, capture and decode packets (minimal mode keeps the algorithm switch and the lookups) | a started lab |
-| ③ Benchmark | signs, starts, measures and stops its own lab for each zone size (steps ① and ② are not needed) | the lab images |
+| **Simulated lab** · Live lab → Prepare | choose zone size and algorithms, **Sign zones**, **Start** the lab | the lab images |
+| **Simulated lab** · Live lab → Query | switch algorithm, dig, cold/warm cache, packets (same session as Prepare; minimal keeps lookups) | a started lab |
+| **Simulated lab** · Benchmark | independent suite: signs/measures its own lab per zone size (Live lab not required) | the lab images |
 | **Compare** | *Algorithms side by side*, *Run against run*, and *Zone updates* | a finished benchmark |
 | **Learn** | why DNSSEC needs MTL; what an operator does | nothing |
+| **Adoption** | plugin contract for AIORI: shipped stacks and extension slots (other PQC / DNS stacks / drafts) | nothing |
 | **Node images** (*Manage images* on Home) | both image sets in one place, with details, stack pins and terminal commands | Docker |
 | **Reset** | clear only the scopes you pick (session, captures, runs, signed zones, cache) | nothing |
 
@@ -112,7 +113,7 @@ missing or does-not-match for each, and Benchmark and Lab only use images that p
 
 | Where | Numbers | Needs signing again |
 | --- | --- | --- |
-| Simulated lab ① Prepare → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed | yes |
+| Simulated lab · Live lab → Prepare → Zone size → **Custom…** | TLDs, leaf zones, names per leaf zone, leaf servers, seed | yes |
 | Simulated lab ③ Benchmark → **Workload mix** | NXDOMAIN share, zone and name popularity skew, query timeout | no |
 | Simulated lab ③ Benchmark → **Network profiles** | delay to client, root, TLD and leaf, and loss, for WAN and lossy | no |
 
@@ -136,7 +137,7 @@ Offline and simulated data are never drawn together.
 
 ## Signing replay and live progress
 
-After **Sign zones**, step ① Prepare opens an animated replay of how the hierarchy was signed (also under its **Signing
+After **Sign zones**, Live lab → Prepare opens an animated replay of how the hierarchy was signed (also under its **Signing
 replay**). It plays bottom-up: leaf zones, TLDs, then the root, with each DS record travelling to its parent. For `mtl`
 the RRsets become leaves of a Merkle tree, the ladder is signed once and each RRset keeps a short path; for the other
 algorithms every RRset is signed on its own, with a bar per signature on one scale. Counts, times and bytes are

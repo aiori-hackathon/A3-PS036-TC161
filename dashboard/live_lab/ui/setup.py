@@ -83,15 +83,17 @@ def sidebar_setup(h: driver.LabHandle, stt: dict) -> None:
         sb(st.sidebar.text_input, "registry", images.DEFAULT_REGISTRY, "Registry", placeholder="ghcr.io/org/benchmark",
            help=_REGISTRY_HELP)
     sb(st.sidebar.selectbox, "stack", driver.DEFAULT_STACK, "Lab version", options=driver.list_stacks(),
-       help=_VERSION_HELP)
+       format_func=driver.stack_label, help=_VERSION_HELP)
 
 
 _SOURCE_HELP = ("Build compiles everything on this node (tens of minutes the first time). Pull downloads images "
                 "someone already built from the same stack profile; they are verified after the pull.")
 _REGISTRY_HELP = ("Namespace holding cipherops-bench, cipherops-eco-nsd, -unbound and -tools, tagged with the stack "
                   "name. Published with scripts/publish_images.sh.")
-_VERSION_HELP = ("Which pinned stack the simulated lab runs. draft06: condensed MTL by default. latest: always-full "
-                 "MTL. The offline benchmark always uses latest.")
+_VERSION_HELP = ("Which pinned Verisign image set the simulated lab runs. "
+                 "**Condensed MTL**: condensed signatures by default (lab default). "
+                 "**Always-full MTL**: every MTL RRSIG is full. "
+                 "The offline benchmark always uses Always-full MTL.")
 
 
 def _get_controls(h: driver.LabHandle, *, mode: str, stack: str, ok: bool, key: str) -> None:
@@ -131,7 +133,7 @@ def prerequisite(h: driver.LabHandle, track: str) -> bool:
             version_col, state_col, manage_col = st.columns([3, 7, 2], vertical_alignment="center")
             with version_col:
                 version = sb(st.selectbox, "stack", driver.DEFAULT_STACK, "Lab version", options=driver.list_stacks(),
-                             label_visibility="collapsed", help=_VERSION_HELP)
+                             format_func=driver.stack_label, label_visibility="collapsed", help=_VERSION_HELP)
             if version != h.stack:
                 st.rerun()  # the lab handle follows the chosen version
         else:
@@ -174,7 +176,7 @@ def _card(h: driver.LabHandle, *, title: str, purpose: str, stack: str, stack_no
         with st.container(height=CARD_BODY_HEIGHT, border=False):
             st.markdown(f"#### {title}  {_chip_for(rows)}", unsafe_allow_html=True)
             st.caption(purpose)
-            st.markdown(f"**Version:** `{stack}` · {stack_note}")
+            st.markdown(f"**Version:** **{driver.stack_label(stack)}** · {stack_note}")
             for s in rows:
                 note = "" if s.state == "ok" else f" · {STATE_TEXT[s.state]}"
                 st.markdown(f"{STATE_ICON[s.state]} {s.title} `{s.ref}`{note}")
@@ -205,7 +207,8 @@ def _job_body() -> None:
     frac = min(0.99, done / total) if pull else 0.0
     verb = "Pulling" if pull else "Building"
     st.progress(frac, text=f"{verb} {images.MODE_TITLE[job.get('mode', 'all')].lower()} images for "
-                           f"{job.get('stack')} · {job.get('step') or ''} · {_clock(elapsed)} elapsed")
+                           f"{driver.stack_label(job.get('stack') or '')} · "
+                           f"{job.get('step') or ''} · {_clock(elapsed)} elapsed")
     if not pull:
         st.caption("A first build compiles from source (tens of minutes); later builds use the cache. "
                    "You can leave this page.")
@@ -265,7 +268,7 @@ def image_step(h: driver.LabHandle) -> None:
     lab = dict(title="Simulated lab", mode="simulated", stack=h.stack, rows=lab_rows,
                stack_note="change it in the sidebar",
                purpose="Containerised root, TLD and leaf servers with a validating resolver.",
-               tile="simulated", step="prepare", cta="Prepare →", busy=busy)
+               tile="simulated", step="live", cta="Live lab →", busy=busy)
     left, right = st.columns(2)
     with left:
         _card(h, **offline)

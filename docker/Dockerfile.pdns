@@ -1,0 +1,23 @@
+# PowerDNS Authoritative for CipherOps multi-stack lanes.
+# Serves zones already signed by ldns (Verisign mtl-mode tools image). No PQC in this
+# binary — Unbound (mtl-mode) still validates.
+ARG DEBIAN_IMAGE=debian:bookworm-slim
+FROM ${DEBIAN_IMAGE}
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        pdns-server pdns-backend-bind ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker/pdns-entrypoint.sh /usr/local/bin/pdns-entrypoint.sh
+RUN chmod +x /usr/local/bin/pdns-entrypoint.sh
+
+ARG STACK
+ENV ECO_STACK=${STACK}
+LABEL io.cipherops.role="pdns" \
+      io.cipherops.stack="${STACK}" \
+      io.cipherops.auth-backend="powerdns"
+
+# Entrypoint creates bind-dnssec-db and marks zones PRESIGNED so RRSIGs in the
+# ldns-signed zone files are actually served (otherwise Auth strips them).
+ENTRYPOINT ["/usr/local/bin/pdns-entrypoint.sh"]

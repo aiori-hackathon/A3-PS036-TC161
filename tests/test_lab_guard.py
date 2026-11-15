@@ -144,7 +144,8 @@ def test_stale_start_lock_is_reclaimed(eco):
 ])
 def test_lab_operations_are_refused_during_a_suite(eco, op):
     root, calls = eco
-    _suite_status(root, "s1", state="running", pid=1, started=time.time())
+    # Use this process's pid: on Windows pid 1 is not alive, so the suite would be treated as stale.
+    _suite_status(root, "s1", state="running", pid=os.getpid(), started=time.time())
     h = _handle(root)
     with pytest.raises(driver.LabBusy):
         op(h)
@@ -153,7 +154,7 @@ def test_lab_operations_are_refused_during_a_suite(eco, op):
 
 def test_the_suite_process_itself_may_use_the_lab(eco, monkeypatch):
     root, calls = eco
-    _suite_status(root, "s1", state="running", pid=1, started=time.time())
+    _suite_status(root, "s1", state="running", pid=os.getpid(), started=time.time())
     monkeypatch.setenv(driver.SUITE_OWNER_ENV, "s1")
     driver.down(_handle(root))
     assert calls
@@ -161,7 +162,7 @@ def test_the_suite_process_itself_may_use_the_lab(eco, monkeypatch):
 
 def test_cancel_path_may_force_down(eco):
     root, calls = eco
-    _suite_status(root, "s1", state="running", pid=1, started=time.time())
+    _suite_status(root, "s1", state="running", pid=os.getpid(), started=time.time())
     driver.down(_handle(root), force=True)
     assert calls
 
@@ -181,7 +182,7 @@ def test_up_and_activate_refused_while_signing_the_same_lab(eco):
 
 def test_prepare_cannot_start_during_a_suite(eco):
     root, _ = eco
-    _suite_status(root, "s1", state="running", pid=1, started=time.time())
+    _suite_status(root, "s1", state="running", pid=os.getpid(), started=time.time())
     with pytest.raises(driver.LabBusy):
         pj.start(_handle(root), jobs=1, scenarios=["mtl"])
 
@@ -308,6 +309,31 @@ def test_suite_cannot_start_while_images_build(eco):
 def test_stacks_that_cannot_validate_a_scenario_are_flagged():
     assert driver.unvalidated_scenarios("latest", ["ecdsa", "slh-dsa", "mtl"]) == ["slh-dsa"]
     assert driver.unvalidated_scenarios("draft06", ["ecdsa", "slh-dsa", "mtl"]) == []
+
+
+def test_write_ui_config_accepts_ksk_zsk(eco):
+    root, _ = eco
+    path = driver.write_ui_config(scenarios=["ml-dsa-mtl"], key_scheme="ksk-zsk", zone_size="small",
+                                  out_config="configs/_kskzsk-ui-test.yaml")
+    import yaml
+    cfg = yaml.safe_load((root / path).read_text(encoding="utf-8"))
+    assert cfg["hierarchy"]["key_scheme"] == "ksk-zsk"
+    assert "ml-dsa-mtl" in cfg["scenarios"]
+    with pytest.raises(ValueError, match="key_scheme"):
+        driver.write_ui_config(scenarios=["ecdsa"], key_scheme="nope", out_config="configs/_bad.yaml")
+
+
+def test_stop_on_an_unsigned_size_stops_the_lab_that_is_actually_running(eco):
+    root, calls = eco
+    (root / "configs").mkdir(exist_ok=True)
+    (root / "configs" / "medium.yaml").write_text("name: eco-ui-medium\n", encoding="utf-8")
+    h = driver.LabHandle(config="configs/medium.yaml", stack="draft06")
+    other = root / "work" / "eco-ui-small-draft06"
+    other.mkdir(parents=True)
+    (other / "compose.yml").write_text("services: {}\n", encoding="utf-8")
+    note = driver.down(h)
+    assert "eco-ui-small-draft06" in note
+    assert ["docker", "compose", "-f", str(other / "compose.yml"), "down", "--remove-orphans"] in calls
 
 
 def test_up_sets_a_restart_policy_only_when_the_node_asks_for_one(eco, monkeypatch):

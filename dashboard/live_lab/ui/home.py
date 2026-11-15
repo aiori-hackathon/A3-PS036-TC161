@@ -21,7 +21,8 @@ def sidebar_home(h: driver.LabHandle, stt: dict) -> None:
     _sidebar_brand("home")
     r = readiness(stt)
     st.sidebar.markdown("### This node")
-    for ok, text in ((r["offline_images"], "Offline image"), (r["images"], f"Lab images · {h.stack}"),
+    for ok, text in ((r["offline_images"], "Offline image"),
+                     (r["images"], f"Lab images · {driver.stack_label(h.stack)}"),
                      (r["prepared"], "Zones signed"), (r["running"], "Lab running")):
         st.sidebar.markdown(f"{'🟢' if ok else '⚪'}  {text}")
     if st.sidebar.button("Refresh", width="stretch", key="sb_refresh_home"):
@@ -74,7 +75,7 @@ def _node_strip(h: driver.LabHandle, stt: dict) -> None:
             f'<span class="co-node-group"><span class="co-node-title">This node</span>'
             f'{_chip("ready" if ok else "needs images", "ok" if ok else "warn")}</span>'
             f'{_node_item("Offline image", images.ref("bench", images.OFFLINE_STACK), r["offline_images"])}'
-            f'{_node_item("Lab images", h.stack, r["images"])}'
+            f'{_node_item("Lab images", driver.stack_label(h.stack), r["images"])}'
             "</div>",
             unsafe_allow_html=True,
         )
@@ -123,7 +124,7 @@ def home_page(h: driver.LabHandle, stt: dict) -> None:
         _track_card("offline", stt)
     with right:
         _track_card("simulated", stt)
-    tiles = [m for m in ("compare", "learn", "reset") if minimal.mode_allowed(m)]
-    for col, mode in zip(st.columns(3), tiles):
+    tiles = [m for m in ("compare", "learn", "adopt", "reset") if minimal.mode_allowed(m)]
+    for col, mode in zip(st.columns(len(tiles) or 1), tiles):
         with col:
             _tile_card(mode, stt)

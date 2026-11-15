@@ -12,9 +12,13 @@ x-build: &build
     STACK: ${STACK:?pass --env-file ecosystem/stacks/<profile>.env}
     OPENSSL_TAG: ${OPENSSL_TAG:?missing OPENSSL_TAG in the stack profile}
     LIBOQS_TAG: ${LIBOQS_TAG:?missing LIBOQS_TAG in the stack profile}
+    MTL_REPO: ${MTL_REPO:-https://github.com/verisign/MTL.git}
     MTL_COMMIT: ${MTL_COMMIT:?missing MTL_COMMIT in the stack profile}
+    LDNS_REPO: ${LDNS_REPO:-https://github.com/Verisign/mtl-mode-ldns.git}
     LDNS_COMMIT: ${LDNS_COMMIT:?missing LDNS_COMMIT in the stack profile}
+    NSD_REPO: ${NSD_REPO:-https://github.com/verisign/mtl-mode-nsd.git}
     NSD_COMMIT: ${NSD_COMMIT:?missing NSD_COMMIT in the stack profile}
+    UNBOUND_REPO: ${UNBOUND_REPO:-https://github.com/Verisign/mtl-mode-unbound.git}
     UNBOUND_COMMIT: ${UNBOUND_COMMIT:?missing UNBOUND_COMMIT in the stack profile}
     VCS_REF: ${VCS_REF:-unknown}
     VCS_URL: ${VCS_URL:-}   # optional: org.opencontainers.image.source, which links a GHCR package to a repository
@@ -32,3 +36,11 @@ services:
   tools:
     image: cipherops-eco-tools:${STACK}
     build: { <<: *build, target: tools }
+  # Auth-only image for AUTH_BACKEND=powerdns lanes (no Verisign mtl-mode compile).
+  pdns:
+    image: cipherops-eco-pdns:${STACK}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pdns
+      args:
+        STACK: ${STACK:?pass --env-file ecosystem/stacks/<profile>.env}

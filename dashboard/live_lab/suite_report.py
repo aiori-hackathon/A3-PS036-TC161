@@ -78,7 +78,10 @@ def _images_from_runs(sd: dict) -> list[str]:
         imgs = env.get("images") or env.get("image_digests") or {}
         if isinstance(imgs, dict):
             for name, dig in imgs.items():
-                tags.append(f"{name} = {dig}" if dig else str(name))
+                if isinstance(dig, dict):
+                    tags.append(f"{dig.get('image', name)} = {dig.get('image_id', '')}".rstrip(" ="))
+                else:
+                    tags.append(f"{name} = {dig}" if dig else str(name))
         elif isinstance(imgs, list):
             tags.extend(str(x) for x in imgs)
     # unique, stable
@@ -88,6 +91,73 @@ def _images_from_runs(sd: dict) -> list[str]:
             seen.add(t)
             uniq.append(t)
     return uniq
+
+
+def _first_run(sd: dict) -> dict:
+    runs = sd.get("runs") or {}
+    if not runs:
+        return {}
+    return runs[sorted(runs)[0]]
+
+
+def _fmt_mem_bytes(n: int | float | None) -> str:
+    if n is None:
+        return "—"
+    kb = int(n) // 1024
+    return f"MemTotal: {kb} kB ({kb / 1024 / 1024:.1f} GiB, Docker VM)"
+
+
+def _resolve_provenance(sd: dict) -> dict:
+    """Suite snapshot first; if older suites omitted it, rebuild from each run's environment block.
+
+    Do not copy offline-harness fields (AWS host, latest/liboqs 0.16). Eco runs on the Windows
+    Docker Desktop host and the draft06 stack pins recorded in run.json.
+    """
+    suite = sd.get("suite") or {}
+    prov = dict(suite.get("provenance") or {})
+    run = _first_run(sd)
+    env = run.get("environment") or {}
+    dock = env.get("docker") or {}
+    client = env.get("client_env") or {}
+    lab = run.get("lab") or {}
+    cpusets = lab.get("cpusets") or {}
+
+    def missing(key: str) -> bool:
+        v = prov.get(key)
+        return v in (None, "", "—", "unavailable")
+
+    if missing("mem_total") and dock.get("MemTotal"):
+        prov["mem_total"] = _fmt_mem_bytes(dock["MemTotal"])
+    if missing("kernel") and dock.get("KernelVersion"):
+        prov["kernel"] = dock["KernelVersion"]
+    if missing("docker_server") and (dock.get("ServerVersion") or dock.get("OperatingSystem")):
+        parts = [p for p in (dock.get("OperatingSystem"), dock.get("ServerVersion")) if p]
+        prov["docker_server"] = " ".join(parts)
+    if missing("git_commit") and client.get("CIPHEROPS_GIT_SHA"):
+        prov["git_commit"] = client["CIPHEROPS_GIT_SHA"]
+    if missing("cpu_isolation"):
+        if cpusets:
+            bits = ", ".join(f"{k}={v}" for k, v in sorted(cpusets.items()))
+            prov["cpu_isolation"] = f"container cpusets: {bits}"
+        else:
+            prov["cpu_isolation"] = "none (lab containers share all host CPUs)"
+    if missing("cpu_governor"):
+        # Windows Docker Desktop has no Linux cpufreq governor on the host.
+        host = str((suite.get("host") or {}).get("platform") or "")
+        prov["cpu_governor"] = "unavailable (Windows host)" if host.lower().startswith("windows") else "unavailable"
+    if missing("cpu_model"):
+        # Not stored in older run.json; keep blank unless provenance already had it.
+        import platform
+        cpu = (platform.processor() or "").strip()
+        if cpu and "Family" not in cpu:
+            prov["cpu_model"] = cpu
+    if not prov.get("images") and isinstance(env.get("images"), dict):
+        prov["images"] = {
+            name: {"id": (info or {}).get("image_id", "unavailable"), "created": "unavailable"}
+            for name, info in env["images"].items()
+            if isinstance(info, dict)
+        }
+    return prov
 
 
 def _pick(df: pd.DataFrame, dataset: int, scenario: str, col: str):
@@ -155,7 +225,7 @@ def build_markdown(sd: dict, figs: dict[str, str]) -> str:
     stack = suite.get("stack", "draft06")
     env = _stack_env(stack)
     host = suite.get("host") or {}
-    prov = suite.get("provenance") or {}
+    prov = _resolve_provenance(sd)
     sizes = sd["datasets"]
     scenarios = list(suite.get("scenarios") or [])
     sf = compare.scaling_frame(sd)
@@ -298,8 +368,10 @@ def build_markdown(sd: dict, figs: dict[str, str]) -> str:
         ("CPU frequency governor", prov.get("cpu_governor", "—")),
         ("CPU isolation", prov.get("cpu_isolation", "—")),
         ("Docker server", prov.get("docker_server", "—")),
-        ("Code version (git)", (prov.get("git_commit", "—") or "—")[:12]
-         + (" (uncommitted changes)" if prov.get("git_dirty") else "")),
+        ("Code version (git)",
+         (lambda g: ((g[:12] if len(g) >= 40 and all(c in "0123456789abcdef" for c in g.lower()) else g)
+                     + (" (uncommitted changes)" if prov.get("git_dirty") else "")))
+         (prov.get("git_commit") or "—")),
         ("Signature primitive", driver.STACK_PRIMITIVE.get(stack, "—")),
         ("liboqs (stack)", env.get("LIBOQS_TAG", "—")),
         ("MTL commit (stack)", env.get("MTL_COMMIT", "—")),
@@ -312,11 +384,16 @@ def build_markdown(sd: dict, figs: dict[str, str]) -> str:
     ]
     L.append(_md_table(pd.DataFrame(pin_rows, columns=["Item", "Value"])))
     gov = str(prov.get("cpu_governor") or "")
-    if gov and gov not in ("performance", "unavailable"):
+    if gov and gov not in ("performance", "unavailable") and "Windows" not in gov:
         L.append("")
         L.append(f"> **Timing caveat.** The host CPU governor was `{gov}`, so the clock speed can change during the "
                  "run. Repeat on a host set to `performance` for tighter timings. Lab containers also share every "
                  "host CPU; the offline harness, by contrast, runs on a dedicated core.")
+    elif "Windows" in gov:
+        L.append("")
+        L.append("> **Timing note.** This suite ran on Windows / Docker Desktop. There is no Linux CPU-frequency "
+                 "governor on the host. Container cpusets are recorded above; they are not the same as the offline "
+                 "harness pinning a single dedicated core.")
     built = prov.get("images") or {}
     if built:
         L.append("")
