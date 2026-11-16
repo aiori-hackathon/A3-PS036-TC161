@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cipherops</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #stage { position: relative; width: 100%; height: 100vh; }
+  #stage::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+                   background: radial-gradient(ellipse 44% 58% at 50% 47%, rgba(61,123,224,.14), transparent 72%); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+           filter: drop-shadow(0 0 5px rgba(90,160,255,.26)); transition: opacity .25s ease; }
+  #pips { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 6px; }
+  #pips button { position: relative; width: 6px; height: 6px; padding: 0; border: 0; border-radius: 999px;
+                 background: rgba(250,250,250,.22); cursor: pointer;
+                 transition: width .35s ease, background .35s ease; }
+  #pips button::after { content: ""; position: absolute; inset: -7px -3px; }
+  #pips button:hover { background: rgba(250,250,250,.5); }
+  #pips button.on { width: 18px; background: #ff4b4b; }
+  #pips button:focus-visible { outline: 2px solid #7cc4ff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="dots" role="img" aria-label="Dots that gather into the lab's ideas, one after another"></canvas>
+  <div id="pips"></div>
+</div>
+<script>
+(() => {
+  "use strict";
+
+  const LOGO_SRC = "__LOGO__";          // data URI of the team mark, or empty
+  const GRID = 3.5;                      // px between dots in a settled shape
+  const FOOT = 20;                       // px kept free for the row of small dots that pick a shape
+  const UNIT_W = 300, UNIT_H = 190;      // every shape is drawn in this box, then scaled to fit
+  const CAP = 2600, DUST = 70;           // most dots a shape may use; faint background dots
+  const HOLD = 4800;                     // ms per shape, including the move into it
+  const SWIRL = 0.42;                    // radians: how far dots curve on the way to their place
+  const RING = true;                     // glass platform the shapes stand on; false removes it and its space
+  const FLAT = .085;                     // platform depth to width: a stage seen from a low eye line
+  const BELOW = RING ? 26 : 0;           // shape units kept under the shapes for the front of the platform
+  const TAU = Math.PI * 2;
+
+  const INK = { silver: "207,216,234", blue: "111,182,255", deep: "61,123,224", green: "95,224,165",
+                coral: "255,96,96", line: "118,140,184" };
+  const ink = (name, a = 1) => `rgba(${INK[name]},${a})`;
+
+  const stage = document.getElementById("stage");
+  const canvas = document.getElementById("dots");
+  const ctx = canvas.getContext("2d");
+  const pips = document.getElementById("pips");
+  const off = document.createElement("canvas");
+  const g = off.getContext("2d", { willReadFrequently: true });
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const logo = new Image();
+
+  // ── shapes: each one is painted off screen, then read back as dots ──
+  const line = (x1, y1, x2, y2) => { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+  const disc = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
+
+  const SHAPES = [
+    { id: "mark", name: "CipherOps", soft: true, floor: 105, lift: 175,
+      draw() {
+        const k = Math.min(UNIT_W / logo.naturalWidth, UNIT_H / logo.naturalHeight);
+        const w = logo.naturalWidth * k, h = logo.naturalHeight * k;
+        g.drawImage(logo, (UNIT_W - w) / 2, (UNIT_H - h) / 2, w, h);
+      } },
+    { id: "tree", name: "Merkle tree",
+      draw(lw) {
+        const ys = [20, 68, 117, 167];
+        const xs = [[150], [78, 222], [42, 114, 186, 258], Array.from({ length: 8 }, (_, i) => 24 + 36 * i)];
+        const path = [0, 0, 1, 2];        // one record's way up to the root
+        for (let L = 0; L < 3; L++) for (let i = 0; i < xs[L].length; i++) for (let c = 2 * i; c <= 2 * i + 1; c++) {
+          const on = path[L + 1] === c;
+          g.strokeStyle = on ? ink("green") : ink("line"); g.lineWidth = lw(on ? 6 : 5);
+          line(xs[L][i], ys[L], xs[L + 1][c], ys[L + 1]);
+        }
+        for (let L = 0; L < 4; L++) for (let i = 0; i < xs[L].length; i++) {
+          const on = path[L] === i;
+          g.fillStyle = L === 0 ? ink("coral") : on ? ink("green") : L === 3 ? ink("silver") : ink("blue");
+          disc(xs[L][i], ys[L], L === 0 ? 14 : L === 3 ? 9 : 11);
+        }
+      } },
+    { id: "mtl", name: "Merkle Tree Ladder",
+      draw() {
+        g.font = '800 132px "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif';
+        g.textAlign = "center"; g.textBaseline = "alphabetic";
+        const k = Math.min(1, 284 / g.measureText("MTL").width);
+        g.translate(150, 95); g.scale(k, k);
+        const fill = g.createLinearGradient(-135, 0, 135, 0);
+        fill.addColorStop(0, ink("silver")); fill.addColorStop(.55, ink("blue")); fill.addColorStop(1, ink("deep"));
+        g.fillStyle = fill; g.fillText("MTL", 0, 46);
+      } },
+    { id: "valid", name: "Validated", soft: true,
+      draw(lw) {
+        g.beginPath();
+        g.moveTo(150, 6); g.lineTo(216, 30); g.lineTo(216, 88);
+        g.bezierCurveTo(216, 134, 186, 164, 150, 184);
+        g.bezierCurveTo(114, 164, 84, 134, 84, 88);
+        g.lineTo(84, 30); g.closePath();
+        g.fillStyle = ink("deep", .22); g.fill();
+        g.strokeStyle = ink("blue"); g.lineWidth = lw(7); g.stroke();
+        g.strokeStyle = ink("green"); g.lineWidth = lw(12);
+        g.beginPath(); g.moveTo(116, 97); g.lineTo(142, 123); g.lineTo(187, 70); g.stroke();
+      } },
+  ];
+  let shapes = [];
+
+  /** Read the off-screen drawing back on a staggered grid: evenly spaced dots, thinner where the paint is faint. */
+  function sample(shape) {
+    const w = off.width, h = off.height, d = g.getImageData(0, 0, w, h).data, out = [];
+    const rowH = GRID * 0.866;
+    for (let y = rowH / 2, row = 0; y < h; y += rowH, row++) {
+      for (let x = row & 1 ? GRID : GRID / 2; x < w; x += GRID) {
+        const i = ((y | 0) * w + (x | 0)) * 4, a = d[i + 3];
+        // solid paint gives a clean edge; only a shape with translucent paint is thinned out by its opacity
+        if (shape.soft ? a < 28 || Math.random() * 255 > a : a < 128) continue;
+        let r = d[i], gr = d[i + 1], b = d[i + 2];
+        if (shape.lift) {                 // a picture: drop its dim halo, and lift paint too dark for a dark page
+          const m = Math.max(r, gr, b, 1);
+          if (m < shape.floor) continue;
+          if (m < shape.lift) { const k = shape.lift / m; r *= k; gr *= k; b *= k; }
+        }
+        out.push(x + (Math.random() - .5) * .5, y + (Math.random() - .5) * .5, r, gr, b);
+      }
+    }
+    return new Float32Array(out);
+  }
+
+  // ── dots ──
+  const MAX = CAP + DUST;
+  const F = () => new Float32Array(MAX);
+  const x = F(), y = F(), vx = F(), vy = F(), tx = F(), ty = F(), r = F(), gn = F(), b = F(),
+        tr = F(), tg = F(), tb = F(), al = F(), ta = F(), size = F(), pull = F(), phase = F(), wake = F();
+  const paint = new Array(MAX).fill("rgb(118,140,184)");
+  const tinting = new Uint8Array(MAX);
+  const order = new Uint16Array(MAX);
+  let n = 0, W = 0, H = 0, scale = 1, cur = -1, clock = 0, nextAt = 0;
+  const ring = { y: 0, rx: 0, ty: 0, trx: 0 };   // where the platform is, and where the current shape wants it
+
+  /** Where a shape stands: the platform sits at its lowest dots and reaches a little past its sides. */
+  function footing(pool) {
+    let x0 = Infinity, x1 = -Infinity, y1 = 0;
+    for (let p = 0; p < pool.length; p += 5) {
+      if (pool[p] < x0) x0 = pool[p];
+      if (pool[p] > x1) x1 = pool[p];
+      if (pool[p + 1] > y1) y1 = pool[p + 1];
+    }
+    const rx = Math.min(W / 2 - 12, Math.max((x1 - x0) * .62, UNIT_W * scale * .42));
+    return { y: y1 - rx * FLAT * .3, rx };
+  }
+
+  function shuffle(a, len) {
+    for (let i = len - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0, t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+  }
+
+  /** Size the canvases, repaint every shape at this size and resample it. False until the frame has a size. */
+  function build() {
+    W = Math.floor(stage.clientWidth); H = Math.floor(stage.clientHeight);
+    if (W < 80 || H < FOOT + 60) return false;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const areaH = H - FOOT;
+    off.width = W; off.height = areaH;
+    scale = Math.min((W - 24) / UNIT_W, (areaH - 8) / (UNIT_H + BELOW), 1.3);
+    const ox = (W - UNIT_W * scale) / 2, oy = (areaH - (UNIT_H + BELOW) * scale) / 2 + 2;
+    const lw = (w) => Math.max(w, (GRID + 1) / scale);   // never thinner than the grid, or lines would break up
+    let most = 0;
+    for (const s of shapes) {
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, off.width, off.height);
+      g.setTransform(scale, 0, 0, scale, ox, oy);
+      g.save(); g.lineCap = "round"; g.lineJoin = "round"; s.draw(lw); g.restore();
+      s.pool = sample(s);
+      s.foot = footing(s.pool);
+      most = Math.max(most, s.pool.length / 5);
+    }
+    const want = Math.min(most, CAP) + DUST;
+    for (let i = n; i < want; i++) {      // new dots start scattered and invisible
+      x[i] = Math.random() * W; y[i] = Math.random() * areaH; vx[i] = vy[i] = 0;
+      r[i] = 118; gn[i] = 140; b[i] = 184; al[i] = 0;
+      size[i] = .9 + Math.random() * .4; pull[i] = .02 + Math.random() * .016;
+      phase[i] = Math.random() * TAU; order[i] = i;
+    }
+    n = want;
+    for (let i = 0; i < n; i++) order[i] = i;
+    return true;
+  }
+
+  /** Send every dot to its place in shape `idx`; dots the shape does not need fade into the background. */
+  function morph(idx, instant) {
+    cur = idx;
+    const s = shapes[idx], pool = s.pool, have = pool.length / 5, use = Math.min(have, n - DUST);
+    const pick = new Uint32Array(have);
+    for (let i = 0; i < have; i++) pick[i] = i;
+    shuffle(pick, have); shuffle(order, n);
+    const areaH = H - FOOT, spread = UNIT_W * scale * .7;
+    for (let j = 0; j < n; j++) {
+      const i = order[j];
+      if (j < use) {
+        const p = pick[j] * 5;
+        tx[i] = pool[p]; ty[i] = pool[p + 1]; tr[i] = pool[p + 2]; tg[i] = pool[p + 3]; tb[i] = pool[p + 4];
+        ta[i] = .8 + Math.random() * .2;
+      } else if (j < use + DUST) {
+        tx[i] = Math.random() * W; ty[i] = Math.random() * areaH; tr[i] = 118; tg[i] = 140; tb[i] = 184;
+        ta[i] = .1 + Math.random() * .16;
+      } else {
+        tx[i] = W / 2 + (Math.random() - .5) * spread; ty[i] = areaH / 2 + (Math.random() - .5) * spread * .6;
+        ta[i] = 0;
+      }
+      tinting[i] = 1;
+      if (instant) {
+        x[i] = tx[i]; y[i] = ty[i]; vx[i] = vy[i] = 0; al[i] = ta[i];
+        r[i] = tr[i]; gn[i] = tg[i]; b[i] = tb[i];
+      } else {                            // loosen first, then leave in a wave from left to right
+        wake[i] = clock + (x[i] / W) * 380 + Math.random() * 220;
+        vx[i] += (Math.random() - .5) * 5; vy[i] += (Math.random() - .5) * 5;
+      }
+    }
+    ring.ty = s.foot.y; ring.trx = s.foot.rx;
+    if (instant || !ring.rx) { ring.y = ring.ty; ring.rx = ring.trx; }
+    nextAt = clock + HOLD;
+    pips.querySelectorAll("button").forEach((el, i) => {
+      el.classList.toggle("on", i === idx);
+      if (i === idx) el.setAttribute("aria-current", "true"); else el.removeAttribute("aria-current");
+    });
+  }
+
+  // ── motion ──
+  const ptr = { on: false, x: 0, y: 0 };
+  const REACH = 62;
+
+  function step(f) {
+    const settle = Math.pow(.80, f), drift = Math.pow(.94, f), mix = Math.min(1, .075 * f);
+    for (let i = 0; i < n; i++) {
+      let ax = 0, ay = 0, damp = drift;
+      if (clock >= wake[i]) {
+        const wob = clock * .0012 + phase[i];
+        const dx = tx[i] + Math.sin(wob) * .5 - x[i], dy = ty[i] + Math.cos(wob * 1.3) * .5 - y[i];
+        const turn = SWIRL * Math.min(1, Math.hypot(dx, dy) / 70), c = Math.cos(turn), s = Math.sin(turn);
+        ax = (dx * c - dy * s) * pull[i]; ay = (dx * s + dy * c) * pull[i];
+        damp = settle;
+      }
+      if (ptr.on) {                       // dots step aside for the pointer and return
+        const px = x[i] - ptr.x, py = y[i] - ptr.y, d2 = px * px + py * py;
+        if (d2 < REACH * REACH && d2 > .01) {
+          const d = Math.sqrt(d2), push = (1 - d / REACH) ** 2 * 1.5;
+          ax += (px / d) * push; ay += (py / d) * push;
+        }
+      }
+      vx[i] = (vx[i] + ax * f) * damp; vy[i] = (vy[i] + ay * f) * damp;
+      x[i] += vx[i] * f; y[i] += vy[i] * f;
+      al[i] += (ta[i] - al[i]) * mix;
+      if (tinting[i]) {
+        r[i] += (tr[i] - r[i]) * mix; gn[i] += (tg[i] - gn[i]) * mix; b[i] += (tb[i] - b[i]) * mix;
+        if (Math.abs(tr[i] - r[i]) + Math.abs(tg[i] - gn[i]) + Math.abs(tb[i] - b[i]) < 1.5) {
+          r[i] = tr[i]; gn[i] = tg[i]; b[i] = tb[i]; tinting[i] = 0;
+        }
+        paint[i] = `rgb(${r[i] | 0},${gn[i] | 0},${b[i] | 0})`;
+      }
+    }
+    const k = Math.min(1, .045 * f);      // the platform glides to the next shape's footing as its dots arrive
+    ring.y += (ring.ty - ring.y) * k; ring.rx += (ring.trx - ring.rx) * k;
+  }
+
+  /** A flat glass platform: a softly lit surface, a faint back edge and a bright front lip that slowly breathes. */
+  function drawRing() {
+    const cx = W / 2, cy = ring.y, rx = ring.rx, ry = rx * FLAT;
+    if (rx < 4) return;
+    const glow = still ? 1 : .88 + .12 * Math.sin(clock * .0016);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(1, FLAT);
+    const surface = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    surface.addColorStop(0, "rgba(80,150,255,.30)"); surface.addColorStop(.55, "rgba(60,90,210,.11)");
+    surface.addColorStop(1, "rgba(40,50,150,.04)");
+    ctx.fillStyle = surface; ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(140,170,255,.16)";
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, Math.PI, TAU); ctx.stroke();
+    const lip = ctx.createLinearGradient(cx - rx, 0, cx + rx, 0);
+    lip.addColorStop(0, "rgba(80,220,255,.14)"); lip.addColorStop(.25, "rgba(80,220,255,.9)");
+    lip.addColorStop(.55, "rgba(120,150,255,.95)"); lip.addColorStop(.8, "rgba(190,100,255,.85)");
+    lip.addColorStop(1, "rgba(190,100,255,.14)");
+    ctx.strokeStyle = lip;
+    ctx.globalAlpha = glow; ctx.lineWidth = 1.8; ctx.shadowColor = "rgba(100,170,255,.9)"; ctx.shadowBlur = 11;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI); ctx.stroke();
+    ctx.globalAlpha = glow * .28; ctx.lineWidth = 1; ctx.shadowBlur = 0;       // the slab's lower edge
+    ctx.beginPath(); ctx.ellipse(cx, cy + 3, rx * .995, ry, 0, .15, Math.PI - .15); ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    if (RING) drawRing();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W, H - FOOT); ctx.clip();   // the strip with the small dots stays clear
+    ctx.lineCap = "round";
+    for (let i = 0; i < n; i++) {
+      if (al[i] < .02) continue;
+      ctx.globalAlpha = al[i];
+      if (vx[i] * vx[i] + vy[i] * vy[i] > 2.2) {      // fast dots leave a short streak
+        ctx.strokeStyle = paint[i]; ctx.lineWidth = size[i] * 2;
+        ctx.beginPath(); ctx.moveTo(x[i] - vx[i] * 1.4, y[i] - vy[i] * 1.4); ctx.lineTo(x[i], y[i]); ctx.stroke();
+      } else {
+        ctx.fillStyle = paint[i];
+        ctx.beginPath(); ctx.arc(x[i], y[i], size[i], 0, TAU); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── run loop: only while the frame is on screen and the tab is in front ──
+  let raf = 0, last = 0, ready = false, inView = true;
+  const awake = () => ready && inView && !document.hidden;
+
+  function frame(t) {
+    raf = 0;
+    if (!awake()) return;
+    const dt = last ? Math.min(50, t - last) : 16.7;
+    last = t; clock += dt;
+    if (clock >= nextAt) morph((cur + 1) % shapes.length);
+    step(dt / 16.667); draw();
+    raf = requestAnimationFrame(frame);
+  }
+  function run() {
+    if (still || raf || !awake()) return;
+    last = 0; raf = requestAnimationFrame(frame);
+  }
+
+  /** Jump to a shape. With reduced motion the picture is swapped with a fade instead of moving dots. */
+  function show(idx) {
+    if (!still) { morph(idx); nextAt = clock + HOLD * 2; return; }   // a shape someone picked stays longer
+    canvas.style.opacity = "0";
+    setTimeout(() => { morph(idx, true); step(0); draw(); canvas.style.opacity = "1"; }, 260);
+  }
+
+  function boot() {
+    shapes = SHAPES.filter((s) => s.id !== "mark" || (logo.naturalWidth > 0));
+    shapes.forEach((s, i) => {
+      const el = document.createElement("button");
+      el.type = "button"; el.setAttribute("aria-label", s.name);
+      el.addEventListener("click", () => show(i));
+      pips.appendChild(el);
+    });
+
+    let resizeTimer = 0;
+    const fit = () => {
+      if (!build()) return;
+      const first = !ready;
+      ready = true;
+      if (still) { morph(first ? 0 : cur, true); step(0); draw(); return; }
+      const due = nextAt;
+      morph(first ? 0 : cur);
+      if (!first) nextAt = due;
+      run();
+    };
+    new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fit, ready ? 140 : 0); })
+      .observe(stage);
+    new IntersectionObserver((e) => { inView = e[e.length - 1].isIntersecting; run(); }).observe(stage);
+    document.addEventListener("visibilitychange", run);
+    stage.addEventListener("pointermove", (e) => {
+      const box = stage.getBoundingClientRect();
+      ptr.on = true; ptr.x = e.clientX - box.left; ptr.y = e.clientY - box.top;
+    });
+    stage.addEventListener("pointerleave", () => { ptr.on = false; });
+    if (still) setInterval(() => { if (awake()) show((cur + 1) % shapes.length); }, 6500);
+  }
+
+  if (LOGO_SRC) { logo.onload = logo.onerror = boot; logo.src = LOGO_SRC; } else boot();
+})();
+</script>
+</body>
+</html>
