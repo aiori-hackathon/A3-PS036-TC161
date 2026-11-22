@@ -312,10 +312,27 @@ def run_suite(p: dict) -> None:
             driver.up(h)
             r.tick()
 
+            # Kernel cgroup/proc samples inside each eco-* container (rsrcsamp C binary).
+            lab_rsrc = None
+            try:
+                from cipherops import rsrcmon
+                lab_rsrc = rsrcmon.DockerLabSampler(r.dir / f"rsrc_lab_{n}.jsonl", interval_s=2.0)
+                lab_rsrc.start(label=f"measure-n{n}")
+                r.log(f"resource sampler: docker exec rsrcsamp on eco-* -> rsrc_lab_{n}.jsonl")
+            except Exception as e:  # noqa: BLE001
+                r.log(f"resource sampler unavailable: {e}")
+
             r.step(f"{tag}: measuring {trials} trial(s) of {p['n_queries']} lookups per scenario and network")
             label = driver.sanitize_label(f"{p.get('label') or 'bench'}-n{n}")
-            r.log(driver.run_benchmark(h, scenarios=scenarios, profiles=networks, trials=trials, udp=udp,
-                                       run_label=label)[-1500:])
+            try:
+                r.log(driver.run_benchmark(h, scenarios=scenarios, profiles=networks, trials=trials, udp=udp,
+                                           run_label=label)[-1500:])
+            finally:
+                if lab_rsrc is not None:
+                    rsum = lab_rsrc.stop()
+                    (r.dir / f"rsrc_lab_{n}_summary.json").write_text(
+                        json.dumps(rsum, indent=2), encoding="utf-8")
+                    r.log(f"resource summary n={n}: {rsum.get('n_samples', 0)} samples")
             newest = driver.list_runs(h)
             if not newest:
                 raise RuntimeError(f"no benchmark run was saved for {n} names")

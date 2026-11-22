@@ -540,13 +540,23 @@ def _gate(stt: dict, what: str) -> bool:
 
 # ─────────────────────────── sidebars ───────────────────────────
 
+# Set by app.main to the About + fullscreen iframe; kept here so every page's brand can show it
+# without importing the Streamlit entry module (which is often ``__main__``).
+chrome_bar = None
+
+
 def _sidebar_brand(mode: str) -> None:
-    st.sidebar.title("Cipherops")
-    st.sidebar.caption("MTL DNSSEC Lab")
+    st.sidebar.markdown(
+        '<div class="co-sb-brand"><div class="co-sb-name">Cipherops</div>'
+        '<div class="co-sb-tag">MTL DNSSEC Lab</div></div>',
+        unsafe_allow_html=True,
+    )
     if mode != "home":
         st.sidebar.button("← Home", on_click=_go, args=("home",), key="sb_home", width="stretch")
     st.sidebar.toggle("Help text", value=True, key="show_help",
                       help="Show the explanations next to each control.")
+    if chrome_bar is not None:
+        chrome_bar()  # optional; About + maximize normally live in the header band
     st.sidebar.markdown("---")
 
 

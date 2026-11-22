@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import random
 import sys
 import time
@@ -22,7 +23,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from . import analytical, cache, dnswire, envinfo, evolution, preflight, results, stats, timer
+from . import analytical, cache, dnswire, envinfo, evolution, preflight, results, rsrcmon, stats, timer
 from .codepoints import (MODES, MTL_SECURITY_PARAMETER_N, SLH_DSA_SHA2_128S_SIG_BYTES, base_key, control_key,
                          is_control, mode_for)
 from .harness import HARNESS, load_signatures, run_trial
@@ -309,7 +310,42 @@ def cmd_run(args: argparse.Namespace) -> int:
     run_id = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + cfg["run_name"]
     root = Path(args.results) / "runs" / run_id
     root.mkdir(parents=True, exist_ok=True)
+    # Kernel-backed CPU/RAM series (rsrcsamp C helper). Labels follow the stages below.
+    mon = rsrcmon.ResourceMonitor(
+        root / "rsrc_samples.jsonl", pid=os.getpid(), cgroup="auto", label="setup")
+    if mon.start():
+        log(f"resource sampler: {mon.binary} (solution cgroup + host /proc) -> {mon.out_path.name}")
+    else:
+        log("resource sampler: rsrcsamp missing — rebuild harness (make -C harness rsrcsamp)")
+    try:
+        return _cmd_run_body(args, cfg, root, mon)
+    finally:
+        rsum = mon.stop()
+        (root / "rsrc_summary.json").write_text(json.dumps(rsum, indent=2), encoding="utf-8")
+        summary_path = root / "summary.json"
+        if summary_path.is_file() and rsum.get("n_samples"):
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                summary["resources"] = rsum
+                summary_path.write_text(json.dumps(summary, indent=2, default=float), encoding="utf-8")
+            except (OSError, json.JSONDecodeError):
+                pass
+        if rsum.get("n_samples"):
+            ov = rsum.get("overall") or {}
+            host = (f", host CPU mean {ov.get('host_cpu_pct_mean')}% peak {ov.get('host_cpu_pct_peak')}%"
+                    if ov.get("host_cpu_pct_mean") is not None else "")
+            avail = ov.get("host_mem_available_bytes_min")
+            avail_s = f", host MemAvailable low {(avail or 0) / 1048576:.0f} MiB" if avail is not None else ""
+            log(f"resource summary: {rsum['n_samples']} samples over {ov.get('wall_s')} s, "
+                f"solution CPU {ov.get('cpu_seconds')} s (mean {ov.get('cpu_pct_mean')}%, "
+                f"peak {ov.get('cpu_pct_peak')}%), "
+                f"solution memory peak {(ov.get('mem_bytes_peak') or 0) / 1048576:.1f} MiB"
+                f"{host}{avail_s} -> rsrc_summary.json")
+
+
+def _cmd_run_body(args: argparse.Namespace, cfg: dict, root: Path, mon: rsrcmon.ResourceMonitor) -> int:
     stage(1, STEPS, "Configuration and pinned environment", "runner.py (load_config), envinfo.py (collect)")
+    mon.set_label("setup")
     (root / "config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))
     env = envinfo.collect(HARNESS)
     env["timer"] = timer.calibrate()
@@ -331,6 +367,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"liboqs {sw['liboqs_tag']}, {sw['openssl']}")
 
     stage(2, STEPS, "Go/no-go gate (PS-036: defer if the reference implementation fails)", "preflight.py")
+    mon.set_label("preflight")
     if args.skip_preflight:
         log("skipped (--skip-preflight)")
     else:
@@ -341,6 +378,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 3
 
     stage(3, STEPS, "Build zones and RFC 4034 signing inputs", "workload.py (build_zone, signing_messages)")
+    mon.set_label("zones")
     zones, paths, sizes, dataset_rows = {}, {}, {}, []
     for i, ds in enumerate(cfg["datasets"]):
         zone = build_zone(ds["name"], ds["n_names"], cfg["seed"] + i)
@@ -379,6 +417,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     stage(4, STEPS, "Sign and verify every RRset, repeated trials",
           "runner.py (run_trials) -> harness.py (run_trial) -> harness/mtlbench.c -> libmtl / liboqs / OpenSSL")
+    mon.set_label("sign_verify")
     trials, ops = run_trials(cfg, root, paths, sizes)
     is_aa = trials["mode"].map(is_control)
     control, trials = trials[is_aa].reset_index(drop=True), trials[~is_aa].reset_index(drop=True)
@@ -398,12 +437,14 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     stage(5, STEPS, "DNS answers, transmitted bytes and cache usage",
           "dnswire.py (response_catalog, query_workload, workload_accounting), cache.py, analytical.py")
+    mon.set_label("wire_cache")
     frames = analyse(cfg, root, zones, trials)
     for name, df in frames.items():
         write_frame(df, root, name)
     log("saved responses.csv, workload.csv, cache.csv, sizes.csv")
 
     stage(6, STEPS, "Statistics: medians and confidence intervals of the median", "stats.py, runner.py (summarise)")
+    mon.set_label("stats")
     summary = summarise(trials, frames, control, cfg.get("control"))
     if ev_cfg:
         summary["evolution"] = evolution.summary(evo_mtl, evo_direct)
@@ -419,6 +460,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     log("saved summary.json")
 
     stage(7, STEPS, "Report and figures", "report.py, results.py")
+    mon.set_label("report")
+    # The report prints the resource table, so it needs the summary of the stages before it now.
+    # cmd_run rewrites this file at the end, with the report stage included.
+    (root / "rsrc_summary.json").write_text(json.dumps(mon.snapshot(), indent=2), encoding="utf-8")
     from . import report
     report.write(root)
     log(f"report: {root / 'report.md'} and report.html, figures/")

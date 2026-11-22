@@ -23,22 +23,25 @@ sys.path.insert(0, str(ROOT / "dashboard"))
 from live_lab import compare, compare_hub, decode, driver  # noqa: E402
 from live_lab import artifacts, lab, lanes, minimal, plugins, shapes  # noqa: E402
 from live_lab import glossary as gl, image_job, images, jobs, offline_job, prepare_job, prepare_story  # noqa: E402
-from live_lab import suite as suite_mod  # noqa: E402
+from live_lab import suite as suite_mod, suite_report  # noqa: E402
 
+minimal = importlib.reload(minimal)
 compare = importlib.reload(compare)
 compare_hub = importlib.reload(compare_hub)
 decode = importlib.reload(decode)
 shapes = importlib.reload(shapes)
 images = importlib.reload(images)
 jobs = importlib.reload(jobs)
-driver = importlib.reload(driver)
-lab = importlib.reload(lab)
-artifacts = importlib.reload(artifacts)
-driver = importlib.reload(driver)  # again, so its re-exports are the reloaded lab and artifacts
+# driver re-exports lab and artifacts, which import from driver: two passes so each side sees the other's new code
+for _ in range(2):
+    lab = importlib.reload(lab)
+    artifacts = importlib.reload(artifacts)
+    driver = importlib.reload(driver)
 image_job = importlib.reload(image_job)
 offline_job = importlib.reload(offline_job)
 gl = importlib.reload(gl)
 prepare_story = importlib.reload(prepare_story)
+suite_report = importlib.reload(suite_report)
 suite_mod = importlib.reload(suite_mod)
 prepare_job = importlib.reload(prepare_job)  # after suite_mod: it uses the suite's process helpers
 plugins = importlib.reload(plugins)  # before adopt UI: Adoption reads stack helpers from here
@@ -47,8 +50,8 @@ lanes = importlib.reload(lanes)
 st.set_page_config(page_title="Cipherops · MTL DNSSEC Lab", layout="wide", page_icon="🛰️")
 
 from live_lab.ui import (  # noqa: E402
-    activity, adopt, benchmark_offline, benchmark_simulated, common, compare_page, home, lab as lab_tile,
-    learn, live, reset, setup, track_offline, track_simulated,
+    activity, adopt, benchmark_offline, benchmark_simulated, common, compare_page, dock, hero, home,
+    lab as lab_tile, learn, live, reset, setup, track_offline, track_simulated,
 )
 
 common = importlib.reload(common)
@@ -64,10 +67,14 @@ track_simulated = importlib.reload(track_simulated)
 reset = importlib.reload(reset)
 learn = importlib.reload(learn)
 adopt = importlib.reload(adopt)
+dock = importlib.reload(dock)
+hero = importlib.reload(hero)
 home = importlib.reload(home)
 
 _CSS = """
 <style>
+/* Streamlit's wide layout leaves ~6rem above and ~10rem below the page; Home then needs a scrollbar. */
+[data-testid="stMainBlockContainer"]{padding-top:2.75rem;padding-bottom:1.5rem}
 .co-chip{display:inline-block;padding:2px 11px;border-radius:999px;font-size:.78rem;
   font-weight:600;letter-spacing:.01em;vertical-align:middle}
 .co-ok{background:#0f3d2b;color:#6df0b0}
@@ -87,6 +94,21 @@ _CSS = """
 .co-n{display:inline-flex;align-items:center;justify-content:center;width:1.35rem;height:1.35rem;
   border-radius:999px;background:#ff4b4b;color:#fff;font-size:.75rem;font-weight:700;line-height:1;flex:none}
 .co-arr{opacity:.4;font-weight:500}
+/* Sidebar: brand, About, and a compact testbed status list. */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p{margin-bottom:.2rem}
+.co-sb-brand{margin:.15rem 0 .55rem}
+.co-sb-name{font-size:1.35rem;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.co-sb-tag{opacity:.65;font-size:.88rem;margin-top:.1rem}
+.co-sb-panel{margin:.15rem 0 .7rem}
+.co-sb-head{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem .55rem;margin-bottom:.55rem}
+.co-sb-head .co-sb-h{font-size:1.02rem;font-weight:650}
+.co-sb-row{display:grid;grid-template-columns:10px minmax(0,1fr);column-gap:.55rem;row-gap:.1rem;
+  align-items:start;margin:.42rem 0}
+.co-sb-dot{width:8px;height:8px;border-radius:50%;margin-top:.42rem;background:rgba(250,250,250,.28);flex:none}
+.co-sb-dot.on{background:#5BE7A9;box-shadow:0 0 0 3px rgba(91,231,169,.12)}
+.co-sb-label{font-size:.92rem;font-weight:600;line-height:1.35}
+.co-sb-val{grid-column:2;font:400 .78rem ui-monospace,"Cascadia Code",Consolas,monospace;
+  color:rgba(233,241,255,.62);overflow-wrap:anywhere}
 /* Track steps: one coral number, not a radio dot plus a circled digit. */
 .st-key-step_offline [data-testid="stRadioGroup"],
 .st-key-step_simulated [data-testid="stRadioGroup"]{counter-reset:cotrack;gap:1.15rem}
@@ -117,24 +139,19 @@ def _lab_revision() -> str:
         return ""
 
 
-# Top-right chrome: "About" (opens a full-page panel) + full-screen symbol. The About content is
-# assets/about.html; this small iframe only draws the two buttons and injects that panel into the page.
 _ABOUT_ASSET = Path(__file__).parent / "assets" / "about.html"
 
+# About + maximize sit together in the app header band (left of Deploy), not in the sidebar.
 _CHROME_TEMPLATE = r"""
 <style>
   html, body { margin: 0; background: transparent; overflow: hidden; }
   .bar { display: flex; align-items: center; gap: 6px; justify-content: flex-end; height: 34px;
          font: 13px "Source Sans Pro", "Source Sans 3", system-ui, sans-serif; }
-  .bar button { height: 32px; border-radius: 8px; cursor: pointer; color: #31333f;
-                background: rgba(255,255,255,.94); border: 1px solid rgba(49,51,63,.18); }
+  .bar button { height: 32px; border-radius: 8px; cursor: pointer; color: #fafafa;
+                background: rgba(38,39,48,.94); border: 1px solid rgba(250,250,250,.2); }
   .bar button:hover { border-color: #ff4b4b; color: #ff4b4b; }
   .bar #about { padding: 0 12px; font: inherit; font-weight: 600; letter-spacing: .01em; }
   .bar #fs { width: 32px; padding: 0; font-size: 15px; line-height: 1; }
-  @media (prefers-color-scheme: dark) {
-    .bar button { color: #fafafa; background: rgba(38,39,48,.94); border-color: rgba(250,250,250,.2); }
-    .bar button:hover { border-color: #ff4b4b; color: #ff4b4b; }
-  }
 </style>
 <div class="bar">
   <button type="button" id="about" title="About this lab">About</button>
@@ -145,14 +162,14 @@ _CHROME_TEMPLATE = r"""
   const PANEL = __PANEL__;
   const frame = window.frameElement;
   if (frame) {
-    Object.assign(frame.style, { position: "fixed", top: "4.1rem", right: "1.25rem",
-      width: "118px", height: "36px", zIndex: "998", border: "none", background: "transparent" });
+    // Sit just under Streamlit's Deploy/menu row so both buttons stay visible and off the hero.
+    Object.assign(frame.style, { position: "fixed", top: "3.75rem", right: "1.5rem",
+      width: "124px", height: "36px", zIndex: "1000", border: "none", background: "transparent" });
     const slot = frame.closest("[data-testid='stElementContainer'], .stElementContainer, .element-container");
     if (slot) Object.assign(slot.style, { height: "0", margin: "0", padding: "0", overflow: "visible" });
   }
   const win = window.parent, doc = win.document;
 
-  // Full screen: needs a click, so it is a button. Replace any listener left by an earlier run of this script.
   const fsBtn = document.getElementById("fs");
   try {
     const sync = () => {
@@ -168,7 +185,6 @@ _CHROME_TEMPLATE = r"""
     sync();
   } catch (e) { fsBtn.title = "Press F11 for full screen"; fsBtn.disabled = true; }
 
-  // About panel: built once per page load (rebuilt if its content changed), closed by x, backdrop or Esc.
   function ensurePanel() {
     let root = doc.getElementById("co-about-root");
     const version = String(PANEL.length);
@@ -203,6 +219,7 @@ def _chrome_html(revision: str) -> str:
 
 
 def _chrome_bar() -> None:
+    """About + maximize in the header band, left of Streamlit's Deploy control."""
     common._embed_html(_chrome_html(_lab_revision()), height=1)
 
 
@@ -244,7 +261,8 @@ def main() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
     if not _minimal_gate():
         return
-    _chrome_bar()  # About + full screen, top-right; no layout cost on the sidebar or page body
+    common.chrome_bar = None  # About + maximize are in the header band, not the sidebar
+    _chrome_bar()
     symbol, _full = common._brand()
     if symbol is not None:
         st.logo(symbol, icon_image=symbol, size="large")  # top-left on Home and on every tile

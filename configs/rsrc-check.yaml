@@ -1,0 +1,14 @@
+# Tiny offline run: one small zone, two trials — enough to exercise the resource sampler end to end.
+run_name: rsrc-check
+seed: 20261005
+trials: 2
+warmup_trials: 1
+modes: [slh-dsa-mtl, slh-dsa, ed25519, ecdsa-p256, rsa-2048]
+control: ed25519
+datasets:
+  - {name: small, n_names: 20}
+full_verify_sample: 8
+direct_sign_limit: {small: null}
+wire:
+  nx_sample: 20
+  workload: {n_queries: 100, nx_fraction: 0.10, zipf_s: 1.1}
