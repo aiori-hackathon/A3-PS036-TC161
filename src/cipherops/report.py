@@ -727,6 +727,61 @@ def build_markdown(run: results.Run, figs: dict[str, str]) -> str:
                                    "max RSS": sm.maxrss_bytes.map(fmt_bytes)})))
         add("\n*Table 9: measured signer state of the reference library process (`/proc/self/statm`, page-granular, "
             "so growth below a few pages is within measurement resolution).*\n")
+    rsrc_path = run.root / "rsrc_summary.json"
+    if rsrc_path.is_file():
+        try:
+            rsrc = json.loads(rsrc_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            rsrc = {}
+        if rsrc.get("n_samples"):
+            ov = rsrc.get("overall") or {}
+            whole = ov.get("source") == "cgroup_v2"
+            add("### 5.4a CPU and memory while the benchmark ran\n")
+            add("Measured by `rsrcsamp`, a small C program that reads the kernel's own counters once a second "
+                "and at every stage change. Two layers are recorded so a continuously hosted deployment can be sized:\n\n"
+                + ("- **Solution** — the whole benchmark container (Python driver and every `mtlbench` child): "
+                   "cgroup v2 `cpu.stat`, `memory.current`, `memory.stat`.\n"
+                   if whole else
+                   "- **Solution** — the Python driver process: `/proc/<pid>/stat` and `status`.\n")
+                + "- **Host** — the machine those containers share: `/proc/stat` (overall CPU busy %) and "
+                  "`/proc/meminfo` (`MemAvailable`). On Docker Desktop this is the WSL2 VM; on a Linux testbed "
+                  "it is the hardware.\n\n"
+                + "Solution CPU % is CPU time divided by wall time, so 100% is one core fully busy"
+                + (f"; this run could use {ov['cpus_allowed']} core(s)" if ov.get("cpus_allowed") else "")
+                + (f" on a host with {ov['cpus_online']} online"
+                   if ov.get("cpus_online") else "")
+                + ". Host CPU % is the share of all host cores that were busy. Memory figures exclude reclaimable "
+                  "file cache.\n")
+
+            def _num(v, digits: int = 1) -> str:
+                return "—" if v is None else f"{v:,.{digits}f}"
+
+            def _mem(v) -> str:
+                return "—" if v is None else fmt_bytes(v)
+
+            rows = [{"stage": lab,
+                     "wall time (s)": _num(agg.get("wall_s")),
+                     "solution CPU (s)": _num(agg.get("cpu_seconds")),
+                     "solution CPU % mean": _num(agg.get("cpu_pct_mean")),
+                     "solution CPU % peak": _num(agg.get("cpu_pct_peak")),
+                     "solution memory peak": _mem(agg.get("mem_bytes_peak")),
+                     "solution anon peak": _mem(agg.get("mem_anon_bytes_peak")),
+                     "host CPU % mean": _num(agg.get("host_cpu_pct_mean")),
+                     "host CPU % peak": _num(agg.get("host_cpu_pct_peak")),
+                     "host MemAvailable low": _mem(agg.get("host_mem_available_bytes_min"))}
+                    for lab, agg in (rsrc.get("by_label") or {}).items()]
+            if rows:
+                add(md_table(pd.DataFrame(rows)))
+                kind = {"cgroup_working_set": "`memory.current` minus inactive file cache (same family as "
+                                              "`docker stats`)",
+                        "cgroup_current": "`memory.current`, which includes file cache",
+                        "proc_rss": "the driver's resident set (VmRSS)"}.get(ov.get("mem_kind"), "as reported")
+                host_total = _mem(ov.get("host_mem_total_bytes"))
+                add(f"\n*Table 9a: measured, from `rsrc_samples.jsonl` (kept with the run so the figures remain "
+                    f"after execution). Solution memory is {kind}; anon is heap/stack without file cache. "
+                    f"Host memory total was {host_total}. The report stage is missing from this table because "
+                    f"it is written before that stage ends; `rsrc_summary.json` has the full series.*\n")
+
     add("### 5.5 Cache usage: analytical estimates\n")
     ca = _intcols(c[(c.scope == "resolver") & (c.kind == "analytical")], ["cached_rrsigs", "per_signature_bytes"])
     add(md_table(pd.DataFrame({"dataset": ca.dataset, "mode": ca["mode"].map(label), "RRSIGs": ca.cached_rrsigs,

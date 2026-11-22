@@ -98,7 +98,8 @@ COPY requirements.txt /work/requirements.txt
 RUN pip3 install --no-cache-dir --retries 10 --timeout 60 -r /work/requirements.txt
 
 COPY harness /work/harness
-RUN make -C /work/harness
+RUN make -C /work/harness all \
+    && install -m 0755 /work/harness/rsrcsamp /usr/local/bin/rsrcsamp
 
 COPY pyproject.toml /work/pyproject.toml
 COPY src /work/src
@@ -156,6 +157,14 @@ RUN test -n "${UNBOUND_COMMIT}" \
                    --enable-pqc-algo-snova --enable-pqc-algo-mtl-mode \
     && make -j"$(nproc)" && make install DESTDIR=/out
 
+# libc-only resource sampler (CPU jiffies / cgroup v2 + RSS). Shared by nsd/unbound/tools.
+FROM ${FEDORA_IMAGE} AS rsrcsamp-build
+RUN dnf -y install gcc make \
+    && dnf clean all
+COPY harness/rsrcsamp.c harness/Makefile /tmp/harness/
+RUN make -C /tmp/harness rsrcsamp \
+    && install -m 0755 /tmp/harness/rsrcsamp /usr/local/bin/rsrcsamp
+
 FROM ${FEDORA_IMAGE} AS lab-runtime
 RUN dnf -y install libevent expat iproute iproute-tc tcpdump procps-ng python3 \
     && dnf clean all
@@ -163,6 +172,7 @@ RUN echo "/usr/local/lib64" > /etc/ld.so.conf.d/crypto.conf \
     && echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf
 COPY --from=toolchain /usr/local/lib64 /usr/local/lib64
 COPY --from=toolchain /usr/local/bin/openssl /usr/local/bin/openssl
+COPY --from=rsrcsamp-build /usr/local/bin/rsrcsamp /usr/local/bin/rsrcsamp
 RUN ldconfig
 
 #######################################
